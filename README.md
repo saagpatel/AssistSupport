@@ -148,8 +148,8 @@ cargo test --workspace --all-targets --all-features
 
 ## Current Release
 
-- GitHub release: `v0.1.0`
-- URL: `https://github.com/saagar210/MemoryKernel/releases/tag/v0.1.0`
+- GitHub release: `v0.2.0`
+- URL: `https://github.com/saagar210/MemoryKernel/releases/tag/v0.2.0`
 
 ## Troubleshooting
 

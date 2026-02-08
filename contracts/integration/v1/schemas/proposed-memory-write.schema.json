@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "": "https://memorykernel.dev/contracts/integration/v1/proposed-memory-write.schema.json",
+  "$id": "https://memorykernel.dev/contracts/integration/v1/proposed-memory-write.schema.json",
   "title": "ProposedMemoryWrite",
   "type": "object",
   "additionalProperties": false,

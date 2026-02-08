@@ -40,6 +40,9 @@ jobs:
       - name: Trilogy compatibility artifact validation (consumer gate)
         run: ./scripts/verify_trilogy_compatibility_artifacts.sh --memorykernel-root "$GITHUB_WORKSPACE"
 
+      - name: Service contract alignment
+        run: ./scripts/verify_service_contract_alignment.sh --memorykernel-root "$GITHUB_WORKSPACE"
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 

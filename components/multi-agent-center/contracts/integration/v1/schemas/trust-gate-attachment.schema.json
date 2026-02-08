@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "": "https://memorykernel.dev/contracts/integration/v1/trust-gate-attachment.schema.json",
+  "$id": "https://memorykernel.dev/contracts/integration/v1/trust-gate-attachment.schema.json",
   "title": "TrustGateAttachment",
   "type": "object",
   "additionalProperties": false,

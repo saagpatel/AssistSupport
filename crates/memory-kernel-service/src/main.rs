@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -13,8 +14,9 @@ use memory_kernel_api::{
     RecallRequest, API_CONTRACT_VERSION,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
-const SERVICE_CONTRACT_VERSION: &str = "service.v1";
+const SERVICE_CONTRACT_VERSION: &str = "service.v2";
 const OPENAPI_YAML: &str = include_str!("../../../openapi/openapi.yaml");
 
 #[derive(Debug, Clone)]
@@ -35,7 +37,25 @@ where
 #[derive(Debug, Clone, Serialize)]
 struct ServiceError {
     service_contract_version: &'static str,
-    error: String,
+    error: ServiceErrorPayload,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    legacy_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ServiceErrorPayload {
+    code: &'static str,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    details: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone)]
+struct ServiceFailure {
+    status: StatusCode,
+    code: &'static str,
+    message: String,
+    details: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -58,16 +78,89 @@ struct Args {
     bind: SocketAddr,
 }
 
-impl IntoResponse for ServiceError {
+impl IntoResponse for ServiceFailure {
     fn into_response(self) -> Response {
-        let status = StatusCode::BAD_REQUEST;
-        (status, Json(self)).into_response()
+        let payload = ServiceError {
+            service_contract_version: SERVICE_CONTRACT_VERSION,
+            error: ServiceErrorPayload {
+                code: self.code,
+                message: self.message.clone(),
+                details: self.details,
+            },
+            // Transitional compatibility field for string-only consumers.
+            legacy_error: Some(self.message),
+        };
+        (self.status, Json(payload)).into_response()
     }
 }
 
 impl ServiceState {
-    fn error(message: impl Into<String>) -> ServiceError {
-        ServiceError { service_contract_version: SERVICE_CONTRACT_VERSION, error: message.into() }
+    fn failure(
+        status: StatusCode,
+        code: &'static str,
+        message: impl Into<String>,
+        details: Option<serde_json::Value>,
+    ) -> ServiceFailure {
+        ServiceFailure { status, code, message: message.into(), details }
+    }
+
+    fn invalid_json(rejection: &JsonRejection) -> ServiceFailure {
+        Self::failure(
+            rejection.status(),
+            "invalid_json",
+            rejection.body_text(),
+            Some(json!({"rejection": rejection.to_string()})),
+        )
+    }
+
+    fn classify_api_error(
+        err: &anyhow::Error,
+        default_status: StatusCode,
+        default_code: &'static str,
+    ) -> ServiceFailure {
+        let message = err.to_string();
+        let diagnostic = format!("{err:#}");
+        let normalized = diagnostic.to_ascii_lowercase();
+
+        if normalized.contains("context package not found") {
+            return Self::failure(
+                StatusCode::NOT_FOUND,
+                "context_package_not_found",
+                message,
+                None,
+            );
+        }
+
+        if normalized.contains("unique constraint failed")
+            || normalized.contains("foreign key constraint failed")
+            || normalized.contains("already exists")
+        {
+            return Self::failure(StatusCode::CONFLICT, "write_conflict", message, None);
+        }
+
+        if normalized.contains("validation failed")
+            || normalized.contains("must be provided")
+            || normalized.contains("cannot be empty")
+            || normalized.contains("unknown record_type")
+            || normalized.contains("unknown truth_status")
+            || normalized.contains("unknown authority")
+        {
+            return Self::failure(StatusCode::BAD_REQUEST, "validation_error", message, None);
+        }
+
+        if normalized.contains("schema")
+            || normalized.contains("sqlite")
+            || normalized.contains("database")
+        {
+            return Self::failure(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "schema_unavailable",
+                message,
+                None,
+            );
+        }
+
+        Self::failure(default_status, default_code, message, None)
     }
 }
 
@@ -116,72 +209,98 @@ async fn openapi() -> impl IntoResponse {
 
 async fn db_schema_version(
     State(state): State<ServiceState>,
-) -> Result<Json<ServiceEnvelope<memory_kernel_store_sqlite::SchemaStatus>>, ServiceError> {
-    let status = state.api.schema_status().map_err(|err| ServiceState::error(err.to_string()))?;
+) -> Result<Json<ServiceEnvelope<memory_kernel_store_sqlite::SchemaStatus>>, ServiceFailure> {
+    let status = state.api.schema_status().map_err(|err| {
+        ServiceState::classify_api_error(
+            &err,
+            StatusCode::SERVICE_UNAVAILABLE,
+            "schema_unavailable",
+        )
+    })?;
     Ok(Json(envelope(status)))
 }
 
 async fn db_migrate(
     State(state): State<ServiceState>,
-    Json(request): Json<MigrateRequest>,
-) -> Result<Json<ServiceEnvelope<memory_kernel_api::MigrateResult>>, ServiceError> {
-    let result =
-        state.api.migrate(request.dry_run).map_err(|err| ServiceState::error(err.to_string()))?;
+    payload: Result<Json<MigrateRequest>, JsonRejection>,
+) -> Result<Json<ServiceEnvelope<memory_kernel_api::MigrateResult>>, ServiceFailure> {
+    let Json(request) = payload.map_err(|rejection| ServiceState::invalid_json(&rejection))?;
+    let result = state.api.migrate(request.dry_run).map_err(|err| {
+        ServiceState::classify_api_error(
+            &err,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "migration_failed",
+        )
+    })?;
     Ok(Json(envelope(result)))
 }
 
 async fn memory_add_constraint(
     State(state): State<ServiceState>,
-    Json(request): Json<AddConstraintRequest>,
-) -> Result<Json<ServiceEnvelope<memory_kernel_core::MemoryRecord>>, ServiceError> {
-    let record =
-        state.api.add_constraint(request).map_err(|err| ServiceState::error(err.to_string()))?;
+    payload: Result<Json<AddConstraintRequest>, JsonRejection>,
+) -> Result<Json<ServiceEnvelope<memory_kernel_core::MemoryRecord>>, ServiceFailure> {
+    let Json(request) = payload.map_err(|rejection| ServiceState::invalid_json(&rejection))?;
+    let record = state.api.add_constraint(request).map_err(|err| {
+        ServiceState::classify_api_error(&err, StatusCode::INTERNAL_SERVER_ERROR, "write_failed")
+    })?;
     Ok(Json(envelope(record)))
 }
 
 async fn memory_add_summary(
     State(state): State<ServiceState>,
-    Json(request): Json<AddSummaryRequest>,
-) -> Result<Json<ServiceEnvelope<memory_kernel_core::MemoryRecord>>, ServiceError> {
-    let record =
-        state.api.add_summary(request).map_err(|err| ServiceState::error(err.to_string()))?;
+    payload: Result<Json<AddSummaryRequest>, JsonRejection>,
+) -> Result<Json<ServiceEnvelope<memory_kernel_core::MemoryRecord>>, ServiceFailure> {
+    let Json(request) = payload.map_err(|rejection| ServiceState::invalid_json(&rejection))?;
+    let record = state.api.add_summary(request).map_err(|err| {
+        ServiceState::classify_api_error(&err, StatusCode::INTERNAL_SERVER_ERROR, "write_failed")
+    })?;
     Ok(Json(envelope(record)))
 }
 
 async fn memory_link(
     State(state): State<ServiceState>,
-    Json(request): Json<AddLinkRequest>,
-) -> Result<Json<ServiceEnvelope<memory_kernel_api::AddLinkResult>>, ServiceError> {
-    let result = state.api.add_link(request).map_err(|err| ServiceState::error(err.to_string()))?;
+    payload: Result<Json<AddLinkRequest>, JsonRejection>,
+) -> Result<Json<ServiceEnvelope<memory_kernel_api::AddLinkResult>>, ServiceFailure> {
+    let Json(request) = payload.map_err(|rejection| ServiceState::invalid_json(&rejection))?;
+    let result = state.api.add_link(request).map_err(|err| {
+        ServiceState::classify_api_error(&err, StatusCode::INTERNAL_SERVER_ERROR, "write_failed")
+    })?;
     Ok(Json(envelope(result)))
 }
 
 async fn query_ask(
     State(state): State<ServiceState>,
-    Json(request): Json<AskRequest>,
-) -> Result<Json<ServiceEnvelope<memory_kernel_core::ContextPackage>>, ServiceError> {
-    let package =
-        state.api.query_ask(request).map_err(|err| ServiceState::error(err.to_string()))?;
+    payload: Result<Json<AskRequest>, JsonRejection>,
+) -> Result<Json<ServiceEnvelope<memory_kernel_core::ContextPackage>>, ServiceFailure> {
+    let Json(request) = payload.map_err(|rejection| ServiceState::invalid_json(&rejection))?;
+    let package = state.api.query_ask(request).map_err(|err| {
+        ServiceState::classify_api_error(&err, StatusCode::INTERNAL_SERVER_ERROR, "query_failed")
+    })?;
     Ok(Json(envelope(package)))
 }
 
 async fn query_recall(
     State(state): State<ServiceState>,
-    Json(request): Json<RecallRequest>,
-) -> Result<Json<ServiceEnvelope<memory_kernel_core::ContextPackage>>, ServiceError> {
-    let package =
-        state.api.query_recall(request).map_err(|err| ServiceState::error(err.to_string()))?;
+    payload: Result<Json<RecallRequest>, JsonRejection>,
+) -> Result<Json<ServiceEnvelope<memory_kernel_core::ContextPackage>>, ServiceFailure> {
+    let Json(request) = payload.map_err(|rejection| ServiceState::invalid_json(&rejection))?;
+    let package = state.api.query_recall(request).map_err(|err| {
+        ServiceState::classify_api_error(&err, StatusCode::INTERNAL_SERVER_ERROR, "query_failed")
+    })?;
     Ok(Json(envelope(package)))
 }
 
 async fn context_show(
     State(state): State<ServiceState>,
     Path(context_package_id): Path<String>,
-) -> Result<Json<ServiceEnvelope<memory_kernel_core::ContextPackage>>, ServiceError> {
-    let package = state
-        .api
-        .context_show(&context_package_id)
-        .map_err(|err| ServiceState::error(err.to_string()))?;
+) -> Result<Json<ServiceEnvelope<memory_kernel_core::ContextPackage>>, ServiceFailure> {
+    let package = state.api.context_show(&context_package_id).map_err(|err| {
+        ServiceState::classify_api_error(
+            &err,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "context_lookup_failed",
+        )
+    })?;
     Ok(Json(envelope(package)))
 }
 
@@ -269,9 +388,10 @@ mod tests {
             Err(err) => panic!("response body is not UTF-8: {err}"),
         };
         assert!(body.contains("openapi: 3.1.0"));
-        assert!(body.contains("version: service.v1"));
+        assert!(body.contains("version: service.v2"));
         assert!(body.contains("/v1/memory/add/summary"));
         assert!(body.contains("/v1/query/recall"));
+        assert!(body.contains("ServiceErrorEnvelope"));
     }
 
     // Test IDs: TSVC-002
@@ -449,6 +569,217 @@ mod tests {
                 .and_then(|determinism| determinism.get("ruleset_version"))
                 .and_then(serde_json::Value::as_str),
             Some("recall-ordering.v1")
+        );
+
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    // Test IDs: TSVC-005
+    #[tokio::test]
+    async fn context_show_missing_returns_not_found_machine_error() {
+        let db_path = unique_temp_db_path();
+        let state = ServiceState { api: MemoryKernelApi::new(db_path.clone()) };
+        let router = app(state);
+
+        let response = match router
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/context/ctx_missing")
+                    .method("GET")
+                    .body(axum::body::Body::empty())
+                    .unwrap_or_else(|err| panic!("failed to build context request: {err}")),
+            )
+            .await
+        {
+            Ok(response) => response,
+            Err(err) => panic!("context request failed: {err}"),
+        };
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let value = response_json(response).await;
+        assert_eq!(
+            value
+                .get("error")
+                .and_then(|error| error.get("code"))
+                .and_then(serde_json::Value::as_str),
+            Some("context_package_not_found")
+        );
+        assert!(
+            value.get("legacy_error").and_then(serde_json::Value::as_str).is_some(),
+            "missing legacy_error for compatibility: {value}"
+        );
+
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    // Test IDs: TSVC-006
+    #[tokio::test]
+    async fn add_constraint_validation_failure_returns_validation_error() {
+        let db_path = unique_temp_db_path();
+        let state = ServiceState { api: MemoryKernelApi::new(db_path.clone()) };
+        let router = app(state);
+
+        let add_payload = serde_json::json!({
+            "actor": "user",
+            "action": "use",
+            "resource": "usb_drive",
+            "effect": "deny",
+            "note": null,
+            "memory_id": null,
+            "version": 1,
+            "writer": "",
+            "justification": "service fixture",
+            "source_uri": "file:///policy.md",
+            "source_hash": "sha256:abc123",
+            "evidence": [],
+            "confidence": 0.9,
+            "truth_status": "asserted",
+            "authority": "authoritative",
+            "created_at": null,
+            "effective_at": null,
+            "supersedes": [],
+            "contradicts": []
+        });
+
+        let response = match router
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/memory/add/constraint")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(add_payload.to_string()))
+                    .unwrap_or_else(|err| panic!("failed to build request: {err}")),
+            )
+            .await
+        {
+            Ok(response) => response,
+            Err(err) => panic!("request failed: {err}"),
+        };
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let value = response_json(response).await;
+        assert_eq!(
+            value
+                .get("error")
+                .and_then(|error| error.get("code"))
+                .and_then(serde_json::Value::as_str),
+            Some("validation_error")
+        );
+
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    // Test IDs: TSVC-007
+    #[tokio::test]
+    async fn invalid_json_payload_returns_invalid_json_error() {
+        let db_path = unique_temp_db_path();
+        let state = ServiceState { api: MemoryKernelApi::new(db_path.clone()) };
+        let router = app(state);
+
+        let response = match router
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/query/ask")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from("{".to_string()))
+                    .unwrap_or_else(|err| panic!("failed to build request: {err}")),
+            )
+            .await
+        {
+            Ok(response) => response,
+            Err(err) => panic!("request failed: {err}"),
+        };
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let value = response_json(response).await;
+        assert_eq!(
+            value
+                .get("error")
+                .and_then(|error| error.get("code"))
+                .and_then(serde_json::Value::as_str),
+            Some("invalid_json")
+        );
+        assert!(
+            value
+                .get("error")
+                .and_then(|error| error.get("details"))
+                .and_then(|details| details.get("rejection"))
+                .and_then(serde_json::Value::as_str)
+                .is_some(),
+            "missing json rejection details: {value}"
+        );
+
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    // Test IDs: TSVC-008
+    #[tokio::test]
+    async fn duplicate_identity_returns_write_conflict() {
+        let db_path = unique_temp_db_path();
+        let state = ServiceState { api: MemoryKernelApi::new(db_path.clone()) };
+        let router = app(state);
+
+        let payload = serde_json::json!({
+            "actor": "user",
+            "action": "use",
+            "resource": "usb_drive",
+            "effect": "deny",
+            "note": null,
+            "memory_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "version": 1,
+            "writer": "tester",
+            "justification": "service fixture",
+            "source_uri": "file:///policy.md",
+            "source_hash": "sha256:abc123",
+            "evidence": [],
+            "confidence": 0.9,
+            "truth_status": "asserted",
+            "authority": "authoritative",
+            "created_at": null,
+            "effective_at": null,
+            "supersedes": [],
+            "contradicts": []
+        });
+
+        let first = match router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/memory/add/constraint")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(payload.to_string()))
+                    .unwrap_or_else(|err| panic!("failed to build request: {err}")),
+            )
+            .await
+        {
+            Ok(response) => response,
+            Err(err) => panic!("request failed: {err}"),
+        };
+        assert_eq!(first.status(), StatusCode::OK);
+
+        let second = match router
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/memory/add/constraint")
+                    .method("POST")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(payload.to_string()))
+                    .unwrap_or_else(|err| panic!("failed to build request: {err}")),
+            )
+            .await
+        {
+            Ok(response) => response,
+            Err(err) => panic!("request failed: {err}"),
+        };
+        assert_eq!(second.status(), StatusCode::CONFLICT);
+        let value = response_json(second).await;
+        assert_eq!(
+            value
+                .get("error")
+                .and_then(|error| error.get("code"))
+                .and_then(serde_json::Value::as_str),
+            Some("write_conflict")
         );
 
         let _ = std::fs::remove_file(&db_path);
