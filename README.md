@@ -1,54 +1,159 @@
-# Memory Kernel
+# MemoryKernel
 
-Personal AI Memory Kernel with typed, append-only, policy-controlled memories and deterministic Context Packages.
+MemoryKernel is the authoritative memory layer in the trilogy:
 
-Current retrieval surfaces include:
-- policy query (`query ask`) for constraint resolution
-- recall query (`query recall`) for deterministic mixed-record retrieval
+- `MemoryKernel`: typed memory storage and deterministic context resolution.
+- `OutcomeMemory`: trust projection and gating.
+- `MultiAgentCenter`: orchestration, execution traces, and replay.
 
-Host command surface also includes OutcomeMemory operations under `mk outcome ...` for
-append-only outcome event logging, replay, projector health, and trust gate preview flows.
+This project stores policy and recall memory records in SQLite and returns deterministic, explainable Context Packages instead of raw rows.
 
-## Workspace Crates
+## What You Get
 
-- `crates/memory-kernel-core`: domain model, validation, resolver, Context Package builder.
-- `crates/memory-kernel-store-sqlite`: SQLite schema, migrations, persistence APIs.
-- `crates/memory-kernel-cli`: CLI contract for explicit writes, links, query, and context retrieval.
-- `crates/memory-kernel-api`: stable programmatic API surface over core/store operations.
-- `crates/memory-kernel-service`: local HTTP service exposing versioned integration endpoints.
+- Typed records: `constraint`, `decision`, `preference`, `event`, `outcome`.
+- Append-only history with explicit lineage links (`supersedes`, `contradicts`).
+- Provenance fields on writes (`source_uri`, optional `source_hash`).
+- Separate truth semantics and confidence (`truth_status` is not `confidence`).
+- Deterministic policy (`query ask`) and recall (`query recall`) retrieval.
+- Explainable outputs with selected and excluded items plus reasons.
+- Integrated `mk outcome ...` host commands for OutcomeMemory operations.
 
-## Normative Specs
+## Repository Layout
 
-- `docs/spec/requirements.md`
-- `docs/spec/domain.md`
-- `docs/spec/resolver.md`
-- `docs/spec/context-package.md`
-- `docs/spec/cli-contract.md`
-- `docs/spec/migrations.md`
-- `docs/spec/versioning.md`
-- `docs/spec/service-contract.md`
-- `docs/spec/integration-contract.md`
+- `crates/memory-kernel-core`: domain model, validation, resolver, context package assembly.
+- `crates/memory-kernel-store-sqlite`: schema, migrations, persistence, snapshot/export/restore.
+- `crates/memory-kernel-cli`: `mk` CLI surface.
+- `crates/memory-kernel-api`: stable local API wrapper.
+- `crates/memory-kernel-service`: HTTP service and OpenAPI surface.
+- `contracts/v1`: versioned CLI JSON schemas and fixtures.
+- `contracts/integration/v1`: trilogy integration schemas and fixtures (canonical source).
+- `docs/spec`: normative contracts and behavior definitions.
+- `docs/implementation`: release gates, closeout reports, and phase records.
 
-## Governance
+## Quick Start
 
-- ADRs: `docs/adr/`
-- Traceability: `docs/traceability-matrix.md`
-- Tests catalog: `docs/testing/test-catalog.md`
-- Performance budgets: `docs/testing/performance-budgets.md`
-- Security docs: `docs/security/threat-model.md`, `docs/security/trust-controls.md`
-- Operations runbooks: `docs/operations/migration-runbook.md`, `docs/operations/recovery-runbook.md`
-- Phase checklists: `docs/implementation/`
-- Contracts: `contracts/v1/`
+### Prerequisites
+
+- Rust stable toolchain (`rustup` + `cargo`)
+- SQLite-compatible local filesystem
+- Optional for hosted checks: GitHub CLI (`gh`) authenticated to your account
+
+### 1) Initialize a local DB
+
+```bash
+cargo run -p memory-kernel-cli -- --db ./memory_kernel.sqlite3 db migrate
+```
+
+### 2) Add a policy record
+
+```bash
+cargo run -p memory-kernel-cli -- --db ./memory_kernel.sqlite3 memory add constraint \
+  --actor user \
+  --action use \
+  --resource usb_drive \
+  --effect deny \
+  --writer local-dev \
+  --justification "USB policy baseline" \
+  --source-uri file:///policy/usb.md \
+  --truth-status asserted \
+  --authority authoritative \
+  --confidence 0.95
+```
+
+### 3) Ask a policy question
+
+```bash
+cargo run -p memory-kernel-cli -- --db ./memory_kernel.sqlite3 query ask \
+  --text "Am I allowed to use a USB drive?" \
+  --actor user \
+  --action use \
+  --resource usb_drive
+```
+
+### 4) Run recall query
+
+```bash
+cargo run -p memory-kernel-cli -- --db ./memory_kernel.sqlite3 query recall \
+  --text "usb policy history"
+```
+
+## CLI Command Map
+
+Run help:
+
+```bash
+cargo run -p memory-kernel-cli -- --help
+```
+
+Top-level command groups:
+
+- `db`: schema status, migration, export/import, backup/restore, integrity checks
+- `memory`: add/link/list memory records
+- `query`: policy ask and recall retrieval
+- `context`: context package lookup
+- `outcome`: OutcomeMemory host surface
+
+## Service and API
+
+- API crate: `crates/memory-kernel-api`
+- Service binary: `crates/memory-kernel-service`
+- OpenAPI: `openapi/openapi.yaml`
+
+## Trilogy Integration
+
+MemoryKernel is the canonical source for `contracts/integration/v1/*`.
+
+- OutcomeMemory and MultiAgentCenter must parity-match that contract pack.
+- Cross-project compatibility and locked release evidence are recorded in:
+  - `docs/implementation/trilogy-compatibility-matrix.md`
+  - `docs/implementation/trilogy-closeout-report-latest.md`
 
 ## Quality Gates
 
-- CI workflow: `.github/workflows/ci.yml`
-- Local verification commands:
-  - `./scripts/run_trilogy_phase_8_11_closeout.sh --soak-iterations 1`
-  - `./scripts/verify_contract_parity.sh`
-  - `./scripts/verify_trilogy_compatibility_artifacts.sh`
-  - `./scripts/run_trilogy_smoke.sh`
-  - `./scripts/run_trilogy_soak.sh --iterations 3`
-  - `cargo fmt --all -- --check`
-  - `cargo clippy --workspace --all-targets --all-features -- -D warnings`
-  - `cargo test --workspace --all-targets --all-features`
+### Local quality gates
+
+```bash
+./scripts/run_trilogy_phase_8_11_closeout.sh --soak-iterations 1
+./scripts/verify_contract_parity.sh
+./scripts/verify_trilogy_compatibility_artifacts.sh
+./scripts/run_trilogy_smoke.sh
+./scripts/run_trilogy_soak.sh --iterations 3
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-targets --all-features
+```
+
+### Hosted workflows
+
+- CI: `.github/workflows/ci.yml`
+- Release: `.github/workflows/release.yml`
+
+## Documentation Index
+
+- Core requirements: `docs/spec/requirements.md`
+- Domain model: `docs/spec/domain.md`
+- Resolver behavior: `docs/spec/resolver.md`
+- Context package contract: `docs/spec/context-package.md`
+- CLI contract: `docs/spec/cli-contract.md`
+- Integration contract: `docs/spec/integration-contract.md`
+- Traceability: `docs/traceability-matrix.md`
+- Test catalog: `docs/testing/test-catalog.md`
+- Security: `docs/security/threat-model.md`, `docs/security/trust-controls.md`
+- Operations: `docs/operations/migration-runbook.md`, `docs/operations/recovery-runbook.md`
+
+## Current Release
+
+- GitHub release: `v0.1.0`
+- URL: `https://github.com/saagar210/MemoryKernel/releases/tag/v0.1.0`
+
+## Troubleshooting
+
+### Error: missing sibling repository path in CI/local builds
+
+Some crates use path dependencies to sibling projects during trilogy validation.
+Make sure sibling repos exist at:
+
+- `../OutcomeMemory`
+- `../MultiAgentCenter`
+
+or use the hosted workflows that checkout/link these dependencies automatically.
