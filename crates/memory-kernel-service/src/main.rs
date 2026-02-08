@@ -16,7 +16,7 @@ use memory_kernel_api::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-const SERVICE_CONTRACT_VERSION: &str = "service.v2";
+const SERVICE_CONTRACT_VERSION: &str = "service.v3";
 const OPENAPI_YAML: &str = include_str!("../../../openapi/openapi.yaml");
 
 #[derive(Debug, Clone)]
@@ -38,8 +38,6 @@ where
 struct ServiceError {
     service_contract_version: &'static str,
     error: ServiceErrorPayload,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    legacy_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -87,8 +85,6 @@ impl IntoResponse for ServiceFailure {
                 message: self.message.clone(),
                 details: self.details,
             },
-            // Transitional compatibility field for string-only consumers.
-            legacy_error: Some(self.message),
         };
         (self.status, Json(payload)).into_response()
     }
@@ -388,7 +384,7 @@ mod tests {
             Err(err) => panic!("response body is not UTF-8: {err}"),
         };
         assert!(body.contains("openapi: 3.1.0"));
-        assert!(body.contains("version: service.v2"));
+        assert!(body.contains("version: service.v3"));
         assert!(body.contains("/v1/memory/add/summary"));
         assert!(body.contains("/v1/query/recall"));
         assert!(body.contains("ServiceErrorEnvelope"));
@@ -604,8 +600,8 @@ mod tests {
             Some("context_package_not_found")
         );
         assert!(
-            value.get("legacy_error").and_then(serde_json::Value::as_str).is_some(),
-            "missing legacy_error for compatibility: {value}"
+            value.get("legacy_error").is_none(),
+            "legacy_error must not be present in service.v3: {value}"
         );
 
         let _ = std::fs::remove_file(&db_path);
@@ -787,7 +783,7 @@ mod tests {
 
     // Test IDs: TSVC-009
     #[tokio::test]
-    async fn non_2xx_error_envelope_keeps_service_v2_shape() {
+    async fn non_2xx_error_envelope_keeps_service_v3_shape() {
         let db_path = unique_temp_db_path();
         let state = ServiceState { api: MemoryKernelApi::new(db_path.clone()) };
         let router = app(state);
@@ -847,16 +843,10 @@ mod tests {
             Some("validation_error")
         );
 
-        let error_message = value
-            .get("error")
-            .and_then(|error| error.get("message"))
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or_else(|| panic!("missing error.message: {value}"));
-        let legacy_error = value
-            .get("legacy_error")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or_else(|| panic!("missing legacy_error: {value}"));
-        assert_eq!(legacy_error, error_message);
+        assert!(
+            value.get("legacy_error").is_none(),
+            "legacy_error must not be present in service.v3: {value}"
+        );
 
         let _ = std::fs::remove_file(&db_path);
     }
