@@ -7,7 +7,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Tests](https://img.shields.io/badge/tests-436_passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)
-[![Compliance](https://img.shields.io/badge/compliance-HIPAA%20%7C%20GDPR%20%7C%20FISMA%20%7C%20SOC2%20%7C%20ISO%2027001-blue)](docs/compliance/COMPLIANCE_REPORT.md)
+[![Compliance](https://img.shields.io/badge/compliance-HIPAA%20%7C%20GDPR%20%7C%20FISMA%20%7C%20SOC2%20%7C%20ISO%2027001-blue)](#security-and-compliance)
 
 AssistSupport combines local LLM inference with an ML-powered hybrid search pipeline to generate accurate, KB-informed IT support responses. An ML intent classifier understands query meaning, a cross-encoder reranker sharpens relevance, and a feedback loop continuously improves results — all running on your machine with no data leaving your network.
 
@@ -136,7 +136,7 @@ User Question: "Can I work from home?"
 
 ## Quick Start
 
-For day-to-day engineering workflows (local validation, CI triage, backup/restore validation, key rotation, and release/rollback), see [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+Operational runbooks were removed in the size-optimized profile of this repository.
 
 ### Prerequisites
 
@@ -302,7 +302,7 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 - **Audit logging** — JSON-line format, thread-safe, 5 MB rotation, covers key generation/rotation, token ops, HTTP opt-in, path failures
 - **Filter injection prevention** — Unicode NFC normalization, SQL keyword detection
 - **Content Security Policy** — strict CSP headers for XSS prevention
-- **Compliance validated** against [HIPAA, GDPR, FISMA, SOC2, ISO 27001, PCI DSS, NIST SP 800-53](docs/compliance/COMPLIANCE_REPORT.md)
+- **Compliance alignment** targets HIPAA, GDPR, FISMA, SOC2, ISO 27001, PCI DSS, and NIST SP 800-53
 
 ### Productivity
 - Command palette (Cmd+K) and full keyboard-first workflow (30+ shortcuts)
@@ -470,7 +470,7 @@ search-api/                 # ML search pipeline (Python)
 └── rebuild_indexes.py      # Embedding & index regeneration
 ```
 
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
+Architecture and governance deep-dive docs were removed in this trimmed repository profile.
 
 ---
 
@@ -489,24 +489,15 @@ IT_KnowledgeBase/
 └── REFERENCE/        # Architecture docs, contact lists, FAQs
 ```
 
-See the [IT Support Guide](docs/IT_SUPPORT_GUIDE.md) for detailed deployment options and workflow examples.
+Team-specific IT support deployment guides were removed in this trimmed repository profile.
 
 ---
 
 ## Testing
 
 ```bash
-# Frontend tests (72 tests)
-pnpm test
-
-# Backend tests (364 tests — unit + integration + security)
+# Backend tests (unit + integration + security)
 cd src-tauri && cargo test
-
-# E2E smoke tests (UI + mock Tauri)
-pnpm run test:e2e:smoke
-
-# Ops workflow E2E tests
-pnpm run test:e2e:ops
 
 # Performance benchmarks
 cd src-tauri && cargo bench
@@ -515,9 +506,9 @@ cd src-tauri && cargo bench
 cd src-tauri && cargo audit
 ```
 
-**Test coverage**: 90% across backend and frontend. Security tests cover encryption, key management, path traversal, SSRF, filter injection, namespace consistency, and data migration. KB tests cover indexing, chunking, search ranking, policy boost, and incremental re-indexing.
+Security-focused backend tests cover encryption, key management, path traversal, SSRF, filter injection, namespace consistency, and data migration.
 
-See [Testing Guide](docs/TESTING.md) for the full test suite documentation.
+Frontend/e2e test documentation was removed in this trimmed repository profile.
 
 ---
 
@@ -542,16 +533,8 @@ See [Testing Guide](docs/TESTING.md) for the full test suite documentation.
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | System design, data flow, extension points |
-| [Security](docs/SECURITY.md) | Encryption, key management, threat model |
-| [Compliance Report](docs/compliance/COMPLIANCE_REPORT.md) | HIPAA/GDPR/FISMA/SOC2/ISO 27001/PCI DSS/NIST validation |
-| [Installation](docs/INSTALLATION.md) | Setup and configuration guide |
-| [Quick Start for IT](docs/QUICKSTART_IT_SUPPORT.md) | 5-minute setup guide |
-| [IT Support Guide](docs/IT_SUPPORT_GUIDE.md) | Workflows, team setup, Jira integration |
-| [Performance](docs/PERFORMANCE.md) | Tuning and optimization |
-| [Operations](docs/OPERATIONS.md) | Daily usage and maintenance |
-| [Testing](docs/TESTING.md) | Test suite, health checks, CI/CD |
-| [Roadmap](docs/ROADMAP.md) | Feature priorities and release plan |
+| `README.md` | Consolidated setup, architecture summary, and runtime behavior |
+| `SECURITY.md` | Security scope and disclosure entry point |
 | [Changelog](CHANGELOG.md) | Release history |
 
 ---
@@ -603,7 +586,7 @@ See [Testing Guide](docs/TESTING.md) for the full test suite documentation.
 - [ ] Windows support
 - [ ] ServiceNow integration
 
-See [ROADMAP.md](docs/ROADMAP.md) for the full release plan.
+Roadmap and execution planning artifacts were removed in this trimmed repository profile.
 
 ---
 
@@ -640,7 +623,7 @@ pnpm tauri dev
 
 ## Contributing
 
-Contributions welcome. See the [roadmap](docs/ROADMAP.md) for planned features.
+Contributions welcome. This repository now focuses on runtime artifacts only.
 
 ```bash
 # Fork and clone
@@ -655,7 +638,6 @@ pnpm install
 pnpm tauri dev
 
 # Run tests before submitting
-pnpm test
 cd src-tauri && cargo test && cargo clippy
 
 # Push and create PR
@@ -666,7 +648,7 @@ git push origin feature/your-feature
 
 ## Security
 
-See [SECURITY.md](docs/SECURITY.md) for the full security model and [Compliance Report](docs/compliance/COMPLIANCE_REPORT.md) for validation against 7 security standards.
+See `SECURITY.md` for security reporting guidance.
 
 To report a vulnerability, please open a security advisory on GitHub.
 

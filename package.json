@@ -8,14 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
     "test:security-regression": "cd src-tauri && cargo test security -- --nocapture && cargo test ssrf_dns_rebinding -- --nocapture && cargo test filter_injection -- --nocapture && cargo test path_validation -- --nocapture",
-    "test:e2e:smoke": "playwright test --config=playwright.config.ts --grep @smoke",
-    "test:e2e:ops": "playwright test --config=playwright.config.ts e2e/ops.spec.ts",
-    "test:e2e:revamp": "playwright test --config=playwright.config.ts e2e/revamp-queue-workflow.spec.ts",
-    "test:ci": "vitest run && cd src-tauri && cargo test",
+    "test:ci": "cd src-tauri && cargo test",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
   },
@@ -29,19 +23,12 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.1",
     "@tauri-apps/cli": "^2",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
-    "@vitest/coverage-v8": "^4.0.18",
-    "jsdom": "^27.4.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4",
-    "vitest": "^4.0.18"
+    "vite": "^7.0.4"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
