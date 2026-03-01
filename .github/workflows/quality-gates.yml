@@ -1,0 +1,72 @@
+name: quality-gates
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: quality-gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install gitleaks
+        run: |
+          GL_VERSION="8.24.2"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Policy checks
+        run: node scripts/ci/require-tests-and-docs.mjs
+
+      - name: Workflow command drift
+        run: pnpm run check:workflow-drift
+
+      - name: Verify commands
+        run: bash .codex/scripts/run_verify_commands.sh
+
+      - name: Generate coverage report
+        run: pnpm test:coverage
+
+      - name: Diff coverage
+        run: |
+          python3 -m pip install --upgrade pip diff-cover
+          BASE_REF="$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/@@')"
+          python3 -m diff_cover.diff_cover_tool coverage/frontend/lcov.info \
+            --compare-branch="${BASE_REF}" \
+            --fail-under=90 \
+            --include "src/**/*.ts" "src/**/*.tsx" \
+            --exclude "src/**/*.test.ts" "src/**/*.test.tsx" "src/**/*.spec.ts" "src/**/*.spec.tsx"
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: |
+            playwright-report/
+            test-results/
+            coverage/
