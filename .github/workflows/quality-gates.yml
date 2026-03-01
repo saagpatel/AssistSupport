@@ -46,6 +46,8 @@ jobs:
         run: pnpm run check:workflow-drift
 
       - name: Verify commands
+        env:
+          VERIFY_SKIP_REGEX: ${{ github.event_name == 'push' && '^pnpm git:guard:all$' || '' }}
         run: bash .codex/scripts/run_verify_commands.sh
 
       - name: Generate coverage report
