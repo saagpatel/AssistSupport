@@ -341,6 +341,7 @@ pub fn run() {
             commands::advance_runbook_session,
             commands::list_runbook_sessions,
             commands::reassign_runbook_session_scope,
+            commands::reassign_runbook_session_by_id,
             commands::product_workspace::list_runbook_templates,
             commands::product_workspace::save_runbook_template,
             commands::product_workspace::list_runbook_step_evidence,

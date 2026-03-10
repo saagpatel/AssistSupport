@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   hasMeaningfulWorkspaceDraftContent,
+  parseGuidedRunbookDraftNote,
   resolveLoadedWorkspaceDraftState,
   resolveVisibleRunbookScopeKey,
   resolveWorkspaceAutosaveState,
+  shouldMigrateVisibleRunbookSession,
+  shouldTreatGuidedRunbookAsWorkspaceProgress,
   shouldProceedAfterSaveAttempt,
 } from './workspaceDraftSession';
 
@@ -149,9 +152,68 @@ describe('workspaceDraftSession', () => {
     });
   });
 
+  it('restores the guided runbook draft note from diagnosis json and ignores bad payloads', () => {
+    expect(parseGuidedRunbookDraftNote(JSON.stringify({
+      notes: 'Captured evidence',
+      guidedRunbookDraftNote: 'Preserve this note',
+    }))).toBe('Preserve this note');
+
+    expect(parseGuidedRunbookDraftNote(JSON.stringify({
+      notes: 'Captured evidence',
+    }))).toBe('');
+
+    expect(parseGuidedRunbookDraftNote('{not-json')).toBe('');
+  });
+
   it('uses the legacy runbook scope only when the visible session comes from the fallback store', () => {
     expect(resolveVisibleRunbookScopeKey('workspace:123', true, false)).toBe('workspace:123');
     expect(resolveVisibleRunbookScopeKey('workspace:123', false, false)).toBe('workspace:123');
     expect(resolveVisibleRunbookScopeKey('workspace:123', false, true)).toBe('legacy:unscoped');
+  });
+
+  it('counts guided runbook state as workspace progress only when it belongs to this workspace or was touched here', () => {
+    expect(shouldTreatGuidedRunbookAsWorkspaceProgress({
+      hasGuidedRunbookSession: true,
+      runbookSessionTouched: false,
+      runbookSessionSourceScopeKey: 'draft:123',
+      workspaceRunbookScopeKey: 'draft:123',
+    })).toBe(true);
+
+    expect(shouldTreatGuidedRunbookAsWorkspaceProgress({
+      hasGuidedRunbookSession: true,
+      runbookSessionTouched: true,
+      runbookSessionSourceScopeKey: 'legacy:unscoped',
+      workspaceRunbookScopeKey: 'workspace:temp-1',
+    })).toBe(true);
+
+    expect(shouldTreatGuidedRunbookAsWorkspaceProgress({
+      hasGuidedRunbookSession: true,
+      runbookSessionTouched: false,
+      runbookSessionSourceScopeKey: 'legacy:unscoped',
+      workspaceRunbookScopeKey: 'workspace:temp-1',
+    })).toBe(false);
+  });
+
+  it('only migrates the visible runbook session when it is local or explicitly touched', () => {
+    expect(shouldMigrateVisibleRunbookSession({
+      hasGuidedRunbookSession: false,
+      runbookSessionTouched: false,
+      runbookSessionSourceScopeKey: null,
+      workspaceRunbookScopeKey: 'workspace:temp-1',
+    })).toBe(false);
+
+    expect(shouldMigrateVisibleRunbookSession({
+      hasGuidedRunbookSession: true,
+      runbookSessionTouched: false,
+      runbookSessionSourceScopeKey: 'legacy:unscoped',
+      workspaceRunbookScopeKey: 'workspace:temp-1',
+    })).toBe(false);
+
+    expect(shouldMigrateVisibleRunbookSession({
+      hasGuidedRunbookSession: true,
+      runbookSessionTouched: true,
+      runbookSessionSourceScopeKey: 'legacy:unscoped',
+      workspaceRunbookScopeKey: 'workspace:temp-1',
+    })).toBe(true);
   });
 });

@@ -184,6 +184,11 @@
   - When the workspace is rendering legacy `legacy:unscoped` runbook sessions, that scope now becomes the active source scope for later autosave/save migration.
   - Loading an autosave now keeps it separate from a real saved draft, so alternatives and case outcomes are not accidentally persisted against an autosave record that will later fork into a new saved draft ID.
   - Focused late-fix verification: `pnpm test -- --run src/features/workspace/workspaceDraftSession.test.ts src/features/workspace/workspaceAssistant.test.ts src/features/revamp/screens/QueueCommandCenterPage.test.tsx src/features/workspace/TicketWorkspaceRail.test.tsx src/features/app-shell/commands.test.ts`, `pnpm ui:gate:static`, `pnpm git:guard:all`, `pnpm test:e2e:smoke`, and `cd src-tauri && cargo test -q --no-run`.
+- 2026-03-10: Final merge-closeout fixes completed for the workspace draft/runbook lifecycle.
+  - Guided runbook draft notes now persist inside `diagnosis_json` and restore on draft load, so note-only runbook progress is no longer lost after save/reopen.
+  - Explicit saves now update the existing saved draft in place instead of minting a fresh draft ID every time, which keeps alternatives, case outcomes, and runbook history attached to the same saved record.
+  - Save/autosave runbook reassignment now prefers moving only the visible active session by ID when the session was actually touched in the current workspace, avoiding broad legacy-scope migrations that could pull unrelated historical sessions into the open draft.
+  - Final verification for this closeout: `pnpm ui:gate:static`, `pnpm git:guard:all`, `pnpm test`, `pnpm test:e2e:smoke`, `pnpm ui:test:a11y`, `pnpm ui:test:visual`, `pnpm perf:workspace`, `pnpm perf:summary`, `cd src-tauri && cargo test -q --no-run`, and `cd src-tauri && cargo test -q test_reassign_runbook_session_by_id_moves_only_target_session`.
 
 ## Locked Decisions
 - `SavedDraft` remains the primary work record in v1.
@@ -253,15 +258,19 @@
 - The legacy “empty draft” rule was too narrow once structured intake, handoff packs, and guided runbook evidence became first-class workspace artifacts. Save/autosave eligibility now needs to follow meaningful workspace state, not just the raw input text box.
 - Recovered autosaves behave like a separate lifecycle from saved drafts. The workspace needs to preserve that distinction all the way through autosave IDs, manual save IDs, and guided-runbook scope keys.
 - Legacy runbook fallback is only safe if the workspace adopts the same scope it is rendering. Otherwise save-time migration can move the wrong session set even when the UI appears correct.
+- Runbook-only progress can exist entirely in evidence and draft notes, so persistence checks have to look beyond the main freeform response box.
+- Re-saving a saved draft must preserve the original draft identity; otherwise every downstream artifact link starts to drift onto superseded records.
+- Single-session migration is safer than scope-wide migration once the workspace is capable of showing legacy fallback sessions that may not all belong to the current piece of work.
 
 ## Deviations
 - Numeric baselines are not filled yet. Instrumentation is present, but actual baseline values still require pilot data rather than synthetic guesses.
 - Collaboration dispatch kept the preview-first/manual-confirmation product default. A clearer `confirm_collaboration_dispatch` path was added for future callers, while the existing `send_collaboration_dispatch` command remains as a compatibility alias.
 - The active plan files now use repo-relative references for ongoing work. Historical audit documents still contain older machine-specific absolute path references, but they are retained as archival evidence rather than the active execution path.
+- The final merge-closeout fix favors a precise per-session reassignment API over the older scope-wide reassignment when the workspace can identify the active session confidently. The broader scope-based command remains for compatibility and bulk migration cases.
 
 ## PR Index
 - Product improvement branch pushed as `codex/feat/product-improvement-program`.
-- Late merge-blocker follow-up commit pending as part of the final merge-to-main closeout.
+- Late merge-blocker follow-up fix round is in progress as the final merge-to-main closeout.
 
 ## Post-Launch Learnings
 - Pending first dogfood cycle.

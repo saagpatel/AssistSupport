@@ -5124,6 +5124,22 @@ pub async fn reassign_runbook_session_scope(
         .map_err(|e| e.to_string())
 }
 
+/// Reassign one runbook session to a new workspace scope.
+#[tauri::command]
+pub async fn reassign_runbook_session_by_id(
+    state: State<'_, AppState>,
+    session_id: String,
+    to_scope_key: String,
+) -> Result<(), String> {
+    let db_guard = state
+        .db
+        .lock()
+        .map_err(|e| format!("DB lock error: {}", e))?;
+    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+    db.reassign_runbook_session_by_id(&session_id, &to_scope_key)
+        .map_err(|e| e.to_string())
+}
+
 /// Configure integration connection metadata (ServiceNow, Slack, Teams).
 #[tauri::command]
 pub async fn configure_integration(

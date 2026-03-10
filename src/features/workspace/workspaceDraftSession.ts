@@ -27,6 +27,30 @@ export interface LoadedWorkspaceDraftState {
   workspaceRunbookScopeKey: string;
 }
 
+export interface VisibleRunbookMigrationArgs {
+  hasGuidedRunbookSession: boolean;
+  runbookSessionTouched: boolean;
+  runbookSessionSourceScopeKey: string | null;
+  workspaceRunbookScopeKey: string;
+}
+
+export function parseGuidedRunbookDraftNote(
+  diagnosisJson: string | null | undefined,
+): string {
+  if (!diagnosisJson?.trim()) {
+    return '';
+  }
+
+  try {
+    const parsed = JSON.parse(diagnosisJson) as { guidedRunbookDraftNote?: unknown };
+    return typeof parsed.guidedRunbookDraftNote === 'string'
+      ? parsed.guidedRunbookDraftNote
+      : '';
+  } catch {
+    return '';
+  }
+}
+
 export function hasMeaningfulWorkspaceDraftContent({
   inputText,
   responseText,
@@ -119,4 +143,22 @@ export function resolveVisibleRunbookScopeKey(
     return currentScopeKey;
   }
   return 'legacy:unscoped';
+}
+
+export function shouldTreatGuidedRunbookAsWorkspaceProgress({
+  hasGuidedRunbookSession,
+  runbookSessionTouched,
+  runbookSessionSourceScopeKey,
+  workspaceRunbookScopeKey,
+}: VisibleRunbookMigrationArgs): boolean {
+  return Boolean(
+    runbookSessionTouched
+    || (hasGuidedRunbookSession && runbookSessionSourceScopeKey === workspaceRunbookScopeKey),
+  );
+}
+
+export function shouldMigrateVisibleRunbookSession(
+  args: VisibleRunbookMigrationArgs,
+): boolean {
+  return shouldTreatGuidedRunbookAsWorkspaceProgress(args);
 }

@@ -182,6 +182,16 @@ export function useFeatureOps() {
     });
   }, []);
 
+  const reassignRunbookSessionById = useCallback(async (
+    sessionId: string,
+    toScopeKey: string,
+  ): Promise<void> => {
+    await invoke('reassign_runbook_session_by_id', {
+      sessionId,
+      toScopeKey,
+    });
+  }, []);
+
   const listRunbookTemplates = useCallback(async (limit = 50): Promise<RunbookTemplateRecord[]> => {
     return invoke<RunbookTemplateRecord[]>('list_runbook_templates', { limit });
   }, []);
@@ -336,6 +346,7 @@ export function useFeatureOps() {
     advanceRunbookSession,
     listRunbookSessions,
     reassignRunbookSessionScope,
+    reassignRunbookSessionById,
     listRunbookTemplates,
     saveRunbookTemplate,
     listRunbookStepEvidence,

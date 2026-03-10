@@ -4527,6 +4527,28 @@ impl Database {
         Ok(())
     }
 
+    /// Reassign a single guided runbook session to a new workspace scope.
+    pub fn reassign_runbook_session_by_id(
+        &self,
+        session_id: &str,
+        to_scope_key: &str,
+    ) -> Result<(), DbError> {
+        if session_id.trim().is_empty() || to_scope_key.trim().is_empty() {
+            return Err(DbError::InvalidInput(
+                "runbook session id and scope key must be non-empty".to_string(),
+            ));
+        }
+
+        let now = Utc::now().to_rfc3339();
+        self.conn.execute(
+            "UPDATE runbook_sessions
+             SET scope_key = ?, updated_at = ?
+             WHERE id = ?",
+            params![to_scope_key, &now, session_id],
+        )?;
+        Ok(())
+    }
+
     /// List recent runbook sessions.
     pub fn list_runbook_sessions(
         &self,
@@ -6746,6 +6768,41 @@ mod tests {
         assert!(old_scope_sessions.is_empty());
         assert_eq!(new_scope_sessions.len(), 1);
         assert_eq!(new_scope_sessions[0].scope_key, "draft:draft-1");
+    }
+
+    #[test]
+    fn test_reassign_runbook_session_by_id_moves_only_target_session() {
+        let (db, _dir) = create_test_db();
+
+        let target = db
+            .create_runbook_session(
+                "security-incident",
+                r#"["Acknowledge","Contain"]"#,
+                "legacy:unscoped",
+            )
+            .expect("create target session");
+        let untouched = db
+            .create_runbook_session(
+                "access-request",
+                r#"["Verify","Approve"]"#,
+                "legacy:unscoped",
+            )
+            .expect("create untouched session");
+
+        db.reassign_runbook_session_by_id(&target.id, "draft:draft-1")
+            .expect("reassign target session");
+
+        let legacy_sessions = db
+            .list_runbook_sessions(10, None, Some("legacy:unscoped"))
+            .expect("list legacy sessions");
+        let draft_sessions = db
+            .list_runbook_sessions(10, None, Some("draft:draft-1"))
+            .expect("list draft sessions");
+
+        assert_eq!(draft_sessions.len(), 1);
+        assert_eq!(draft_sessions[0].id, target.id);
+        assert_eq!(legacy_sessions.len(), 1);
+        assert_eq!(legacy_sessions[0].id, untouched.id);
     }
 
 }

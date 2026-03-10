@@ -54,9 +54,12 @@ import {
 } from '../../features/workspace/workspaceAssistant';
 import {
   hasMeaningfulWorkspaceDraftContent,
+  parseGuidedRunbookDraftNote,
   resolveLoadedWorkspaceDraftState,
   resolveVisibleRunbookScopeKey,
   resolveWorkspaceAutosaveState,
+  shouldMigrateVisibleRunbookSession,
+  shouldTreatGuidedRunbookAsWorkspaceProgress,
   shouldProceedAfterSaveAttempt,
 } from '../../features/workspace/workspaceDraftSession';
 import { calculateEditRatio, countWords } from '../../features/analytics/qualityMetrics';
@@ -222,6 +225,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
   } = useLlm();
   const {
     saveDraft,
+    updateDraft,
     triggerAutosave,
     cancelAutosave,
     templates,
@@ -244,6 +248,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     advanceRunbookSession,
     listRunbookSessions,
     reassignRunbookSessionScope,
+    reassignRunbookSessionById,
     listRunbookStepEvidence,
     addRunbookStepEvidence,
     saveCaseOutcome,
@@ -292,6 +297,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
   const [originalResponse, setOriginalResponse] = useState<string>('');
   const [isResponseEdited, setIsResponseEdited] = useState(false);
   const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+  const [savedDraftCreatedAt, setSavedDraftCreatedAt] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'panels' | 'conversation'>(() => {
     return (localStorage.getItem('draft-view-mode') as 'panels' | 'conversation') || 'panels';
   });
@@ -318,6 +324,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
   const [guidedRunbookNote, setGuidedRunbookNote] = useState('');
   const [workspaceCatalogLoading, setWorkspaceCatalogLoading] = useState(false);
   const [workspaceRunbookScopeKey, setWorkspaceRunbookScopeKey] = useState<string>(createWorkspaceRunbookScopeKey);
+  const [runbookSessionSourceScopeKey, setRunbookSessionSourceScopeKey] = useState<string | null>(null);
+  const [runbookSessionTouched, setRunbookSessionTouched] = useState(false);
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | null>(null);
   const [pendingSimilarCaseOpen, setPendingSimilarCaseOpen] = useState<SimilarCase | null>(null);
 
@@ -386,21 +394,23 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
         legacySessionRecords.length > 0,
       );
 
-      if (nextVisibleRunbookScopeKey !== workspaceRunbookScopeKey) {
-        setWorkspaceRunbookScopeKey(nextVisibleRunbookScopeKey);
-      }
-
       const activeSessionRecord = visibleSessionRecords.find((session) => session.status === 'active' || session.status === 'paused')
         ?? visibleSessionRecords[0]
         ?? null;
 
       if (!activeSessionRecord) {
         setGuidedRunbookSession(null);
+        setRunbookSessionSourceScopeKey(null);
+        setRunbookSessionTouched(false);
         return;
       }
 
       const evidenceRecords = await listRunbookStepEvidence(activeSessionRecord.id).catch(() => []);
+      if (guidedRunbookSession?.id !== activeSessionRecord.id) {
+        setRunbookSessionTouched(false);
+      }
       setGuidedRunbookSession(toGuidedRunbookSession(activeSessionRecord, evidenceRecords));
+      setRunbookSessionSourceScopeKey(nextVisibleRunbookScopeKey);
     } finally {
       setWorkspaceCatalogLoading(false);
     }
@@ -413,6 +423,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     listRunbookSessions,
     listRunbookStepEvidence,
     saveRunbookTemplate,
+    guidedRunbookSession?.id,
     workspaceRunbookScopeKey,
   ]);
 
@@ -948,6 +959,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     setCurrentTicketId(null);
     setCurrentTicket(null);
     setSavedDraftId(null);
+    setSavedDraftCreatedAt(null);
     setConversationEntries([]);
     setHandoffTouched(false);
     setGeneratingAlternative(false);
@@ -963,6 +975,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     setCompareCase(null);
     setGuidedRunbookSession(null);
     setGuidedRunbookNote('');
+    setRunbookSessionSourceScopeKey(null);
+    setRunbookSessionTouched(false);
     setAutosaveDraftId(null);
     setPendingSimilarCaseOpen(null);
     setWorkspaceRunbookScopeKey(createWorkspaceRunbookScopeKey());
@@ -1109,6 +1123,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     setOriginalResponse(loadedResponse);
     setIsResponseEdited(false);
     setSavedDraftId(loadedDraftState.savedDraftId);
+    setSavedDraftCreatedAt(draft.is_autosave ? null : draft.created_at);
     setAutosaveDraftId(loadedDraftState.autosaveDraftId);
     setWorkspaceRunbookScopeKey(loadedDraftState.workspaceRunbookScopeKey);
     if (draft.diagnosis_json) {
@@ -1155,6 +1170,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
         const trustState = diagData.trust;
         setConfidence(trustState?.confidence || null);
         setGrounding(trustState?.grounding || []);
+        setGuidedRunbookNote(parseGuidedRunbookDraftNote(draft.diagnosis_json));
       } catch {
         setDiagnosticNotes('');
         setTreeResult(null);
@@ -1170,6 +1186,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
         setApprovalError(null);
         setConfidence(null);
         setGrounding([]);
+        setGuidedRunbookNote('');
       }
     } else {
       setDiagnosticNotes('');
@@ -1186,6 +1203,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
       setApprovalError(null);
       setConfidence(null);
       setGrounding([]);
+      setGuidedRunbookNote('');
     }
     const draftTicketId = draft.ticket_id?.trim() || null;
     setCurrentTicketId(draftTicketId);
@@ -1213,7 +1231,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     setHandoffTouched(Boolean(draft.handoff_summary));
     setCompareCase(null);
     setGuidedRunbookSession(null);
-    setGuidedRunbookNote('');
+    setRunbookSessionSourceScopeKey(loadedDraftState.workspaceRunbookScopeKey);
+    setRunbookSessionTouched(false);
     setPendingSimilarCaseOpen(null);
     setOcrText(null);
   }, [workspacePersonalization.preferred_note_audience]);
@@ -1224,16 +1243,34 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     }
 
     const autosaveScopeKey = `draft:${autosaveDraftId}`;
-    if (workspaceRunbookScopeKey === autosaveScopeKey) {
+    const activeRunbookScopeKey = guidedRunbookSession
+      ? (runbookSessionSourceScopeKey ?? workspaceRunbookScopeKey)
+      : workspaceRunbookScopeKey;
+    if (activeRunbookScopeKey === autosaveScopeKey) {
       return;
     }
 
     let cancelled = false;
 
-    void reassignRunbookSessionScope(workspaceRunbookScopeKey, autosaveScopeKey)
+    const shouldMigrateActiveRunbookSession = guidedRunbookSession
+      ? shouldMigrateVisibleRunbookSession({
+          hasGuidedRunbookSession: true,
+          runbookSessionTouched,
+          runbookSessionSourceScopeKey,
+          workspaceRunbookScopeKey,
+        })
+      : false;
+
+    const activeRunbookSessionId = guidedRunbookSession?.id ?? null;
+    const migrateRunbookScope = shouldMigrateActiveRunbookSession && activeRunbookSessionId
+      ? reassignRunbookSessionById(activeRunbookSessionId, autosaveScopeKey)
+      : reassignRunbookSessionScope(workspaceRunbookScopeKey, autosaveScopeKey);
+
+    void migrateRunbookScope
       .then(() => {
         if (!cancelled) {
           setWorkspaceRunbookScopeKey(autosaveScopeKey);
+          setRunbookSessionSourceScopeKey(autosaveScopeKey);
         }
       })
       .catch(() => undefined);
@@ -1241,7 +1278,16 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     return () => {
       cancelled = true;
     };
-  }, [autosaveDraftId, reassignRunbookSessionScope, savedDraftId, workspaceRunbookScopeKey]);
+  }, [
+    autosaveDraftId,
+    guidedRunbookSession,
+    reassignRunbookSessionById,
+    reassignRunbookSessionScope,
+    runbookSessionSourceScopeKey,
+    runbookSessionTouched,
+    savedDraftId,
+    workspaceRunbookScopeKey,
+  ]);
 
   const buildDiagnosisJson = useCallback(() => {
     const completedIds = Object.keys(checklistCompleted).filter(id => checklistCompleted[id]);
@@ -1277,6 +1323,9 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     if (trustState) {
       diagnosisData.trust = trustState;
     }
+    if (guidedRunbookNote.trim()) {
+      diagnosisData.guidedRunbookDraftNote = guidedRunbookNote;
+    }
 
     return Object.keys(diagnosisData).length > 0
       ? JSON.stringify(diagnosisData)
@@ -1293,6 +1342,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     treeResult,
     confidence,
     grounding,
+    guidedRunbookNote,
   ]);
 
   const handoffPack = useMemo(() => buildHandoffPack({
@@ -1315,8 +1365,27 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     diagnosisJson: buildDiagnosisJson(),
     caseIntake,
     handoffTouched,
-    hasGuidedRunbookState: Boolean(guidedRunbookSession || guidedRunbookNote.trim()),
-  }), [buildDiagnosisJson, caseIntake, guidedRunbookNote, guidedRunbookSession, handoffTouched, input, response]);
+    hasGuidedRunbookState: Boolean(
+      guidedRunbookNote.trim()
+      || shouldTreatGuidedRunbookAsWorkspaceProgress({
+        hasGuidedRunbookSession: Boolean(guidedRunbookSession),
+        runbookSessionTouched,
+        runbookSessionSourceScopeKey,
+        workspaceRunbookScopeKey,
+      }),
+    ),
+  }), [
+    buildDiagnosisJson,
+    caseIntake,
+    guidedRunbookNote,
+    guidedRunbookSession,
+    handoffTouched,
+    input,
+    response,
+    runbookSessionSourceScopeKey,
+    runbookSessionTouched,
+    workspaceRunbookScopeKey,
+  ]);
 
   const activeWorkspaceDraft = useMemo<SavedDraft>(() => ({
     id: savedDraftId ?? autosaveDraftId ?? 'workspace-draft',
@@ -1326,7 +1395,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     response_text: response || null,
     ticket_id: currentTicketId,
     kb_sources_json: sources.length > 0 ? JSON.stringify(sources) : null,
-    created_at: new Date().toISOString(),
+    created_at: savedDraftCreatedAt ?? new Date().toISOString(),
     updated_at: new Date().toISOString(),
     is_autosave: false,
     model_name: loadedModelName,
@@ -1346,6 +1415,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     sources,
     loadedModelName,
     serializedCaseIntake,
+    savedDraftCreatedAt,
     handoffPack.summary,
   ]);
 
@@ -1550,6 +1620,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     try {
       await startRunbookSession(template.scenario, template.steps, workspaceRunbookScopeKey);
       setGuidedRunbookNote('');
+      setRunbookSessionSourceScopeKey(workspaceRunbookScopeKey);
+      setRunbookSessionTouched(true);
       await refreshWorkspaceCatalog();
       setPanelDensityMode('focus-intake');
       void logEvent('workspace_guided_runbook_started', {
@@ -1597,6 +1669,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     try {
       await addRunbookStepEvidence(guidedRunbookSession.id, currentStep, status, evidenceText, skipReason);
       await advanceRunbookSession(guidedRunbookSession.id, nextStep, nextStatus);
+      setRunbookSessionTouched(true);
       if (noteText) {
         setDiagnosticNotes((prev) => compactLines([prev, `Runbook ${stepLabel}: ${noteText}`]));
       }
@@ -1648,6 +1721,13 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     showSuccess('Copied guided runbook progress into the notes');
   }, [guidedRunbookSession, showError, showSuccess]);
 
+  const handleGuidedRunbookNoteChange = useCallback((value: string) => {
+    setGuidedRunbookNote(value);
+    if (value.trim()) {
+      setRunbookSessionTouched(true);
+    }
+  }, []);
+
   const hasLiveWorkspaceContent = useMemo(() => Boolean(
     input.trim()
     || response.trim()
@@ -1657,7 +1737,12 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     || similarCases.length > 0
     || handoffTouched
     || guidedRunbookNote.trim()
-    || guidedRunbookSession,
+    || shouldTreatGuidedRunbookAsWorkspaceProgress({
+      hasGuidedRunbookSession: Boolean(guidedRunbookSession),
+      runbookSessionTouched,
+      runbookSessionSourceScopeKey,
+      workspaceRunbookScopeKey,
+    }),
   ), [
     diagnosticNotes,
     firstResponse,
@@ -1667,7 +1752,10 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     input,
     checklistItems.length,
     response,
+    runbookSessionSourceScopeKey,
+    runbookSessionTouched,
     similarCases.length,
+    workspaceRunbookScopeKey,
   ]);
 
   const loadSimilarCaseIntoWorkspace = useCallback(async (similarCase: SimilarCase) => {
@@ -1843,8 +1931,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     }
 
     const diagnosisData = buildDiagnosisJson();
-
-    const draftId = await saveDraft({
+    const currentCreatedAt = savedDraftCreatedAt ?? new Date().toISOString();
+    const draftPayload = {
       input_text: input,
       summary_text: currentTicket?.summary ?? null,
       diagnosis_json: diagnosisData,
@@ -1855,22 +1943,49 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
       model_name: loadedModelName,
       case_intake_json: serializedCaseIntake,
       handoff_summary: handoffPack.summary,
-      status: 'draft',
-    });
+      status: 'draft' as const,
+    };
+
+    const draftId = savedDraftId
+      ? await updateDraft({
+          id: savedDraftId,
+          created_at: currentCreatedAt,
+          updated_at: activeWorkspaceDraft.updated_at,
+          finalized_at: null,
+          finalized_by: null,
+          ...draftPayload,
+        })
+      : await saveDraft(draftPayload);
 
     if (draftId) {
       const nextScopeKey = `draft:${draftId}`;
       let runbookScopeLinked = true;
       if (workspaceRunbookScopeKey !== nextScopeKey) {
         try {
-          await reassignRunbookSessionScope(workspaceRunbookScopeKey, nextScopeKey);
+          const shouldMigrateActiveRunbookSession = guidedRunbookSession
+            ? shouldMigrateVisibleRunbookSession({
+                hasGuidedRunbookSession: true,
+                runbookSessionTouched,
+                runbookSessionSourceScopeKey,
+                workspaceRunbookScopeKey,
+              })
+            : false;
+
+          const activeRunbookSessionId = guidedRunbookSession?.id ?? null;
+          if (shouldMigrateActiveRunbookSession && activeRunbookSessionId) {
+            await reassignRunbookSessionById(activeRunbookSessionId, nextScopeKey);
+          } else {
+            await reassignRunbookSessionScope(workspaceRunbookScopeKey, nextScopeKey);
+          }
           setWorkspaceRunbookScopeKey(nextScopeKey);
+          setRunbookSessionSourceScopeKey(nextScopeKey);
         } catch {
           runbookScopeLinked = false;
         }
       }
       setAutosaveDraftId(null);
       setSavedDraftId(draftId);
+      setSavedDraftCreatedAt(currentCreatedAt);
       const responseWordCount = countWords(response);
       const editRatio = calculateEditRatio(originalResponse, response);
       logEvent('response_saved', {
@@ -1887,7 +2002,34 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
       return draftId;
     }
     return null;
-  }, [hasSaveableWorkspaceContent, currentTicket?.summary, buildDiagnosisJson, response, currentTicketId, sources, saveDraft, showError, showSuccess, loadedModelName, serializedCaseIntake, handoffPack.summary, workspaceRunbookScopeKey, reassignRunbookSessionScope, originalResponse, isResponseEdited, logEvent]);
+  }, [
+    activeWorkspaceDraft.updated_at,
+    buildDiagnosisJson,
+    currentTicket?.summary,
+    currentTicketId,
+    guidedRunbookSession,
+    handoffPack.summary,
+    hasSaveableWorkspaceContent,
+    input,
+    isResponseEdited,
+    loadedModelName,
+    logEvent,
+    originalResponse,
+    reassignRunbookSessionById,
+    reassignRunbookSessionScope,
+    response,
+    savedDraftCreatedAt,
+    runbookSessionSourceScopeKey,
+    runbookSessionTouched,
+    savedDraftId,
+    saveDraft,
+    serializedCaseIntake,
+    showError,
+    showSuccess,
+    sources,
+    updateDraft,
+    workspaceRunbookScopeKey,
+  ]);
 
   const handleConfirmOpenSimilarCase = useCallback(async (
     mode: 'replace' | 'save-and-open' | 'compare',
@@ -2377,7 +2519,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
               runbookTemplates={runbookTemplates}
               guidedRunbookSession={guidedRunbookSession}
               runbookNote={guidedRunbookNote}
-              onRunbookNoteChange={setGuidedRunbookNote}
+              onRunbookNoteChange={handleGuidedRunbookNoteChange}
               onStartGuidedRunbook={handleStartGuidedRunbook}
               onAdvanceGuidedRunbook={handleAdvanceGuidedRunbook}
               onCopyRunbookProgressToNotes={handleCopyRunbookProgressToNotes}
