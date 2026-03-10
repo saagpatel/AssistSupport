@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   hasMeaningfulWorkspaceDraftContent,
+  resolveLoadedWorkspaceDraftState,
+  resolveVisibleRunbookScopeKey,
   resolveWorkspaceAutosaveState,
   shouldProceedAfterSaveAttempt,
 } from './workspaceDraftSession';
@@ -120,5 +122,36 @@ describe('workspaceDraftSession', () => {
       },
       handoffTouched: false,
     })).toBe(false);
+  });
+
+  it('treats guided runbook state as meaningful workspace progress', () => {
+    expect(hasMeaningfulWorkspaceDraftContent({
+      inputText: '   ',
+      responseText: '',
+      diagnosisJson: null,
+      caseIntake: null,
+      handoffTouched: false,
+      hasGuidedRunbookState: true,
+    })).toBe(true);
+  });
+
+  it('keeps loaded autosaves separate from real saved drafts', () => {
+    expect(resolveLoadedWorkspaceDraftState('autosave-1', true)).toEqual({
+      savedDraftId: null,
+      autosaveDraftId: 'autosave-1',
+      workspaceRunbookScopeKey: 'draft:autosave-1',
+    });
+
+    expect(resolveLoadedWorkspaceDraftState('draft-1', false)).toEqual({
+      savedDraftId: 'draft-1',
+      autosaveDraftId: null,
+      workspaceRunbookScopeKey: 'draft:draft-1',
+    });
+  });
+
+  it('uses the legacy runbook scope only when the visible session comes from the fallback store', () => {
+    expect(resolveVisibleRunbookScopeKey('workspace:123', true, false)).toBe('workspace:123');
+    expect(resolveVisibleRunbookScopeKey('workspace:123', false, false)).toBe('workspace:123');
+    expect(resolveVisibleRunbookScopeKey('workspace:123', false, true)).toBe('legacy:unscoped');
   });
 });

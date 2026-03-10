@@ -179,6 +179,11 @@
   - Kept autosaves and saved drafts on separate record IDs so autosaves cannot overwrite real saved drafts.
   - Hardened guided-runbook scope migration so recovered autosaves move correctly on save and a failed reassignment no longer hides the active runbook from the open workspace.
   - Re-ran the pre-push verification stack: `pnpm git:guard:all`, `pnpm test`, `pnpm ui:gate:static`, `pnpm test:e2e:smoke`, `pnpm ui:test:a11y`, `pnpm ui:test:visual`, `pnpm perf:workspace`, `pnpm perf:summary`, and `cd src-tauri && cargo test -q --no-run` all passed.
+- 2026-03-10: Late merge-blocker fixes landed after the first push review.
+  - Guided-runbook state now counts as meaningful workspace progress for save/autosave eligibility, so runbook-only workflows are no longer treated as empty work.
+  - When the workspace is rendering legacy `legacy:unscoped` runbook sessions, that scope now becomes the active source scope for later autosave/save migration.
+  - Loading an autosave now keeps it separate from a real saved draft, so alternatives and case outcomes are not accidentally persisted against an autosave record that will later fork into a new saved draft ID.
+  - Focused late-fix verification: `pnpm test -- --run src/features/workspace/workspaceDraftSession.test.ts src/features/workspace/workspaceAssistant.test.ts src/features/revamp/screens/QueueCommandCenterPage.test.tsx src/features/workspace/TicketWorkspaceRail.test.tsx src/features/app-shell/commands.test.ts`, `pnpm ui:gate:static`, `pnpm git:guard:all`, `pnpm test:e2e:smoke`, and `cd src-tauri && cargo test -q --no-run`.
 
 ## Locked Decisions
 - `SavedDraft` remains the primary work record in v1.
@@ -191,6 +196,7 @@
 - Numeric product baselines are not populated yet. Event instrumentation exists, but real metric baselines still require dogfood or pilot traffic.
 - Collaboration dispatch is intentionally preview-first and confirmation-based. The contract is now clearer, but it is still not a live connector that pushes to Jira, ServiceNow, Slack, or Teams.
 - Similar-case quality still depends on the quality of stored draft outcomes and case-closure discipline. Retrieval is implemented, but ranking quality should be tuned with real usage data.
+- No open high-severity merge blockers remain in the workspace save/autosave/runbook path after the late fix pass; remaining follow-up work is product tuning rather than release safety.
 
 ## Metric Baselines
 - Instrumentation status: event hooks are present for workspace intake analysis, similar-case open, next-action acceptance, handoff copy, evidence copy, KB promotion, resolution-kit save/apply, guided runbook start/progress, and batch triage.
@@ -246,6 +252,7 @@
 - The cleanest workspace readiness signal came from app-owned bootstrap and ready timestamps instead of depending on browser performance entries alone.
 - The legacy “empty draft” rule was too narrow once structured intake, handoff packs, and guided runbook evidence became first-class workspace artifacts. Save/autosave eligibility now needs to follow meaningful workspace state, not just the raw input text box.
 - Recovered autosaves behave like a separate lifecycle from saved drafts. The workspace needs to preserve that distinction all the way through autosave IDs, manual save IDs, and guided-runbook scope keys.
+- Legacy runbook fallback is only safe if the workspace adopts the same scope it is rendering. Otherwise save-time migration can move the wrong session set even when the UI appears correct.
 
 ## Deviations
 - Numeric baselines are not filled yet. Instrumentation is present, but actual baseline values still require pilot data rather than synthetic guesses.
@@ -253,7 +260,8 @@
 - The active plan files now use repo-relative references for ongoing work. Historical audit documents still contain older machine-specific absolute path references, but they are retained as archival evidence rather than the active execution path.
 
 ## PR Index
-- Pending branch commit / PR.
+- Product improvement branch pushed as `codex/feat/product-improvement-program`.
+- Late merge-blocker follow-up commit pending as part of the final merge-to-main closeout.
 
 ## Post-Launch Learnings
 - Pending first dogfood cycle.

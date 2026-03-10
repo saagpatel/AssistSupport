@@ -6,6 +6,7 @@ export interface MeaningfulWorkspaceDraftArgs {
   diagnosisJson?: string | null;
   caseIntake?: CaseIntake | null;
   handoffTouched?: boolean;
+  hasGuidedRunbookState?: boolean;
 }
 
 export interface WorkspaceAutosaveStateArgs {
@@ -20,12 +21,19 @@ export interface WorkspaceAutosaveState {
   autosaveRecordId: string | null;
 }
 
+export interface LoadedWorkspaceDraftState {
+  savedDraftId: string | null;
+  autosaveDraftId: string | null;
+  workspaceRunbookScopeKey: string;
+}
+
 export function hasMeaningfulWorkspaceDraftContent({
   inputText,
   responseText,
   diagnosisJson,
   caseIntake,
   handoffTouched,
+  hasGuidedRunbookState,
 }: MeaningfulWorkspaceDraftArgs): boolean {
   const hasStructuredIntake = Boolean(
     caseIntake?.issue?.trim()
@@ -51,7 +59,8 @@ export function hasMeaningfulWorkspaceDraftContent({
     || responseText?.trim()
     || diagnosisJson?.trim()
     || hasStructuredIntake
-    || handoffTouched,
+    || handoffTouched
+    || hasGuidedRunbookState,
   );
 }
 
@@ -88,4 +97,26 @@ export function shouldProceedAfterSaveAttempt(
   savedDraftId: string | null,
 ): boolean {
   return mode !== 'save-and-open' || Boolean(savedDraftId);
+}
+
+export function resolveLoadedWorkspaceDraftState(
+  draftId: string,
+  isAutosave: boolean,
+): LoadedWorkspaceDraftState {
+  return {
+    savedDraftId: isAutosave ? null : draftId,
+    autosaveDraftId: isAutosave ? draftId : null,
+    workspaceRunbookScopeKey: `draft:${draftId}`,
+  };
+}
+
+export function resolveVisibleRunbookScopeKey(
+  currentScopeKey: string,
+  hasPrimaryScopedSessions: boolean,
+  hasLegacySessions: boolean,
+): string {
+  if (hasPrimaryScopedSessions || !hasLegacySessions) {
+    return currentScopeKey;
+  }
+  return 'legacy:unscoped';
 }
