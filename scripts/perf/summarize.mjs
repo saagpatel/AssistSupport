@@ -8,6 +8,8 @@ const summary = {
   build: readJson(".perf-results/build-time.json"),
   memory: readJson(".perf-results/memory.json"),
   api: readJson(".perf-results/api-summary.json"),
+  workspaceLogic: readJson(".perf-results/workspace-logic.json"),
+  workspaceUi: readJson(".perf-results/workspace-ui.json"),
 };
 
 mkdirSync(".perf-results", { recursive: true });
