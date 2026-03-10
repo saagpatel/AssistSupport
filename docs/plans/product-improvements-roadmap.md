@@ -1,6 +1,7 @@
 # AssistSupport Product Improvement Program
 
 ## Summary
+
 - Objective: turn AssistSupport from a strong local drafting/search tool into a full daily support-engineer workspace centered on ticket resolution, knowledge reuse, guided action, queue operations, and clean handoffs.
 - Plan Mode note: this turn is read-only, so the first execution step after leaving Plan Mode is to write this plan verbatim to `docs/plans/product-improvements-roadmap.md`. That file becomes the canonical execution document. Every PR updates the same file with status, discoveries, deviations, decisions, links to PRs, screenshots, and phase-close evidence. After every compaction, reread that file first.
 - Product defaults locked now: primary user is an IT support engineer handling tickets; secondary user is a team lead. The app remains local-first. External dispatches are preview-first and user-confirmed. No silent writes into Jira, Slack, Teams, or ServiceNow. `drafts` remain the primary work record in v1; do not create a separate `tickets` table in this program.
@@ -8,6 +9,7 @@
 - Delivery model: use `pm-delivery-hub` to manage milestone plans and the canonical roadmap file; `parallel-delivery-conductor` to split each phase into planner, designer, builder, QA, and release lanes; `ui-shipping-hub` for workspace and queue surfaces; `backend-reliability-hub` for Tauri/search-api/db changes; `docs-knowledge-hub` for roadmap, ADRs, and runbooks; `quality-gatekeeper` and `qa-release-gate-orchestrator` to block phase close; `performance-budget` to enforce bundle/build/Lighthouse/API/DB budgets; `playwright` for UI and a11y evidence. Use sub-agents in every phase: planner for scope locking, designer for UX spec, builder for implementation slices, QA for regression, release for go/no-go.
 
 ## Phase 0 — Canonical Plan, Measurement, and Contract Lock
+
 - Goal: create the durable execution record, lock product defaults, and baseline success metrics before feature work starts.
 - Build:
   1. Create `docs/plans/product-improvements-roadmap.md` from this plan.
@@ -21,6 +23,7 @@
   3. No implementer has to decide whether to create a new ticket domain model, whether cloud services are required, or whether outbound integrations are silent or previewed.
 
 ## Phase 1 — Ticket Workspace Foundation
+
 - Goal: replace the current tab-hopping workflow with a single ticket-centered workspace.
 - Build:
   1. Create a `Ticket Workspace` surface on top of the existing workspace shell in `src/features/workspace/*`, `src/components/Draft/*`, and `src/features/revamp/screens/QueueCommandCenterPage.tsx`.
@@ -40,6 +43,7 @@
   3. Loading, empty, error, success, disabled, and focus-visible states exist on every new workspace surface.
 
 ## Phase 2 — Case Memory, Knowledge Reuse, and the KCS Loop
+
 - Goal: make previously solved work and knowledge-base improvement part of the normal support workflow.
 - Build:
   1. Add `Similar Solved Cases` to the workspace. Search over finalized drafts, handoff packs, saved responses, and KB-linked outcomes. Do not require vector search to be enabled; use lexical/metadata retrieval first and boost with vectors when available.
@@ -58,6 +62,7 @@
   3. Resolution kits and favorites are usable from the workspace without forcing a new navigation pattern.
 
 ## Phase 3 — Guided Resolution Intelligence
+
 - Goal: move from “draft generation” to “decision support.”
 - Build:
   1. Add `Next Best Action` recommendations that return ranked actions such as answer, ask clarifying questions, run a guided runbook, escalate, request approval, or create/update KB. Each action must include rationale, confidence, and required prerequisites.
@@ -76,6 +81,7 @@
   3. Runbooks can be executed inside the workspace and export evidence into the handoff/escalation pack.
 
 ## Phase 4 — Queue Operations, Coaching, and Collaboration
+
 - Goal: improve the entire queue, not just one ticket.
 - Build:
   1. Add `Batch Triage` to the queue command center so engineers can paste or import many tickets and get structured summaries, likely categories, urgency estimates, and recommended owners/actions in one pass.
@@ -93,6 +99,7 @@
   3. Coaching metrics are actionable and tied to reusable remediation paths such as kits, KB drafts, and runbooks.
 
 ## Phase 5 — Productivity, Polish, and Premium Daily Use
+
 - Goal: make the app feel like the support engineer’s fastest daily tool.
 - Build:
   1. Add a `Workspace Command Palette` with ticket-aware actions: open similar cases, switch note mode, run best next action, start runbook, generate handoff, export evidence, promote KB draft, dispatch escalation.
@@ -111,6 +118,7 @@
   3. Performance and UX quality stay inside the existing repo’s blocking gates.
 
 ## Public Interfaces, Types, and Data Contracts
+
 - Keep the core unit of work as `SavedDraft`; extend it with typed accessors rather than replacing it.
 - Add typed models for: `CaseIntake`, `TicketWorkspaceSnapshot`, `SimilarCase`, `SearchExplanation`, `NextActionRecommendation`, `MissingQuestion`, `HandoffPack`, `EscalationPack`, `EvidencePack`, `KbDraft`, `ResolutionKit`, `GuidedRunbookTemplate`, `GuidedRunbookSession`, `ApprovalGuidance`, `CollaborationDispatchPreview`, and `WorkspaceFavorite`.
 - Add or formalize Tauri commands for: `load_ticket_workspace`, `analyze_case_intake`, `find_similar_cases`, `get_search_explanation`, `recommend_next_actions`, `generate_handoff_pack`, `generate_escalation_pack`, `create_kb_draft_from_resolution`, `list_resolution_kits`, `save_resolution_kit`, `start_guided_runbook`, `advance_guided_runbook_step`, `preview_evidence_pack`, `export_evidence_pack`, `preview_collaboration_dispatch`, and `send_collaboration_dispatch`.
@@ -119,6 +127,7 @@
 - Keep all new migrations additive and rollback-safe. Existing drafts and old workspaces must still open with null-safe defaults.
 
 ## Test Plan and Acceptance Scenarios
+
 - Every production code change must ship with one primary behavior test and at least two non-happy-path tests.
 - Phase 1 scenarios: create structured intake from raw ticket text and Jira context; fail safely when Jira is unavailable; preserve internal/customer-safe note separation; generate a handoff pack when data is incomplete.
 - Phase 2 scenarios: find similar solved cases with and without vector search enabled; explain why a match surfaced; promote a resolved case into a KB draft; handle no-match and low-confidence-match states.
@@ -131,6 +140,7 @@
 - Phase close is blocked if required gates are fail or not-run.
 
 ## Assumptions and Defaults
+
 - New roadmap file path: `docs/plans/product-improvements-roadmap.md`.
 - Old remediation plan remains historical; it gets a pointer, not a merge.
 - Rollout model: adopt in waves. Internal dogfood first, then support lead pilot, then broader operator rollout, matching KCS adoption guidance.
@@ -143,6 +153,7 @@
 - The first implementation mutation after leaving Plan Mode is to write this plan to the canonical roadmap file exactly as described above and then reread that file before any implementation work starts.
 
 ## Status Ledger
+
 - 2026-03-10: Roadmap file created from the approved plan. This is now the canonical execution document for product improvement work.
 - 2026-03-10: Phase 0 foundations landed. The roadmap file was made canonical, the remediation plan now points here, the feature flags were defined in `src/features/revamp/flags.ts`, and event instrumentation was added for intake, similar-case open, next-action acceptance, handoff copy, evidence copy, KB promotion, resolution kit save/apply, guided runbook start/progress, and queue batch triage.
 - 2026-03-10: Phase 1 workspace foundation landed. The Draft experience now includes a ticket-centered workspace rail, structured intake, note-audience modes, typed case-intake persistence, typed handoff-pack generation, and a right-rail layout that keeps ticket context, suggested actions, and handoff state visible without tab switching.
@@ -189,8 +200,13 @@
   - Explicit saves now update the existing saved draft in place instead of minting a fresh draft ID every time, which keeps alternatives, case outcomes, and runbook history attached to the same saved record.
   - Save/autosave runbook reassignment now prefers moving only the visible active session by ID when the session was actually touched in the current workspace, avoiding broad legacy-scope migrations that could pull unrelated historical sessions into the open draft.
   - Final verification for this closeout: `pnpm ui:gate:static`, `pnpm git:guard:all`, `pnpm test`, `pnpm test:e2e:smoke`, `pnpm ui:test:a11y`, `pnpm ui:test:visual`, `pnpm perf:workspace`, `pnpm perf:summary`, `cd src-tauri && cargo test -q --no-run`, and `cd src-tauri && cargo test -q test_reassign_runbook_session_by_id_moves_only_target_session`.
+- 2026-03-10: Post-closeout regression fix completed before merge.
+  - Draft load no longer restores `guidedRunbookDraftNote` and then immediately clear it in the same flow; reopened drafts now keep the saved runbook note visible to the operator.
+  - Added a direct unit-test guard for `parseGuidedRunbookDraftNote` so valid notes restore while missing or invalid payloads fall back cleanly.
+  - Re-ran the focused and blocking verification stack on the updated branch state: `pnpm test -- --run src/features/workspace/workspaceDraftSession.test.ts src/features/workspace/workspaceAssistant.test.ts src/features/revamp/screens/QueueCommandCenterPage.test.tsx src/features/workspace/TicketWorkspaceRail.test.tsx src/features/app-shell/commands.test.ts`, `pnpm ui:gate:static`, `pnpm git:guard:all`, `pnpm ui:test:a11y`, `pnpm ui:test:visual`, `pnpm test:e2e:smoke`, `pnpm perf:workspace`, `pnpm perf:summary`, `cd src-tauri && cargo test -q --no-run`, and `cd src-tauri && cargo test -q test_reassign_runbook_session_by_id_moves_only_target_session`.
 
 ## Locked Decisions
+
 - `SavedDraft` remains the primary work record in v1.
 - All external collaboration sends are preview-first and user-confirmed.
 - No separate `tickets` table is introduced in this program.
@@ -198,12 +214,14 @@
 - Similar solved cases must still work without vector search.
 
 ## Open Risks
+
 - Numeric product baselines are not populated yet. Event instrumentation exists, but real metric baselines still require dogfood or pilot traffic.
 - Collaboration dispatch is intentionally preview-first and confirmation-based. The contract is now clearer, but it is still not a live connector that pushes to Jira, ServiceNow, Slack, or Teams.
 - Similar-case quality still depends on the quality of stored draft outcomes and case-closure discipline. Retrieval is implemented, but ranking quality should be tuned with real usage data.
 - No open high-severity merge blockers remain in the workspace save/autosave/runbook path after the late fix pass; remaining follow-up work is product tuning rather than release safety.
 
 ## Metric Baselines
+
 - Instrumentation status: event hooks are present for workspace intake analysis, similar-case open, next-action acceptance, handoff copy, evidence copy, KB promotion, resolution-kit save/apply, guided runbook start/progress, and batch triage.
 - Time to first usable draft: event-ready, numeric baseline pending pilot usage.
 - Edit ratio before send: event-ready via existing save analytics, numeric baseline pending pilot usage.
@@ -215,6 +233,7 @@
 - KB promotion rate: event-ready, numeric baseline pending pilot usage.
 
 ## Phase Checklists
+
 - Phase 0
   - [x] Canonical roadmap file created
   - [x] Current remediation plan points here
@@ -247,6 +266,7 @@
   - [x] Performance targets validated
 
 ## Discoveries
+
 - Existing workspace, queue, handoff, runbook, policy-search, and saved-response primitives already cover a meaningful portion of the roadmap foundation.
 - The Draft screen needed a true right-rail layout. A three-column minimum-width layout caused overlap at normal desktop widths once the workspace rail was introduced.
 - Guided runbook sessions needed explicit workspace scoping plus first-save scope reassignment so they would not disappear when an unsaved workspace became a saved draft.
@@ -261,16 +281,20 @@
 - Runbook-only progress can exist entirely in evidence and draft notes, so persistence checks have to look beyond the main freeform response box.
 - Re-saving a saved draft must preserve the original draft identity; otherwise every downstream artifact link starts to drift onto superseded records.
 - Single-session migration is safer than scope-wide migration once the workspace is capable of showing legacy fallback sessions that may not all belong to the current piece of work.
+- Browser-backed Playwright suites on this repo can fight over the Vite dev-server port if launched in parallel from separate processes. Local final verification should run smoke serially after any parallel browser checks to avoid false `ERR_CONNECTION_REFUSED` failures.
 
 ## Deviations
+
 - Numeric baselines are not filled yet. Instrumentation is present, but actual baseline values still require pilot data rather than synthetic guesses.
 - Collaboration dispatch kept the preview-first/manual-confirmation product default. A clearer `confirm_collaboration_dispatch` path was added for future callers, while the existing `send_collaboration_dispatch` command remains as a compatibility alias.
 - The active plan files now use repo-relative references for ongoing work. Historical audit documents still contain older machine-specific absolute path references, but they are retained as archival evidence rather than the active execution path.
 - The final merge-closeout fix favors a precise per-session reassignment API over the older scope-wide reassignment when the workspace can identify the active session confidently. The broader scope-based command remains for compatibility and bulk migration cases.
 
 ## PR Index
+
 - Product improvement branch pushed as `codex/feat/product-improvement-program`.
 - Late merge-blocker follow-up fix round is in progress as the final merge-to-main closeout.
 
 ## Post-Launch Learnings
+
 - Pending first dogfood cycle.
