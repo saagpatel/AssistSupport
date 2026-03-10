@@ -1,0 +1,245 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueueCommandCenterPage } from './QueueCommandCenterPage';
+import type { SavedDraft } from '../../../types';
+
+const loadDraftsMock = vi.fn();
+const clusterTicketsForTriageMock = vi.fn();
+const listRecentTriageClustersMock = vi.fn();
+const previewCollaborationDispatchMock = vi.fn();
+const confirmCollaborationDispatchMock = vi.fn();
+const cancelCollaborationDispatchMock = vi.fn();
+const listDispatchHistoryMock = vi.fn();
+const logEventMock = vi.fn();
+const showSuccessMock = vi.fn();
+const showErrorMock = vi.fn();
+let collaborationDispatchEnabled = false;
+
+let draftState: {
+  drafts: SavedDraft[];
+  loading: boolean;
+  error: string | null;
+};
+
+vi.mock('../../../hooks/useDrafts', () => ({
+  useDrafts: () => ({
+    drafts: draftState.drafts,
+    loading: draftState.loading,
+    error: draftState.error,
+    loadDrafts: loadDraftsMock,
+  }),
+}));
+
+vi.mock('../../../hooks/useFeatureOps', () => ({
+  useFeatureOps: () => ({
+    clusterTicketsForTriage: clusterTicketsForTriageMock,
+    listRecentTriageClusters: listRecentTriageClustersMock,
+    previewCollaborationDispatch: previewCollaborationDispatchMock,
+    confirmCollaborationDispatch: confirmCollaborationDispatchMock,
+    cancelCollaborationDispatch: cancelCollaborationDispatchMock,
+    listDispatchHistory: listDispatchHistoryMock,
+  }),
+}));
+
+vi.mock('../../revamp', () => ({
+  resolveRevampFlags: () => ({
+    ASSISTSUPPORT_REVAMP_APP_SHELL: true,
+    ASSISTSUPPORT_REVAMP_INBOX: true,
+    ASSISTSUPPORT_REVAMP_WORKSPACE: true,
+    ASSISTSUPPORT_REVAMP_COMMAND_PALETTE_V2: true,
+    ASSISTSUPPORT_TICKET_WORKSPACE_V2: true,
+    ASSISTSUPPORT_STRUCTURED_INTAKE: true,
+    ASSISTSUPPORT_SIMILAR_CASES: true,
+    ASSISTSUPPORT_NEXT_BEST_ACTION: true,
+    ASSISTSUPPORT_GUIDED_RUNBOOKS_V2: true,
+    ASSISTSUPPORT_POLICY_APPROVAL_ASSISTANT: true,
+    ASSISTSUPPORT_BATCH_TRIAGE: true,
+    ASSISTSUPPORT_COLLABORATION_DISPATCH: collaborationDispatchEnabled,
+    ASSISTSUPPORT_WORKSPACE_COMMAND_PALETTE: true,
+    ASSISTSUPPORT_LLM_ROUTER_V2: false,
+    ASSISTSUPPORT_ENABLE_ADMIN_TABS: false,
+    ASSISTSUPPORT_ENABLE_NETWORK_INGEST: false,
+  }),
+}));
+
+vi.mock('../../../hooks/useAnalytics', () => ({
+  useAnalytics: () => ({
+    logEvent: logEventMock,
+  }),
+}));
+
+vi.mock('../../../contexts/ToastContext', () => ({
+  useToastContext: () => ({
+    success: showSuccessMock,
+    error: showErrorMock,
+  }),
+}));
+
+function makeDraft(partial: Partial<SavedDraft> = {}): SavedDraft {
+  return {
+    id: partial.id ?? 'draft-1',
+    input_text: partial.input_text ?? 'VPN outage for west region users',
+    summary_text: partial.summary_text ?? 'VPN outage',
+    diagnosis_json: partial.diagnosis_json ?? null,
+    response_text: partial.response_text ?? 'Escalated to network team.',
+    ticket_id: partial.ticket_id ?? 'INC-1001',
+    kb_sources_json: partial.kb_sources_json ?? null,
+    created_at: partial.created_at ?? '2026-03-10T10:00:00.000Z',
+    updated_at: partial.updated_at ?? '2026-03-10T10:00:00.000Z',
+    is_autosave: partial.is_autosave ?? false,
+    model_name: partial.model_name ?? 'Local Model',
+    case_intake_json: partial.case_intake_json ?? null,
+    status: partial.status ?? 'draft',
+    handoff_summary: partial.handoff_summary ?? null,
+    finalized_at: partial.finalized_at ?? null,
+    finalized_by: partial.finalized_by ?? null,
+  };
+}
+
+describe('QueueCommandCenterPage', () => {
+  beforeEach(() => {
+    draftState = {
+      drafts: [],
+      loading: false,
+      error: null,
+    };
+    loadDraftsMock.mockReset();
+    clusterTicketsForTriageMock.mockReset();
+    listRecentTriageClustersMock.mockReset();
+    previewCollaborationDispatchMock.mockReset();
+    confirmCollaborationDispatchMock.mockReset();
+    cancelCollaborationDispatchMock.mockReset();
+    listDispatchHistoryMock.mockReset();
+    logEventMock.mockReset();
+    showSuccessMock.mockReset();
+    showErrorMock.mockReset();
+    collaborationDispatchEnabled = false;
+    listRecentTriageClustersMock.mockResolvedValue([]);
+    listDispatchHistoryMock.mockResolvedValue([]);
+    if (typeof localStorage !== 'undefined' && typeof localStorage.clear === 'function') {
+      localStorage.clear();
+    }
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('shows queue loading state while drafts are being fetched', () => {
+    draftState.loading = true;
+
+    render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
+
+    expect(screen.getByText('Loading…')).toBeTruthy();
+    expect(loadDraftsMock).toHaveBeenCalledWith(100);
+  });
+
+  it('shows an error recovery state when queue data cannot be loaded', () => {
+    draftState.error = 'draft load failed';
+
+    render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
+
+    expect(screen.getByText('Queue unavailable')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry Load' }));
+    expect(loadDraftsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('filters missing-context work and runs batch triage from the visible queue', async () => {
+    draftState.drafts = [
+      makeDraft({
+        case_intake_json: JSON.stringify({
+          issue: 'VPN outage',
+          missing_data: ['affected system'],
+          note_audience: 'internal-note',
+        }),
+      }),
+    ];
+    clusterTicketsForTriageMock.mockResolvedValue([
+      {
+        cluster_key: 'vpn',
+        summary: 'VPN issues',
+        ticket_ids: ['INC-1001'],
+      },
+    ]);
+
+    render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Missing context' }));
+    expect(screen.getAllByText('INC-1001')).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use visible queue' }));
+    const input = screen.getByLabelText('Batch triage input') as HTMLTextAreaElement;
+    expect(input.value).toContain('INC-1001|VPN outage');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run triage' }));
+
+    await waitFor(() => {
+      expect(clusterTicketsForTriageMock).toHaveBeenCalledWith([
+        { id: 'INC-1001', summary: 'VPN outage' },
+      ]);
+    });
+    expect(await screen.findByText(/VPN issues/)).toBeTruthy();
+    expect(showSuccessMock).toHaveBeenCalledWith('Batch triage completed');
+  });
+
+  it('previews and records a queue dispatch send when collaboration dispatch is enabled', async () => {
+    collaborationDispatchEnabled = true;
+    draftState.drafts = [makeDraft()];
+    previewCollaborationDispatchMock.mockResolvedValue({
+      id: 'dispatch-1',
+      integration_type: 'jira',
+      draft_id: 'draft-1',
+      title: 'Escalation · INC-1001',
+      destination_label: 'Jira escalation payload',
+      payload_preview: 'Escalation summary',
+      status: 'previewed',
+      metadata_json: null,
+      created_at: '2026-03-10T10:00:00.000Z',
+      updated_at: '2026-03-10T10:00:00.000Z',
+    });
+    confirmCollaborationDispatchMock.mockResolvedValue({
+      id: 'dispatch-1',
+      integration_type: 'jira',
+      draft_id: 'draft-1',
+      title: 'Escalation · INC-1001',
+      destination_label: 'Jira escalation payload',
+      payload_preview: 'Escalation summary',
+      status: 'sent',
+      metadata_json: null,
+      created_at: '2026-03-10T10:00:00.000Z',
+      updated_at: '2026-03-10T10:01:00.000Z',
+    });
+    listDispatchHistoryMock.mockResolvedValue([
+      {
+        id: 'dispatch-1',
+        integration_type: 'jira',
+        draft_id: 'draft-1',
+        title: 'Escalation · INC-1001',
+        destination_label: 'Jira escalation payload',
+        payload_preview: 'Escalation summary',
+        status: 'previewed',
+        metadata_json: null,
+        created_at: '2026-03-10T10:00:00.000Z',
+        updated_at: '2026-03-10T10:00:00.000Z',
+      },
+    ]);
+
+    render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview payload' }));
+
+    await waitFor(() => {
+      expect(previewCollaborationDispatchMock).toHaveBeenCalled();
+    });
+
+    expect(await screen.findByText('Jira escalation payload')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm sent' }));
+
+    await waitFor(() => {
+      expect(confirmCollaborationDispatchMock).toHaveBeenCalledWith('dispatch-1');
+    });
+    expect(showSuccessMock).toHaveBeenCalledWith('Jira escalation payload dispatch confirmed as sent');
+  });
+});

@@ -1,14 +1,22 @@
 import { useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type {
+  CaseOutcomeRecord,
+  DispatchHistoryRecord,
   DeploymentArtifactRecord,
   DeploymentHealthSummary,
   EvalRunRecord,
   IntegrationConfigRecord,
   KbGapCandidate,
+  ResolutionKit,
+  ResolutionKitRecord,
+  RunbookStepEvidenceRecord,
   RunbookSessionRecord,
+  RunbookTemplateRecord,
   SignedArtifactVerificationResult,
   TriageClusterRecord,
+  WorkspaceFavorite,
+  WorkspaceFavoriteRecord,
 } from '../types';
 
 export interface DeploymentPreflightResult {
@@ -38,6 +46,15 @@ export interface TriageClusterOutput {
   cluster_key: string;
   summary: string;
   ticket_ids: string[];
+}
+
+export interface CollaborationDispatchInput {
+  integrationType: 'jira' | 'servicenow' | 'slack' | 'teams';
+  draftId?: string | null;
+  title: string;
+  destinationLabel: string;
+  payloadPreview: string;
+  metadataJson?: string | null;
 }
 
 export function useFeatureOps() {
@@ -126,8 +143,9 @@ export function useFeatureOps() {
   const startRunbookSession = useCallback(async (
     scenario: string,
     steps: string[],
+    scopeKey: string,
   ): Promise<RunbookSessionRecord> => {
-    return invoke<RunbookSessionRecord>('start_runbook_session', { scenario, steps });
+    return invoke<RunbookSessionRecord>('start_runbook_session', { scenario, steps, scopeKey });
   }, []);
 
   const advanceRunbookSession = useCallback(async (
@@ -145,11 +163,154 @@ export function useFeatureOps() {
   const listRunbookSessions = useCallback(async (
     limit = 50,
     status?: string,
+    scopeKey?: string,
   ): Promise<RunbookSessionRecord[]> => {
     return invoke<RunbookSessionRecord[]>('list_runbook_sessions', {
       limit,
       status: status ?? null,
+      scopeKey: scopeKey ?? null,
     });
+  }, []);
+
+  const reassignRunbookSessionScope = useCallback(async (
+    fromScopeKey: string,
+    toScopeKey: string,
+  ): Promise<void> => {
+    await invoke('reassign_runbook_session_scope', {
+      fromScopeKey,
+      toScopeKey,
+    });
+  }, []);
+
+  const reassignRunbookSessionById = useCallback(async (
+    sessionId: string,
+    toScopeKey: string,
+  ): Promise<void> => {
+    await invoke('reassign_runbook_session_by_id', {
+      sessionId,
+      toScopeKey,
+    });
+  }, []);
+
+  const listRunbookTemplates = useCallback(async (limit = 50): Promise<RunbookTemplateRecord[]> => {
+    return invoke<RunbookTemplateRecord[]>('list_runbook_templates', { limit });
+  }, []);
+
+  const saveRunbookTemplate = useCallback(async (
+    template: Omit<RunbookTemplateRecord, 'id' | 'created_at' | 'updated_at'> & { id?: string },
+  ): Promise<string> => {
+    return invoke<string>('save_runbook_template', { template });
+  }, []);
+
+  const listRunbookStepEvidence = useCallback(async (
+    sessionId: string,
+  ): Promise<RunbookStepEvidenceRecord[]> => {
+    return invoke<RunbookStepEvidenceRecord[]>('list_runbook_step_evidence', { sessionId });
+  }, []);
+
+  const addRunbookStepEvidence = useCallback(async (
+    sessionId: string,
+    stepIndex: number,
+    status: RunbookStepEvidenceRecord['status'],
+    evidenceText: string,
+    skipReason?: string,
+  ): Promise<RunbookStepEvidenceRecord> => {
+    return invoke<RunbookStepEvidenceRecord>('add_runbook_step_evidence', {
+      sessionId,
+      stepIndex,
+      status,
+      evidenceText,
+      skipReason: skipReason ?? null,
+    });
+  }, []);
+
+  const listResolutionKits = useCallback(async (limit = 50): Promise<ResolutionKitRecord[]> => {
+    return invoke<ResolutionKitRecord[]>('list_resolution_kits', { limit });
+  }, []);
+
+  const saveResolutionKit = useCallback(async (
+    kit: Omit<ResolutionKit, 'id'> & { id?: string },
+  ): Promise<string> => {
+    return invoke<string>('save_resolution_kit', {
+      kit: {
+        id: kit.id ?? '',
+        name: kit.name,
+        summary: kit.summary,
+        category: kit.category,
+        response_template: kit.response_template,
+        checklist_items_json: JSON.stringify(kit.checklist_items),
+        kb_document_ids_json: JSON.stringify(kit.kb_document_ids),
+        runbook_scenario: kit.runbook_scenario,
+        approval_hint: kit.approval_hint,
+        created_at: '',
+        updated_at: '',
+      },
+    });
+  }, []);
+
+  const listWorkspaceFavorites = useCallback(async (): Promise<WorkspaceFavoriteRecord[]> => {
+    return invoke<WorkspaceFavoriteRecord[]>('list_workspace_favorites');
+  }, []);
+
+  const saveWorkspaceFavorite = useCallback(async (
+    favorite: Omit<WorkspaceFavorite, 'id'> & { id?: string },
+  ): Promise<string> => {
+    return invoke<string>('save_workspace_favorite', {
+      favorite: {
+        id: favorite.id ?? '',
+        kind: favorite.kind,
+        label: favorite.label,
+        resource_id: favorite.resource_id,
+        metadata_json: favorite.metadata ? JSON.stringify(favorite.metadata) : null,
+        created_at: '',
+        updated_at: '',
+      },
+    });
+  }, []);
+
+  const deleteWorkspaceFavorite = useCallback(async (favoriteId: string): Promise<void> => {
+    await invoke('delete_workspace_favorite', { favoriteId });
+  }, []);
+
+  const previewCollaborationDispatch = useCallback(async (
+    preview: CollaborationDispatchInput,
+  ): Promise<DispatchHistoryRecord> => {
+    return invoke<DispatchHistoryRecord>('preview_collaboration_dispatch', {
+      integrationType: preview.integrationType,
+      draftId: preview.draftId ?? null,
+      title: preview.title,
+      destinationLabel: preview.destinationLabel,
+      payloadPreview: preview.payloadPreview,
+      metadataJson: preview.metadataJson ?? null,
+    });
+  }, []);
+
+  const confirmCollaborationDispatch = useCallback(async (dispatchId: string): Promise<DispatchHistoryRecord> => {
+    return invoke<DispatchHistoryRecord>('confirm_collaboration_dispatch', { dispatchId });
+  }, []);
+
+  const cancelCollaborationDispatch = useCallback(async (dispatchId: string): Promise<DispatchHistoryRecord> => {
+    return invoke<DispatchHistoryRecord>('cancel_collaboration_dispatch', { dispatchId });
+  }, []);
+
+  const listDispatchHistory = useCallback(async (
+    limit = 50,
+    status?: DispatchHistoryRecord['status'],
+  ): Promise<DispatchHistoryRecord[]> => {
+    return invoke<DispatchHistoryRecord[]>('list_dispatch_history', {
+      limit,
+      status: status ?? null,
+    });
+  }, []);
+
+  const saveCaseOutcome = useCallback(async (
+    outcome: Omit<CaseOutcomeRecord, 'id' | 'created_at' | 'updated_at'> & { id?: string },
+  ): Promise<string> => {
+    return invoke<string>('save_case_outcome', { outcome });
+  }, []);
+
+  const listCaseOutcomes = useCallback(async (limit = 50): Promise<CaseOutcomeRecord[]> => {
+    return invoke<CaseOutcomeRecord[]>('list_case_outcomes', { limit });
   }, []);
 
   const listIntegrations = useCallback(async (): Promise<IntegrationConfigRecord[]> => {
@@ -184,6 +345,23 @@ export function useFeatureOps() {
     startRunbookSession,
     advanceRunbookSession,
     listRunbookSessions,
+    reassignRunbookSessionScope,
+    reassignRunbookSessionById,
+    listRunbookTemplates,
+    saveRunbookTemplate,
+    listRunbookStepEvidence,
+    addRunbookStepEvidence,
+    listResolutionKits,
+    saveResolutionKit,
+    listWorkspaceFavorites,
+    saveWorkspaceFavorite,
+    deleteWorkspaceFavorite,
+    previewCollaborationDispatch,
+    confirmCollaborationDispatch,
+    cancelCollaborationDispatch,
+    listDispatchHistory,
+    saveCaseOutcome,
+    listCaseOutcomes,
     listIntegrations,
     configureIntegration,
   };

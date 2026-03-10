@@ -131,14 +131,18 @@ export function useDrafts() {
     }
   }, []);
 
-  const triggerAutosave = useCallback((draftData: Omit<SavedDraft, 'id' | 'created_at' | 'updated_at' | 'is_autosave'> & { model_name?: string | null }) => {
+  const triggerAutosave = useCallback((
+    draftData: Omit<SavedDraft, 'id' | 'created_at' | 'updated_at' | 'is_autosave'> & { model_name?: string | null },
+    autosaveDraftId?: string | null,
+    hasMeaningfulContent = true,
+  ) => {
     // Cancel any pending autosave
     if (autosaveTimeoutRef.current) {
       clearTimeout(autosaveTimeoutRef.current);
     }
 
     // Skip if no meaningful content
-    if (!draftData.input_text?.trim()) {
+    if (!hasMeaningfulContent) {
       return;
     }
 
@@ -148,7 +152,7 @@ export function useDrafts() {
         const now = new Date().toISOString();
         const fullDraft: SavedDraft = {
           ...draftData,
-          id: crypto.randomUUID(),
+          id: autosaveDraftId ?? crypto.randomUUID(),
           created_at: now,
           updated_at: now,
           is_autosave: true,

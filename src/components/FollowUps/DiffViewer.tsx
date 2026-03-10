@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Button } from '../shared/Button';
+import { Dialog } from '../shared/Dialog';
 import './DiffViewer.css';
 
 interface DiffViewerProps {
@@ -73,8 +74,7 @@ export function DiffViewer({ textA, textB, labelA = 'Version A', labelB = 'Versi
   let lineNumB = 0;
 
   return (
-    <div className="diff-overlay" onClick={onClose}>
-      <div className="diff-modal" onClick={(e) => e.stopPropagation()}>
+    <Dialog open onClose={onClose} ariaLabel="Compare responses" overlayClassName="diff-overlay" panelClassName="diff-modal">
         <div className="diff-header">
           <div className="diff-header-labels">
             <span className="diff-label diff-label-remove">{labelA}</span>
@@ -123,7 +123,6 @@ export function DiffViewer({ textA, textB, labelA = 'Version A', labelB = 'Versi
             <div className="diff-empty">No differences found.</div>
           )}
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

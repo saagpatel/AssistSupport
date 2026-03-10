@@ -278,6 +278,7 @@ commands.allow = [
   "log_pilot_query",
   "record_deployment_artifact",
   "delete_playbook",
+  "reassign_runbook_session_by_id",
   "rollback_deployment_run",
   "run_deployment_preflight",
   "save_playbook",

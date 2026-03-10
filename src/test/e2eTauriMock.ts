@@ -93,6 +93,7 @@ export function setupE2eTauriMock(): void {
     {
       id: 'runbook-1',
       scenario: 'security-incident',
+      scope_key: 'ops:global',
       status: 'active',
       steps_json: JSON.stringify(['Acknowledge incident', 'Contain access', 'Notify stakeholders']),
       current_step: 0,
@@ -100,6 +101,79 @@ export function setupE2eTauriMock(): void {
       updated_at: '2026-02-03T11:10:00Z',
     },
   ];
+
+  const runbookTemplates = [
+    {
+      id: 'runbook-template-1',
+      name: 'Security Incident',
+      scenario: 'security-incident',
+      steps_json: JSON.stringify(['Acknowledge incident', 'Contain access', 'Notify stakeholders']),
+      created_at: '2026-02-03T11:08:00Z',
+      updated_at: '2026-02-03T11:08:00Z',
+    },
+  ];
+
+  const runbookEvidence: Array<{
+    id: string;
+    session_id: string;
+    step_index: number;
+    status: string;
+    evidence_text: string;
+    skip_reason: string | null;
+    created_at: string;
+  }> = [];
+
+  const resolutionKits = [
+    {
+      id: 'kit-1',
+      name: 'VPN Incident Starter',
+      summary: 'Baseline steps for repeated VPN incidents.',
+      category: 'incident',
+      response_template: 'We are reviewing the VPN incident and will update you shortly.',
+      checklist_items_json: JSON.stringify(['Confirm scope', 'Check recent network changes']),
+      kb_document_ids_json: JSON.stringify(['doc-1']),
+      runbook_scenario: 'security-incident',
+      approval_hint: null,
+      created_at: '2026-02-03T11:09:00Z',
+      updated_at: '2026-02-03T11:09:00Z',
+    },
+  ];
+
+  const workspaceFavorites: Array<{
+    id: string;
+    kind: 'runbook' | 'policy' | 'kb' | 'kit';
+    label: string;
+    resource_id: string;
+    metadata_json: string | null;
+    created_at: string;
+    updated_at: string;
+  }> = [];
+
+  const dispatchHistory: Array<{
+    id: string;
+    integration_type: 'jira' | 'servicenow' | 'slack' | 'teams';
+    draft_id: string | null;
+    title: string;
+    destination_label: string;
+    payload_preview: string;
+    status: 'previewed' | 'sent' | 'cancelled' | 'failed';
+    metadata_json: string | null;
+    created_at: string;
+    updated_at: string;
+  }> = [];
+
+  const caseOutcomes: Array<{
+    id: string;
+    draft_id: string;
+    status: string;
+    outcome_summary: string;
+    handoff_pack_json: string | null;
+    kb_draft_json: string | null;
+    evidence_pack_json: string | null;
+    tags_json: string | null;
+    created_at: string;
+    updated_at: string;
+  }> = [];
 
   const integrationConfigs = [
     {
@@ -543,12 +617,32 @@ export function setupE2eTauriMock(): void {
           return output;
         }
         case 'list_runbook_sessions':
-          return runbookSessions.slice().reverse();
+          return runbookSessions
+            .filter((session) => {
+              const body = payload as { scopeKey?: string | null } | undefined;
+              if (!body?.scopeKey) {
+                return true;
+              }
+              return session.scope_key === body.scopeKey;
+            })
+            .slice()
+            .reverse();
+        case 'reassign_runbook_session_scope': {
+          const body = payload as { fromScopeKey?: string; toScopeKey?: string } | undefined;
+          runbookSessions.forEach((session) => {
+            if (session.scope_key === body?.fromScopeKey && body?.toScopeKey) {
+              session.scope_key = body.toScopeKey;
+              session.updated_at = new Date().toISOString();
+            }
+          });
+          return null;
+        }
         case 'start_runbook_session': {
-          const body = payload as { scenario?: string; steps?: string[] };
+          const body = payload as { scenario?: string; steps?: string[]; scopeKey?: string };
           const next = {
             id: `runbook-${runbookSessions.length + 1}`,
             scenario: body.scenario ?? 'runbook',
+            scope_key: body.scopeKey ?? 'workspace:mock',
             status: 'active',
             steps_json: JSON.stringify(body.steps ?? []),
             current_step: 0,
@@ -567,6 +661,53 @@ export function setupE2eTauriMock(): void {
             session.updated_at = new Date().toISOString();
           }
           return null;
+        }
+        case 'list_runbook_templates':
+          return runbookTemplates.slice().reverse();
+        case 'save_runbook_template': {
+          const body = payload as { template?: typeof runbookTemplates[number] } | undefined;
+          const template = body?.template;
+          if (!template) {
+            return 'runbook-template-new';
+          }
+          const id = template.id || `runbook-template-${runbookTemplates.length + 1}`;
+          const normalized = {
+            ...template,
+            id,
+            created_at: template.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const existingIndex = runbookTemplates.findIndex((item) => item.id === id);
+          if (existingIndex >= 0) {
+            runbookTemplates[existingIndex] = normalized;
+          } else {
+            runbookTemplates.push(normalized);
+          }
+          return id;
+        }
+        case 'list_runbook_step_evidence': {
+          const body = payload as { sessionId?: string } | undefined;
+          return runbookEvidence.filter((item) => item.session_id === body?.sessionId);
+        }
+        case 'add_runbook_step_evidence': {
+          const body = payload as {
+            sessionId?: string;
+            stepIndex?: number;
+            status?: string;
+            evidenceText?: string;
+            skipReason?: string | null;
+          } | undefined;
+          const entry = {
+            id: `runbook-evidence-${runbookEvidence.length + 1}`,
+            session_id: body?.sessionId ?? 'runbook-1',
+            step_index: body?.stepIndex ?? 0,
+            status: body?.status ?? 'completed',
+            evidence_text: body?.evidenceText ?? '',
+            skip_reason: body?.skipReason ?? null,
+            created_at: new Date().toISOString(),
+          };
+          runbookEvidence.push(entry);
+          return entry;
         }
         case 'list_integrations':
           return integrationConfigs;
@@ -589,6 +730,131 @@ export function setupE2eTauriMock(): void {
           }
           return null;
         }
+        case 'list_resolution_kits':
+          return resolutionKits.slice().reverse();
+        case 'save_resolution_kit': {
+          const body = payload as { kit?: typeof resolutionKits[number] } | undefined;
+          const kit = body?.kit;
+          if (!kit) {
+            return 'kit-new';
+          }
+          const id = kit.id || `kit-${resolutionKits.length + 1}`;
+          const normalized = {
+            ...kit,
+            id,
+            created_at: kit.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const existingIndex = resolutionKits.findIndex((item) => item.id === id);
+          if (existingIndex >= 0) {
+            resolutionKits[existingIndex] = normalized;
+          } else {
+            resolutionKits.push(normalized);
+          }
+          return id;
+        }
+        case 'list_workspace_favorites':
+          return workspaceFavorites.slice().reverse();
+        case 'save_workspace_favorite': {
+          const body = payload as { favorite?: typeof workspaceFavorites[number] } | undefined;
+          const favorite = body?.favorite;
+          if (!favorite) {
+            return 'favorite-new';
+          }
+          const existing = workspaceFavorites.find(
+            (item) => item.kind === favorite.kind && item.resource_id === favorite.resource_id,
+          );
+          if (existing) {
+            existing.label = favorite.label;
+            existing.metadata_json = favorite.metadata_json ?? null;
+            existing.updated_at = new Date().toISOString();
+            return existing.id;
+          }
+          const next = {
+            ...favorite,
+            id: favorite.id || `favorite-${workspaceFavorites.length + 1}`,
+            created_at: favorite.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          workspaceFavorites.push(next);
+          return next.id;
+        }
+        case 'delete_workspace_favorite': {
+          const body = payload as { favoriteId?: string } | undefined;
+          const next = workspaceFavorites.filter((item) => item.id !== body?.favoriteId);
+          workspaceFavorites.splice(0, workspaceFavorites.length, ...next);
+          return null;
+        }
+        case 'preview_collaboration_dispatch': {
+          const body = payload as {
+            integrationType?: 'jira' | 'servicenow' | 'slack' | 'teams';
+            draftId?: string | null;
+            title?: string;
+            destinationLabel?: string;
+            payloadPreview?: string;
+            metadataJson?: string | null;
+          } | undefined;
+          const record = {
+            id: `dispatch-${dispatchHistory.length + 1}`,
+            integration_type: body?.integrationType ?? 'jira',
+            draft_id: body?.draftId ?? null,
+            title: body?.title ?? 'Dispatch preview',
+            destination_label: body?.destinationLabel ?? 'Jira',
+            payload_preview: body?.payloadPreview ?? '',
+            status: 'previewed' as const,
+            metadata_json: body?.metadataJson ?? null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          dispatchHistory.push(record);
+          return record;
+        }
+        case 'confirm_collaboration_dispatch':
+        case 'send_collaboration_dispatch': {
+          const body = payload as { dispatchId?: string } | undefined;
+          const record = dispatchHistory.find((item) => item.id === body?.dispatchId);
+          if (!record) {
+            throw new Error(`Dispatch not found: ${body?.dispatchId}`);
+          }
+          record.status = 'sent';
+          record.updated_at = new Date().toISOString();
+          return record;
+        }
+        case 'cancel_collaboration_dispatch': {
+          const body = payload as { dispatchId?: string } | undefined;
+          const record = dispatchHistory.find((item) => item.id === body?.dispatchId);
+          if (!record) {
+            throw new Error(`Dispatch not found: ${body?.dispatchId}`);
+          }
+          record.status = 'cancelled';
+          record.updated_at = new Date().toISOString();
+          return record;
+        }
+        case 'list_dispatch_history':
+          return dispatchHistory.slice().reverse();
+        case 'save_case_outcome': {
+          const body = payload as { outcome?: typeof caseOutcomes[number] } | undefined;
+          const outcome = body?.outcome;
+          if (!outcome) {
+            return 'case-outcome-new';
+          }
+          const id = outcome.id || `case-outcome-${caseOutcomes.length + 1}`;
+          const normalized = {
+            ...outcome,
+            id,
+            created_at: outcome.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const existingIndex = caseOutcomes.findIndex((item) => item.id === id);
+          if (existingIndex >= 0) {
+            caseOutcomes[existingIndex] = normalized;
+          } else {
+            caseOutcomes.push(normalized);
+          }
+          return id;
+        }
+        case 'list_case_outcomes':
+          return caseOutcomes.slice().reverse();
         case 'check_search_api_health':
           return true;
         case 'get_search_api_health_status':

@@ -79,6 +79,11 @@
   align-items: center;
 }
 
+.as-queue__controlGroups {
+  display: grid;
+  gap: var(--as-space-2);
+}
+
 .as-queue__viewButtons {
   display: flex;
   flex-wrap: wrap;
@@ -95,6 +100,16 @@
   grid-template-columns: minmax(380px, 1fr) minmax(340px, 460px);
   gap: var(--as-space-5);
   align-items: start;
+}
+
+.as-queue__insightsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--as-space-4);
+}
+
+.as-queue__insights {
+  display: contents;
 }
 
 .as-queue__list {
@@ -151,6 +166,15 @@
   background: var(--as-accent-surface-1);
 }
 
+.as-queue__items:focus-visible {
+  outline: 2px solid var(--as-accent-border-1);
+  outline-offset: 4px;
+}
+
+.as-queue__item:focus-within {
+  border-color: var(--as-accent-border-1);
+}
+
 .as-queue__errorState {
   display: grid;
   gap: var(--as-space-3);
@@ -198,6 +222,11 @@
   top: 92px;
 }
 
+.as-queue__detailStack {
+  display: grid;
+  gap: var(--as-space-4);
+}
+
 .as-queue__detailTitle {
   margin: 0;
   font-size: var(--as-font-size-4);
@@ -231,7 +260,111 @@
   margin-top: var(--as-space-4);
 }
 
+.as-queue__panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--as-space-2);
+}
+
+.as-queue__coachMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--as-space-3);
+}
+
+.as-queue__coachMetrics span,
+.as-queue__field span {
+  display: block;
+  color: var(--as-text-3);
+  font-size: var(--as-font-size-0);
+  margin-bottom: 4px;
+}
+
+.as-queue__coachMetrics strong {
+  font-size: var(--as-font-size-3);
+}
+
+.as-queue__signalList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--as-space-2);
+}
+
+.as-queue__signalList li {
+  border: 1px solid var(--as-border-1);
+  border-radius: var(--as-radius-2);
+  background: var(--as-glass-1);
+  padding: var(--as-space-3);
+  display: grid;
+  gap: 4px;
+}
+
+.as-queue__signalList span,
+.as-queue__insightSummary,
+.as-queue__insightHint,
+.as-queue__status,
+.as-queue__dispatchMeta span {
+  color: var(--as-text-2);
+}
+
+.as-queue__textarea,
+.as-queue__pre,
+.as-queue__field .as-queue__select {
+  width: 100%;
+}
+
+.as-queue__textarea {
+  min-height: 132px;
+  resize: vertical;
+  padding: 12px;
+  border-radius: var(--as-radius-2);
+  border: 1px solid var(--as-border-1);
+  background: var(--as-glass-2);
+  color: var(--as-text-1);
+  font: inherit;
+}
+
+.as-queue__pre {
+  margin: 0;
+  padding: var(--as-space-3);
+  border-radius: var(--as-radius-2);
+  border: 1px solid var(--as-border-1);
+  background: var(--as-glass-1);
+  color: var(--as-text-1);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.as-queue__pre--compact {
+  max-height: 260px;
+}
+
+.as-queue__history,
+.as-queue__ownerLoad {
+  display: grid;
+  gap: var(--as-space-2);
+}
+
+.as-queue__dispatchControls {
+  display: grid;
+  gap: var(--as-space-3);
+}
+
+.as-queue__dispatchMeta {
+  display: grid;
+  gap: 4px;
+}
+
+.as-queue__field {
+  display: grid;
+  gap: 4px;
+}
+
 @media (max-width: 1024px) {
+  .as-queue__insightsGrid,
   .as-queue__grid {
     grid-template-columns: 1fr;
   }
@@ -244,6 +377,11 @@
   .as-queue__metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .as-queue__coachMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .as-queue__controls {
     grid-template-columns: 1fr;
     align-items: start;

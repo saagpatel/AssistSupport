@@ -2,6 +2,10 @@
 
 AssistSupport Deep Audit and Multi-Phase Hardening Program
 
+## Canonical Follow-On Roadmap
+
+The active execution document for post-stabilization product work now lives in [`docs/plans/product-improvements-roadmap.md`](docs/plans/product-improvements-roadmap.md). Reread that file first after compaction or before continuing the product-improvement program.
+
 # Executive Summary
 
 - Short current-state assessment: AssistSupport is a tabbed desktop app built from a React frontend, a large Tauri/Rust command layer, an encrypted local SQLite core, an optional LanceDB vector store, and a localhost Flask search sidecar. The frontend builds cleanly, baseline static/unit/a11y checks mostly pass, and the repo already contains meaningful SSRF/path-validation/security regression tests. The system is not broadly broken, but several trust claims and recovery guarantees are not currently true end to end.

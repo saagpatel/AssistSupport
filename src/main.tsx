@@ -8,6 +8,14 @@ import "./styles/design-tokens.css";
 import "./styles/themes.css";
 import "./styles/components.css";
 
+const APP_BOOTSTRAP_START_MARK = 'assistsupport:perf:bootstrap-start';
+type PerfWindow = Window & {
+  __assistsupportPerf?: {
+    bootstrapStartedAt: number;
+    ticketWorkspaceReadyMs?: number;
+  };
+};
+
 // Global error handler - logs to console without destroying the React app.
 // Destroying document.body kills the entire React tree and prevents recovery.
 // Instead, let React's ErrorBoundary components handle UI errors gracefully.
@@ -24,6 +32,15 @@ window.onunhandledrejection = (event) => {
 
 async function bootstrap() {
   try {
+    if (typeof window !== 'undefined' && typeof window.performance !== 'undefined') {
+      window.performance.clearMarks(APP_BOOTSTRAP_START_MARK);
+      window.performance.mark(APP_BOOTSTRAP_START_MARK);
+      (window as PerfWindow).__assistsupportPerf = {
+        ...(window as PerfWindow).__assistsupportPerf,
+        bootstrapStartedAt: window.performance.now(),
+      };
+    }
+
     if (import.meta.env.VITE_E2E_MOCK_TAURI === '1') {
       const { setupE2eTauriMock } = await import('./test/e2eTauriMock');
       setupE2eTauriMock();

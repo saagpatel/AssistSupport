@@ -20,6 +20,7 @@ import './OpsTab.css';
 type OpsView = 'deployment' | 'eval' | 'triage' | 'runbook' | 'integrations';
 
 const INTEGRATION_TYPES = ['servicenow', 'slack', 'teams'] as const;
+const OPS_RUNBOOK_SCOPE_KEY = 'ops:global';
 
 function parseEvalCases(input: string): EvalHarnessCase[] {
   return input
@@ -162,7 +163,7 @@ export function OpsTab() {
   }, [listRecentTriageClusters]);
 
   const refreshRunbooks = useCallback(async () => {
-    const sessions = await listRunbookSessions(50).catch(() => []);
+    const sessions = await listRunbookSessions(50, undefined, OPS_RUNBOOK_SCOPE_KEY).catch(() => []);
     setRunbookSessions(sessions);
   }, [listRunbookSessions]);
 
@@ -306,7 +307,7 @@ export function OpsTab() {
         showError('Add at least one runbook step');
         return;
       }
-      await startRunbookSession(runbookScenario, steps);
+      await startRunbookSession(runbookScenario, steps, OPS_RUNBOOK_SCOPE_KEY);
       await refreshRunbooks();
       showSuccess('Runbook session started');
     } catch (e) {
