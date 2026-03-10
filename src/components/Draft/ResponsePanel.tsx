@@ -398,7 +398,7 @@ export function ResponsePanel({
         </div>
       </div>
 
-      <div className="panel-content response-content">
+      <div className="panel-content response-content" tabIndex={0} aria-label="Generated response panel">
         {generating && !streamingText ? (
           <div className="generating-indicator">
             <div className="generating-spinner" />

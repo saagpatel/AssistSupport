@@ -3,6 +3,15 @@ import type { TabId } from './types';
 import type { QueueView } from '../inbox/queueModel';
 import type { RevampFlags } from '../revamp';
 import { isTabEnabled } from './tabPolicy';
+import {
+  WORKSPACE_ANALYZE_INTAKE_EVENT,
+  WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT,
+  WORKSPACE_COPY_EVIDENCE_EVENT,
+  WORKSPACE_COPY_HANDOFF_EVENT,
+  WORKSPACE_COPY_KB_DRAFT_EVENT,
+  WORKSPACE_REFRESH_SIMILAR_CASES_EVENT,
+  dispatchWorkspaceEvent,
+} from '../workspace/workspaceEvents';
 
 interface BuildCommandsParams {
   activeTab: TabId;
@@ -39,6 +48,13 @@ export function buildAppShellCommands({
   onOpenShortcuts,
   clearDraft,
 }: BuildCommandsParams): Command[] {
+  const draftTabEnabled = isTabEnabled('draft', revampFlags);
+  const workspaceCommandPaletteEnabled =
+    draftTabEnabled &&
+    revampFlags.ASSISTSUPPORT_REVAMP_WORKSPACE &&
+    revampFlags.ASSISTSUPPORT_TICKET_WORKSPACE_V2 &&
+    revampFlags.ASSISTSUPPORT_WORKSPACE_COMMAND_PALETTE;
+
   const makeNavCommand = (
     tab: TabId,
     payload: Omit<Command, 'action' | 'disabled'> & { action?: Command['action'] },
@@ -49,6 +65,22 @@ export function buildAppShellCommands({
     return {
       ...payload,
       action: () => setActiveTab(tab),
+    };
+  };
+
+  const makeWorkspaceEventCommand = (
+    eventName: string,
+    featureEnabled: boolean,
+    payload: Omit<Command, 'action' | 'disabled'>,
+  ): Command | null => {
+    if (!workspaceCommandPaletteEnabled || !featureEnabled) {
+      return null;
+    }
+
+    return {
+      ...payload,
+      action: () => dispatchWorkspaceEvent(eventName),
+      disabled: activeTab !== 'draft',
     };
   };
 
@@ -160,6 +192,72 @@ export function buildAppShellCommands({
       category: 'action',
       action: () => setActiveTab('sources'),
     },
+    makeWorkspaceEventCommand(
+      WORKSPACE_ANALYZE_INTAKE_EVENT,
+      revampFlags.ASSISTSUPPORT_STRUCTURED_INTAKE,
+      {
+        id: 'workspace-analyze-intake',
+        label: 'Workspace: Analyze Intake',
+        description: 'Analyze the current ticket intake in the workspace rail',
+        icon: 'sparkles',
+        category: 'draft',
+      },
+    ),
+    makeWorkspaceEventCommand(
+      WORKSPACE_REFRESH_SIMILAR_CASES_EVENT,
+      revampFlags.ASSISTSUPPORT_SIMILAR_CASES,
+      {
+        id: 'workspace-refresh-similar-cases',
+        label: 'Workspace: Refresh Similar Cases',
+        description: 'Refresh similar solved cases for the current draft',
+        icon: 'refresh',
+        category: 'draft',
+      },
+    ),
+    makeWorkspaceEventCommand(
+      WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT,
+      revampFlags.ASSISTSUPPORT_SIMILAR_CASES,
+      {
+        id: 'workspace-compare-last-resolution',
+        label: 'Workspace: Compare Last Resolution',
+        description: 'Compare the current draft to the best similar solved case',
+        icon: 'sparkles',
+        category: 'draft',
+      },
+    ),
+    makeWorkspaceEventCommand(
+      WORKSPACE_COPY_HANDOFF_EVENT,
+      true,
+      {
+        id: 'workspace-copy-handoff-pack',
+        label: 'Workspace: Copy Handoff Pack',
+        description: 'Copy the ticket workspace handoff pack',
+        icon: 'copy',
+        category: 'draft',
+      },
+    ),
+    makeWorkspaceEventCommand(
+      WORKSPACE_COPY_EVIDENCE_EVENT,
+      true,
+      {
+        id: 'workspace-copy-evidence-pack',
+        label: 'Workspace: Copy Evidence Pack',
+        description: 'Copy the evidence pack from the ticket workspace',
+        icon: 'copy',
+        category: 'draft',
+      },
+    ),
+    makeWorkspaceEventCommand(
+      WORKSPACE_COPY_KB_DRAFT_EVENT,
+      true,
+      {
+        id: 'workspace-copy-kb-draft',
+        label: 'Workspace: Copy KB Draft',
+        description: 'Copy the knowledge-base draft from the workspace',
+        icon: 'book',
+        category: 'draft',
+      },
+    ),
     {
       id: 'action-generate',
       label: 'Generate Response',

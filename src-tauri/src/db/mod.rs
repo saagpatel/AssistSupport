@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 use zeroize::Zeroize;
 
-const CURRENT_SCHEMA_VERSION: i32 = 13;
+const CURRENT_SCHEMA_VERSION: i32 = 15;
 const VECTOR_STORE_VERSION_KEY: &str = "vector_store_version";
 pub const CURRENT_VECTOR_STORE_VERSION: i32 = 2;
 
@@ -265,6 +265,41 @@ impl Database {
         Ok(())
     }
 
+    fn normalize_json_string_array(
+        &self,
+        raw: &str,
+        field_name: &str,
+    ) -> Result<String, DbError> {
+        let parsed: Vec<String> = serde_json::from_str(raw).map_err(|e| {
+            DbError::InvalidInput(format!("{} must be a JSON string array: {}", field_name, e))
+        })?;
+        serde_json::to_string(&parsed).map_err(|e| {
+            DbError::InvalidInput(format!("{} could not be normalized: {}", field_name, e))
+        })
+    }
+
+    fn normalize_optional_json_object(
+        &self,
+        raw: Option<&str>,
+        field_name: &str,
+    ) -> Result<Option<String>, DbError> {
+        match raw.map(str::trim).filter(|value| !value.is_empty()) {
+            Some(value) => {
+                let parsed: serde_json::Value = serde_json::from_str(value).map_err(|e| {
+                    DbError::InvalidInput(format!("{} must be valid JSON: {}", field_name, e))
+                })?;
+                if !parsed.is_object() {
+                    return Err(DbError::InvalidInput(format!(
+                        "{} must be a JSON object",
+                        field_name
+                    )));
+                }
+                Ok(Some(parsed.to_string()))
+            }
+            None => Ok(None),
+        }
+    }
+
     /// Get the current vector store version tracked in SQLite settings.
     pub fn get_vector_store_version(&self) -> Result<i32, DbError> {
         self.get_setting(VECTOR_STORE_VERSION_KEY)?
@@ -339,6 +374,14 @@ impl Database {
 
         if from_version < 13 {
             self.migrate_v13()?;
+        }
+
+        if from_version < 14 {
+            self.migrate_v14()?;
+        }
+
+        if from_version < 15 {
+            self.migrate_v15()?;
         }
 
         tx.commit()?;
@@ -1161,6 +1204,108 @@ impl Database {
         self.conn.execute_batch(
             r#"
             DROP TABLE IF EXISTS session_tokens;
+            "#,
+        )?;
+        Ok(())
+    }
+
+    /// Migration to v14: Product workspace persistence tables
+    fn migrate_v14(&self) -> Result<(), DbError> {
+        self.conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS resolution_kits (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                category TEXT NOT NULL,
+                response_template TEXT NOT NULL,
+                checklist_items_json TEXT NOT NULL,
+                kb_document_ids_json TEXT NOT NULL,
+                runbook_scenario TEXT,
+                approval_hint TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_resolution_kits_category
+                ON resolution_kits(category, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS workspace_favorites (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN ('runbook', 'policy', 'kb', 'kit')),
+                label TEXT NOT NULL,
+                resource_id TEXT NOT NULL,
+                metadata_json TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_favorites_unique
+                ON workspace_favorites(kind, resource_id);
+
+            CREATE TABLE IF NOT EXISTS runbook_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                scenario TEXT NOT NULL,
+                steps_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_runbook_templates_updated
+                ON runbook_templates(updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS runbook_step_evidence (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                step_index INTEGER NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('pending', 'completed', 'skipped', 'failed')),
+                evidence_text TEXT NOT NULL,
+                skip_reason TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(session_id) REFERENCES runbook_sessions(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_runbook_step_evidence_session
+                ON runbook_step_evidence(session_id, step_index, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS dispatch_history (
+                id TEXT PRIMARY KEY,
+                integration_type TEXT NOT NULL CHECK(integration_type IN ('jira', 'servicenow', 'slack', 'teams')),
+                draft_id TEXT,
+                title TEXT NOT NULL,
+                destination_label TEXT NOT NULL,
+                payload_preview TEXT NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('previewed', 'sent', 'cancelled', 'failed')),
+                metadata_json TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_dispatch_history_status
+                ON dispatch_history(status, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS case_outcomes (
+                id TEXT PRIMARY KEY,
+                draft_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                outcome_summary TEXT NOT NULL,
+                handoff_pack_json TEXT,
+                kb_draft_json TEXT,
+                evidence_pack_json TEXT,
+                tags_json TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_case_outcomes_draft
+                ON case_outcomes(draft_id, updated_at DESC);
+            "#,
+        )?;
+        Ok(())
+    }
+
+    /// Migration to v15: scope guided runbook sessions to the active workspace.
+    fn migrate_v15(&self) -> Result<(), DbError> {
+        self.conn.execute_batch(
+            r#"
+            ALTER TABLE runbook_sessions ADD COLUMN scope_key TEXT NOT NULL DEFAULT 'legacy:unscoped';
+            CREATE INDEX IF NOT EXISTS idx_runbook_sessions_scope_status
+                ON runbook_sessions(scope_key, status, updated_at DESC);
             "#,
         )?;
         Ok(())
@@ -4318,17 +4463,19 @@ impl Database {
         &self,
         scenario: &str,
         steps_json: &str,
+        scope_key: &str,
     ) -> Result<RunbookSessionRecord, DbError> {
         let id = uuid::Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
         self.conn.execute(
-            "INSERT INTO runbook_sessions (id, scenario, status, steps_json, current_step, created_at, updated_at)
-             VALUES (?, ?, 'active', ?, 0, ?, ?)",
-            params![&id, scenario, steps_json, &now, &now],
+            "INSERT INTO runbook_sessions (id, scenario, scope_key, status, steps_json, current_step, created_at, updated_at)
+             VALUES (?, ?, ?, 'active', ?, 0, ?, ?)",
+            params![&id, scenario, scope_key, steps_json, &now, &now],
         )?;
         Ok(RunbookSessionRecord {
             id,
             scenario: scenario.to_string(),
+            scope_key: scope_key.to_string(),
             status: "active".to_string(),
             steps_json: steps_json.to_string(),
             current_step: 0,
@@ -4354,30 +4501,534 @@ impl Database {
         Ok(())
     }
 
+    /// Reassign all guided runbook sessions from one workspace scope to another.
+    pub fn reassign_runbook_session_scope(
+        &self,
+        from_scope_key: &str,
+        to_scope_key: &str,
+    ) -> Result<(), DbError> {
+        if from_scope_key.trim().is_empty() || to_scope_key.trim().is_empty() {
+            return Err(DbError::InvalidInput(
+                "runbook scope keys must be non-empty".to_string(),
+            ));
+        }
+
+        if from_scope_key == to_scope_key {
+            return Ok(());
+        }
+
+        let now = Utc::now().to_rfc3339();
+        self.conn.execute(
+            "UPDATE runbook_sessions
+             SET scope_key = ?, updated_at = ?
+             WHERE scope_key = ?",
+            params![to_scope_key, &now, from_scope_key],
+        )?;
+        Ok(())
+    }
+
     /// List recent runbook sessions.
     pub fn list_runbook_sessions(
         &self,
         limit: usize,
         status: Option<&str>,
+        scope_key: Option<&str>,
     ) -> Result<Vec<RunbookSessionRecord>, DbError> {
         let status = status.unwrap_or("%");
+        let scope_key = scope_key.unwrap_or("%");
         let mut stmt = self.conn.prepare(
-            "SELECT id, scenario, status, steps_json, current_step, created_at, updated_at
+            "SELECT id, scenario, scope_key, status, steps_json, current_step, created_at, updated_at
              FROM runbook_sessions
+             WHERE status LIKE ?
+               AND scope_key LIKE ?
+             ORDER BY updated_at DESC
+             LIMIT ?",
+        )?;
+        let rows = stmt
+            .query_map(params![status, scope_key, limit as i64], |row| {
+                Ok(RunbookSessionRecord {
+                    id: row.get(0)?,
+                    scenario: row.get(1)?,
+                    scope_key: row.get(2)?,
+                    status: row.get(3)?,
+                    steps_json: row.get(4)?,
+                    current_step: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Save or update a guided runbook template.
+    pub fn save_runbook_template(
+        &self,
+        template: &RunbookTemplateRecord,
+    ) -> Result<String, DbError> {
+        let id = if template.id.trim().is_empty() {
+            uuid::Uuid::new_v4().to_string()
+        } else {
+            template.id.clone()
+        };
+        let now = Utc::now().to_rfc3339();
+        let created_at = if template.created_at.trim().is_empty() {
+            now.clone()
+        } else {
+            template.created_at.clone()
+        };
+        let steps_json = self.normalize_json_string_array(&template.steps_json, "runbook template steps")?;
+        self.conn.execute(
+            "INSERT INTO runbook_templates (id, name, scenario, steps_json, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                scenario = excluded.scenario,
+                steps_json = excluded.steps_json,
+                updated_at = excluded.updated_at",
+            params![&id, &template.name, &template.scenario, &steps_json, &created_at, &now],
+        )?;
+        Ok(id)
+    }
+
+    /// List guided runbook templates.
+    pub fn list_runbook_templates(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<RunbookTemplateRecord>, DbError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, scenario, steps_json, created_at, updated_at
+             FROM runbook_templates
+             ORDER BY updated_at DESC
+             LIMIT ?",
+        )?;
+        let rows = stmt
+            .query_map([limit as i64], |row| {
+                Ok(RunbookTemplateRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    scenario: row.get(2)?,
+                    steps_json: row.get(3)?,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Record evidence for a runbook step.
+    pub fn add_runbook_step_evidence(
+        &self,
+        session_id: &str,
+        step_index: i32,
+        status: &str,
+        evidence_text: &str,
+        skip_reason: Option<&str>,
+    ) -> Result<RunbookStepEvidenceRecord, DbError> {
+        if !matches!(status, "pending" | "completed" | "skipped" | "failed") {
+            return Err(DbError::InvalidInput(format!(
+                "unsupported runbook step status '{}'",
+                status
+            )));
+        }
+
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = Utc::now().to_rfc3339();
+        self.conn.execute(
+            "INSERT INTO runbook_step_evidence (id, session_id, step_index, status, evidence_text, skip_reason, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            params![&id, session_id, step_index, status, evidence_text, skip_reason, &now],
+        )?;
+        Ok(RunbookStepEvidenceRecord {
+            id,
+            session_id: session_id.to_string(),
+            step_index,
+            status: status.to_string(),
+            evidence_text: evidence_text.to_string(),
+            skip_reason: skip_reason.map(|value| value.to_string()),
+            created_at: now,
+        })
+    }
+
+    /// List evidence recorded for a runbook session.
+    pub fn list_runbook_step_evidence(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<RunbookStepEvidenceRecord>, DbError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, step_index, status, evidence_text, skip_reason, created_at
+             FROM runbook_step_evidence
+             WHERE session_id = ?
+             ORDER BY step_index ASC, created_at DESC",
+        )?;
+        let rows = stmt
+            .query_map([session_id], |row| {
+                Ok(RunbookStepEvidenceRecord {
+                    id: row.get(0)?,
+                    session_id: row.get(1)?,
+                    step_index: row.get(2)?,
+                    status: row.get(3)?,
+                    evidence_text: row.get(4)?,
+                    skip_reason: row.get(5)?,
+                    created_at: row.get(6)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Save or update a reusable resolution kit.
+    pub fn save_resolution_kit(&self, kit: &ResolutionKitRecord) -> Result<String, DbError> {
+        let id = if kit.id.trim().is_empty() {
+            uuid::Uuid::new_v4().to_string()
+        } else {
+            kit.id.clone()
+        };
+        let now = Utc::now().to_rfc3339();
+        let created_at = if kit.created_at.trim().is_empty() {
+            now.clone()
+        } else {
+            kit.created_at.clone()
+        };
+        let checklist_items_json =
+            self.normalize_json_string_array(&kit.checklist_items_json, "resolution kit checklist")?;
+        let kb_document_ids_json =
+            self.normalize_json_string_array(&kit.kb_document_ids_json, "resolution kit KB document ids")?;
+        self.conn.execute(
+            "INSERT INTO resolution_kits
+                (id, name, summary, category, response_template, checklist_items_json, kb_document_ids_json, runbook_scenario, approval_hint, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                summary = excluded.summary,
+                category = excluded.category,
+                response_template = excluded.response_template,
+                checklist_items_json = excluded.checklist_items_json,
+                kb_document_ids_json = excluded.kb_document_ids_json,
+                runbook_scenario = excluded.runbook_scenario,
+                approval_hint = excluded.approval_hint,
+                updated_at = excluded.updated_at",
+            params![
+                &id,
+                &kit.name,
+                &kit.summary,
+                &kit.category,
+                &kit.response_template,
+                &checklist_items_json,
+                &kb_document_ids_json,
+                &kit.runbook_scenario,
+                &kit.approval_hint,
+                &created_at,
+                &now
+            ],
+        )?;
+        Ok(id)
+    }
+
+    /// List reusable resolution kits.
+    pub fn list_resolution_kits(&self, limit: usize) -> Result<Vec<ResolutionKitRecord>, DbError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, summary, category, response_template, checklist_items_json, kb_document_ids_json, runbook_scenario, approval_hint, created_at, updated_at
+             FROM resolution_kits
+             ORDER BY updated_at DESC
+             LIMIT ?",
+        )?;
+        let rows = stmt
+            .query_map([limit as i64], |row| {
+                Ok(ResolutionKitRecord {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    summary: row.get(2)?,
+                    category: row.get(3)?,
+                    response_template: row.get(4)?,
+                    checklist_items_json: row.get(5)?,
+                    kb_document_ids_json: row.get(6)?,
+                    runbook_scenario: row.get(7)?,
+                    approval_hint: row.get(8)?,
+                    created_at: row.get(9)?,
+                    updated_at: row.get(10)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Save or update a workspace favorite.
+    pub fn save_workspace_favorite(
+        &self,
+        favorite: &WorkspaceFavoriteRecord,
+    ) -> Result<String, DbError> {
+        let id = if favorite.id.trim().is_empty() {
+            uuid::Uuid::new_v4().to_string()
+        } else {
+            favorite.id.clone()
+        };
+        let now = Utc::now().to_rfc3339();
+        let created_at = if favorite.created_at.trim().is_empty() {
+            now.clone()
+        } else {
+            favorite.created_at.clone()
+        };
+        let metadata_json = self.normalize_optional_json_object(
+            favorite.metadata_json.as_deref(),
+            "workspace favorite metadata",
+        )?;
+        self.conn.execute(
+            "INSERT INTO workspace_favorites (id, kind, label, resource_id, metadata_json, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(kind, resource_id) DO UPDATE SET
+                label = excluded.label,
+                metadata_json = excluded.metadata_json,
+                updated_at = excluded.updated_at",
+            params![
+                &id,
+                &favorite.kind,
+                &favorite.label,
+                &favorite.resource_id,
+                metadata_json.as_deref(),
+                &created_at,
+                &now
+            ],
+        )?;
+        self.conn
+            .query_row(
+                "SELECT id FROM workspace_favorites WHERE kind = ? AND resource_id = ?",
+                params![&favorite.kind, &favorite.resource_id],
+                |row| row.get(0),
+            )
+            .map_err(DbError::from)
+    }
+
+    /// List workspace favorites.
+    pub fn list_workspace_favorites(&self) -> Result<Vec<WorkspaceFavoriteRecord>, DbError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, kind, label, resource_id, metadata_json, created_at, updated_at
+             FROM workspace_favorites
+             ORDER BY updated_at DESC",
+        )?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(WorkspaceFavoriteRecord {
+                    id: row.get(0)?,
+                    kind: row.get(1)?,
+                    label: row.get(2)?,
+                    resource_id: row.get(3)?,
+                    metadata_json: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Delete a workspace favorite.
+    pub fn delete_workspace_favorite(&self, favorite_id: &str) -> Result<(), DbError> {
+        self.conn.execute(
+            "DELETE FROM workspace_favorites WHERE id = ?",
+            [favorite_id],
+        )?;
+        Ok(())
+    }
+
+    /// Record a preview-first collaboration dispatch artifact.
+    pub fn create_dispatch_history_preview(
+        &self,
+        integration_type: &str,
+        draft_id: Option<&str>,
+        title: &str,
+        destination_label: &str,
+        payload_preview: &str,
+        metadata_json: Option<&str>,
+    ) -> Result<DispatchHistoryRecord, DbError> {
+        let metadata_json =
+            self.normalize_optional_json_object(metadata_json, "dispatch history metadata")?;
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = Utc::now().to_rfc3339();
+        self.conn.execute(
+            "INSERT INTO dispatch_history
+                (id, integration_type, draft_id, title, destination_label, payload_preview, status, metadata_json, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, 'previewed', ?, ?, ?)",
+            params![
+                &id,
+                integration_type,
+                draft_id,
+                title,
+                destination_label,
+                payload_preview,
+                metadata_json.as_deref(),
+                &now,
+                &now
+            ],
+        )?;
+        Ok(DispatchHistoryRecord {
+            id,
+            integration_type: integration_type.to_string(),
+            draft_id: draft_id.map(|value| value.to_string()),
+            title: title.to_string(),
+            destination_label: destination_label.to_string(),
+            payload_preview: payload_preview.to_string(),
+            status: "previewed".to_string(),
+            metadata_json,
+            created_at: now.clone(),
+            updated_at: now,
+        })
+    }
+
+    /// Update collaboration dispatch status after an explicit user action.
+    pub fn update_dispatch_history_status(
+        &self,
+        dispatch_id: &str,
+        status: &str,
+    ) -> Result<DispatchHistoryRecord, DbError> {
+        if !matches!(status, "previewed" | "sent" | "cancelled" | "failed") {
+            return Err(DbError::InvalidInput(format!(
+                "unsupported dispatch status '{}'",
+                status
+            )));
+        }
+
+        let now = Utc::now().to_rfc3339();
+        self.conn.execute(
+            "UPDATE dispatch_history
+             SET status = ?, updated_at = ?
+             WHERE id = ?",
+            params![status, &now, dispatch_id],
+        )?;
+        self.get_dispatch_history(dispatch_id)
+    }
+
+    /// Get one dispatch history record.
+    pub fn get_dispatch_history(&self, dispatch_id: &str) -> Result<DispatchHistoryRecord, DbError> {
+        self.conn.query_row(
+            "SELECT id, integration_type, draft_id, title, destination_label, payload_preview, status, metadata_json, created_at, updated_at
+             FROM dispatch_history
+             WHERE id = ?",
+            [dispatch_id],
+            |row| {
+                Ok(DispatchHistoryRecord {
+                    id: row.get(0)?,
+                    integration_type: row.get(1)?,
+                    draft_id: row.get(2)?,
+                    title: row.get(3)?,
+                    destination_label: row.get(4)?,
+                    payload_preview: row.get(5)?,
+                    status: row.get(6)?,
+                    metadata_json: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                })
+            },
+        ).map_err(DbError::Sqlite)
+    }
+
+    /// List collaboration dispatch history.
+    pub fn list_dispatch_history(
+        &self,
+        limit: usize,
+        status: Option<&str>,
+    ) -> Result<Vec<DispatchHistoryRecord>, DbError> {
+        let status = status.unwrap_or("%");
+        let mut stmt = self.conn.prepare(
+            "SELECT id, integration_type, draft_id, title, destination_label, payload_preview, status, metadata_json, created_at, updated_at
+             FROM dispatch_history
              WHERE status LIKE ?
              ORDER BY updated_at DESC
              LIMIT ?",
         )?;
         let rows = stmt
             .query_map(params![status, limit as i64], |row| {
-                Ok(RunbookSessionRecord {
+                Ok(DispatchHistoryRecord {
                     id: row.get(0)?,
-                    scenario: row.get(1)?,
+                    integration_type: row.get(1)?,
+                    draft_id: row.get(2)?,
+                    title: row.get(3)?,
+                    destination_label: row.get(4)?,
+                    payload_preview: row.get(5)?,
+                    status: row.get(6)?,
+                    metadata_json: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Save or update a case outcome summary.
+    pub fn save_case_outcome(&self, outcome: &CaseOutcomeRecord) -> Result<String, DbError> {
+        let id = if outcome.id.trim().is_empty() {
+            uuid::Uuid::new_v4().to_string()
+        } else {
+            outcome.id.clone()
+        };
+        let now = Utc::now().to_rfc3339();
+        let created_at = if outcome.created_at.trim().is_empty() {
+            now.clone()
+        } else {
+            outcome.created_at.clone()
+        };
+        let handoff_pack_json =
+            self.normalize_optional_json_object(outcome.handoff_pack_json.as_deref(), "case outcome handoff pack")?;
+        let kb_draft_json =
+            self.normalize_optional_json_object(outcome.kb_draft_json.as_deref(), "case outcome KB draft")?;
+        let evidence_pack_json =
+            self.normalize_optional_json_object(outcome.evidence_pack_json.as_deref(), "case outcome evidence pack")?;
+        let tags_json = match outcome.tags_json.as_deref() {
+            Some(value) => Some(self.normalize_json_string_array(value, "case outcome tags")?),
+            None => None,
+        };
+        self.conn.execute(
+            "INSERT INTO case_outcomes
+                (id, draft_id, status, outcome_summary, handoff_pack_json, kb_draft_json, evidence_pack_json, tags_json, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+                draft_id = excluded.draft_id,
+                status = excluded.status,
+                outcome_summary = excluded.outcome_summary,
+                handoff_pack_json = excluded.handoff_pack_json,
+                kb_draft_json = excluded.kb_draft_json,
+                evidence_pack_json = excluded.evidence_pack_json,
+                tags_json = excluded.tags_json,
+                updated_at = excluded.updated_at",
+            params![
+                &id,
+                &outcome.draft_id,
+                &outcome.status,
+                &outcome.outcome_summary,
+                handoff_pack_json.as_deref(),
+                kb_draft_json.as_deref(),
+                evidence_pack_json.as_deref(),
+                tags_json.as_deref(),
+                &created_at,
+                &now
+            ],
+        )?;
+        Ok(id)
+    }
+
+    /// List recent case outcomes.
+    pub fn list_case_outcomes(&self, limit: usize) -> Result<Vec<CaseOutcomeRecord>, DbError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, draft_id, status, outcome_summary, handoff_pack_json, kb_draft_json, evidence_pack_json, tags_json, created_at, updated_at
+             FROM case_outcomes
+             ORDER BY updated_at DESC
+             LIMIT ?",
+        )?;
+        let rows = stmt
+            .query_map([limit as i64], |row| {
+                Ok(CaseOutcomeRecord {
+                    id: row.get(0)?,
+                    draft_id: row.get(1)?,
                     status: row.get(2)?,
-                    steps_json: row.get(3)?,
-                    current_step: row.get(4)?,
-                    created_at: row.get(5)?,
-                    updated_at: row.get(6)?,
+                    outcome_summary: row.get(3)?,
+                    handoff_pack_json: row.get(4)?,
+                    kb_draft_json: row.get(5)?,
+                    evidence_pack_json: row.get(6)?,
+                    tags_json: row.get(7)?,
+                    created_at: row.get(8)?,
+                    updated_at: row.get(9)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -5432,11 +6083,35 @@ pub struct TriageClusterRecord {
 pub struct RunbookSessionRecord {
     pub id: String,
     pub scenario: String,
+    pub scope_key: String,
     pub status: String,
     pub steps_json: String,
     pub current_step: i32,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// Guided runbook template record.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RunbookTemplateRecord {
+    pub id: String,
+    pub name: String,
+    pub scenario: String,
+    pub steps_json: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Runbook evidence captured per step.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RunbookStepEvidenceRecord {
+    pub id: String,
+    pub session_id: String,
+    pub step_index: i32,
+    pub status: String,
+    pub evidence_text: String,
+    pub skip_reason: Option<String>,
+    pub created_at: String,
 }
 
 /// Integration configuration record.
@@ -5446,6 +6121,64 @@ pub struct IntegrationConfigRecord {
     pub integration_type: String,
     pub enabled: bool,
     pub config_json: Option<String>,
+    pub updated_at: String,
+}
+
+/// Resolution kit record.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ResolutionKitRecord {
+    pub id: String,
+    pub name: String,
+    pub summary: String,
+    pub category: String,
+    pub response_template: String,
+    pub checklist_items_json: String,
+    pub kb_document_ids_json: String,
+    pub runbook_scenario: Option<String>,
+    pub approval_hint: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Workspace favorite record.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WorkspaceFavoriteRecord {
+    pub id: String,
+    pub kind: String,
+    pub label: String,
+    pub resource_id: String,
+    pub metadata_json: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Collaboration dispatch history record.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DispatchHistoryRecord {
+    pub id: String,
+    pub integration_type: String,
+    pub draft_id: Option<String>,
+    pub title: String,
+    pub destination_label: String,
+    pub payload_preview: String,
+    pub status: String,
+    pub metadata_json: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Case outcome record for workspace reuse and KB promotion.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CaseOutcomeRecord {
+    pub id: String,
+    pub draft_id: String,
+    pub status: String,
+    pub outcome_summary: String,
+    pub handoff_pack_json: Option<String>,
+    pub kb_draft_json: Option<String>,
+    pub evidence_pack_json: Option<String>,
+    pub tags_json: Option<String>,
+    pub created_at: String,
     pub updated_at: String,
 }
 
@@ -5921,6 +6654,98 @@ mod tests {
 
         assert!(!examples.edited_save_rate.is_empty());
         assert_eq!(examples.edited_save_rate[0].draft_id, "draft-example-1");
+    }
+
+    #[test]
+    fn test_save_workspace_favorite_returns_persisted_id_after_upsert() {
+        let (db, _dir) = create_test_db();
+
+        let first_id = db
+            .save_workspace_favorite(&WorkspaceFavoriteRecord {
+                id: String::new(),
+                kind: "kit".to_string(),
+                label: "VPN Incident Starter".to_string(),
+                resource_id: "kit-1".to_string(),
+                metadata_json: Some(r#"{"category":"incident"}"#.to_string()),
+                created_at: String::new(),
+                updated_at: String::new(),
+            })
+            .expect("save first favorite");
+
+        let second_id = db
+            .save_workspace_favorite(&WorkspaceFavoriteRecord {
+                id: String::new(),
+                kind: "kit".to_string(),
+                label: "VPN Incident Starter Updated".to_string(),
+                resource_id: "kit-1".to_string(),
+                metadata_json: Some(r#"{"category":"incident"}"#.to_string()),
+                created_at: String::new(),
+                updated_at: String::new(),
+            })
+            .expect("upsert favorite");
+
+        let favorites = db.list_workspace_favorites().expect("list favorites");
+        assert_eq!(favorites.len(), 1);
+        assert_eq!(favorites[0].id, first_id);
+        assert_eq!(second_id, first_id);
+        assert_eq!(favorites[0].label, "VPN Incident Starter Updated");
+    }
+
+    #[test]
+    fn test_runbook_sessions_are_scoped_to_workspace_key() {
+        let (db, _dir) = create_test_db();
+
+        db.create_runbook_session(
+            "security-incident",
+            r#"["Acknowledge","Contain"]"#,
+            "draft:draft-1",
+        )
+        .expect("create first session");
+        db.create_runbook_session(
+            "access-request",
+            r#"["Verify","Approve"]"#,
+            "draft:draft-2",
+        )
+        .expect("create second session");
+
+        let draft_one_sessions = db
+            .list_runbook_sessions(10, None, Some("draft:draft-1"))
+            .expect("list draft one sessions");
+        let draft_two_sessions = db
+            .list_runbook_sessions(10, None, Some("draft:draft-2"))
+            .expect("list draft two sessions");
+
+        assert_eq!(draft_one_sessions.len(), 1);
+        assert_eq!(draft_two_sessions.len(), 1);
+        assert_eq!(draft_one_sessions[0].scope_key, "draft:draft-1");
+        assert_eq!(draft_two_sessions[0].scope_key, "draft:draft-2");
+        assert_ne!(draft_one_sessions[0].id, draft_two_sessions[0].id);
+    }
+
+    #[test]
+    fn test_reassign_runbook_session_scope_moves_existing_sessions() {
+        let (db, _dir) = create_test_db();
+
+        db.create_runbook_session(
+            "security-incident",
+            r#"["Acknowledge","Contain"]"#,
+            "workspace:temp-1",
+        )
+        .expect("create scoped session");
+
+        db.reassign_runbook_session_scope("workspace:temp-1", "draft:draft-1")
+            .expect("reassign session scope");
+
+        let old_scope_sessions = db
+            .list_runbook_sessions(10, None, Some("workspace:temp-1"))
+            .expect("list old scope sessions");
+        let new_scope_sessions = db
+            .list_runbook_sessions(10, None, Some("draft:draft-1"))
+            .expect("list new scope sessions");
+
+        assert!(old_scope_sessions.is_empty());
+        assert_eq!(new_scope_sessions.len(), 1);
+        assert_eq!(new_scope_sessions[0].scope_key, "draft:draft-1");
     }
 
 }

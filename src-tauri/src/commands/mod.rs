@@ -15,6 +15,7 @@ pub mod kb_commands;
 pub mod memory_kernel;
 pub mod model_commands;
 pub mod pilot_feedback;
+pub mod product_workspace;
 pub mod search_api;
 pub mod security_commands;
 pub mod startup_commands;
@@ -35,6 +36,13 @@ pub use memory_kernel::{
 pub use pilot_feedback::{
     export_pilot_data, get_pilot_logging_policy, get_pilot_query_logs, get_pilot_stats,
     log_pilot_query, submit_pilot_feedback, PilotLoggingPolicy,
+};
+pub use product_workspace::{
+    add_runbook_step_evidence, cancel_collaboration_dispatch, delete_workspace_favorite,
+    list_case_outcomes, list_dispatch_history, list_resolution_kits, list_runbook_step_evidence,
+    list_runbook_templates, list_workspace_favorites, preview_collaboration_dispatch,
+    save_case_outcome, save_resolution_kit, save_runbook_template, save_workspace_favorite,
+    send_collaboration_dispatch,
 };
 pub use search_api::{
     check_search_api_health, get_search_api_health_status, get_search_api_stats, hybrid_search,
@@ -5050,6 +5058,7 @@ pub async fn start_runbook_session(
     state: State<'_, AppState>,
     scenario: String,
     steps: Vec<String>,
+    scope_key: String,
 ) -> Result<crate::db::RunbookSessionRecord, String> {
     let steps_json = serde_json::to_string(&steps).map_err(|e| e.to_string())?;
     let db_guard = state
@@ -5057,7 +5066,7 @@ pub async fn start_runbook_session(
         .lock()
         .map_err(|e| format!("DB lock error: {}", e))?;
     let db = db_guard.as_ref().ok_or("Database not initialized")?;
-    db.create_runbook_session(&scenario, &steps_json)
+    db.create_runbook_session(&scenario, &steps_json, &scope_key)
         .map_err(|e| e.to_string())
 }
 
@@ -5084,13 +5093,34 @@ pub async fn list_runbook_sessions(
     state: State<'_, AppState>,
     limit: Option<usize>,
     status: Option<String>,
+    scope_key: Option<String>,
 ) -> Result<Vec<crate::db::RunbookSessionRecord>, String> {
     let db_guard = state
         .db
         .lock()
         .map_err(|e| format!("DB lock error: {}", e))?;
     let db = db_guard.as_ref().ok_or("Database not initialized")?;
-    db.list_runbook_sessions(limit.unwrap_or(50).min(500), status.as_deref())
+    db.list_runbook_sessions(
+        limit.unwrap_or(50).min(500),
+        status.as_deref(),
+        scope_key.as_deref(),
+    )
+        .map_err(|e| e.to_string())
+}
+
+/// Reassign runbook sessions from one workspace scope to another.
+#[tauri::command]
+pub async fn reassign_runbook_session_scope(
+    state: State<'_, AppState>,
+    from_scope_key: String,
+    to_scope_key: String,
+) -> Result<(), String> {
+    let db_guard = state
+        .db
+        .lock()
+        .map_err(|e| format!("DB lock error: {}", e))?;
+    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+    db.reassign_runbook_session_scope(&from_scope_key, &to_scope_key)
         .map_err(|e| e.to_string())
 }
 
