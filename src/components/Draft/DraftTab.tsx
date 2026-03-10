@@ -54,6 +54,7 @@ import {
 } from '../../features/workspace/workspaceAssistant';
 import {
   hasMeaningfulWorkspaceDraftContent,
+  parseWorkspaceDraftMetadata,
   parseGuidedRunbookDraftNote,
   resolveLoadedWorkspaceDraftState,
   resolveVisibleRunbookScopeKey,
@@ -1115,7 +1116,12 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
   }, [similarCasesEnabled, input, caseIntake.issue, caseIntake.symptoms, currentTicket?.summary, handleRefreshSimilarCases]);
 
   const handleLoadDraft = useCallback((draft: SavedDraft) => {
-    const loadedDraftState = resolveLoadedWorkspaceDraftState(draft.id, draft.is_autosave);
+    const workspaceDraftMetadata = parseWorkspaceDraftMetadata(draft.diagnosis_json);
+    const loadedDraftState = resolveLoadedWorkspaceDraftState(
+      draft.id,
+      draft.is_autosave,
+      workspaceDraftMetadata,
+    );
 
     setInput(draft.input_text);
     const loadedResponse = draft.response_text || '';
@@ -1123,7 +1129,11 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     setOriginalResponse(loadedResponse);
     setIsResponseEdited(false);
     setSavedDraftId(loadedDraftState.savedDraftId);
-    setSavedDraftCreatedAt(draft.is_autosave ? null : draft.created_at);
+    setSavedDraftCreatedAt(
+      draft.is_autosave
+        ? workspaceDraftMetadata.savedDraftCreatedAt
+        : draft.created_at,
+    );
     setAutosaveDraftId(loadedDraftState.autosaveDraftId);
     setWorkspaceRunbookScopeKey(loadedDraftState.workspaceRunbookScopeKey);
     if (draft.diagnosis_json) {
@@ -1323,6 +1333,10 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     if (trustState) {
       diagnosisData.trust = trustState;
     }
+    if (savedDraftId) {
+      diagnosisData.workspaceSavedDraftId = savedDraftId;
+      diagnosisData.workspaceSavedDraftCreatedAt = savedDraftCreatedAt ?? new Date().toISOString();
+    }
     if (guidedRunbookNote.trim()) {
       diagnosisData.guidedRunbookDraftNote = guidedRunbookNote;
     }
@@ -1343,6 +1357,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     confidence,
     grounding,
     guidedRunbookNote,
+    savedDraftCreatedAt,
+    savedDraftId,
   ]);
 
   const handoffPack = useMemo(() => buildHandoffPack({
@@ -1616,6 +1632,10 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
       showError('Choose a guided runbook template first');
       return;
     }
+    if (guidedRunbookSession && guidedRunbookSession.status !== 'completed') {
+      showError('Finish the current guided runbook before starting another one');
+      return;
+    }
 
     try {
       await startRunbookSession(template.scenario, template.steps, workspaceRunbookScopeKey);
@@ -1638,6 +1658,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     startRunbookSession,
     refreshWorkspaceCatalog,
     workspaceRunbookScopeKey,
+    guidedRunbookSession,
     logEvent,
     currentTicketId,
     showSuccess,

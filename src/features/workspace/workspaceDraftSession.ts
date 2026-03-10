@@ -27,11 +27,47 @@ export interface LoadedWorkspaceDraftState {
   workspaceRunbookScopeKey: string;
 }
 
+export interface WorkspaceDraftMetadata {
+  savedDraftId: string | null;
+  savedDraftCreatedAt: string | null;
+}
+
 export interface VisibleRunbookMigrationArgs {
   hasGuidedRunbookSession: boolean;
   runbookSessionTouched: boolean;
   runbookSessionSourceScopeKey: string | null;
   workspaceRunbookScopeKey: string;
+}
+
+export function parseWorkspaceDraftMetadata(
+  diagnosisJson: string | null | undefined,
+): WorkspaceDraftMetadata {
+  if (!diagnosisJson?.trim()) {
+    return {
+      savedDraftId: null,
+      savedDraftCreatedAt: null,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(diagnosisJson) as {
+      workspaceSavedDraftId?: unknown;
+      workspaceSavedDraftCreatedAt?: unknown;
+    };
+    return {
+      savedDraftId: typeof parsed.workspaceSavedDraftId === 'string'
+        ? parsed.workspaceSavedDraftId
+        : null,
+      savedDraftCreatedAt: typeof parsed.workspaceSavedDraftCreatedAt === 'string'
+        ? parsed.workspaceSavedDraftCreatedAt
+        : null,
+    };
+  } catch {
+    return {
+      savedDraftId: null,
+      savedDraftCreatedAt: null,
+    };
+  }
 }
 
 export function parseGuidedRunbookDraftNote(
@@ -126,11 +162,20 @@ export function shouldProceedAfterSaveAttempt(
 export function resolveLoadedWorkspaceDraftState(
   draftId: string,
   isAutosave: boolean,
+  metadata?: WorkspaceDraftMetadata,
 ): LoadedWorkspaceDraftState {
+  const sourceSavedDraftId = metadata?.savedDraftId?.trim() || null;
+  const effectiveSavedDraftId = isAutosave
+    ? sourceSavedDraftId
+    : draftId;
+  const effectiveScopeDraftId = isAutosave
+    ? (sourceSavedDraftId ?? draftId)
+    : draftId;
+
   return {
-    savedDraftId: isAutosave ? null : draftId,
+    savedDraftId: effectiveSavedDraftId,
     autosaveDraftId: isAutosave ? draftId : null,
-    workspaceRunbookScopeKey: `draft:${draftId}`,
+    workspaceRunbookScopeKey: `draft:${effectiveScopeDraftId}`,
   };
 }
 

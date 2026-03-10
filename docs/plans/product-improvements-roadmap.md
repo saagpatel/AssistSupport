@@ -204,6 +204,10 @@
   - Draft load no longer restores `guidedRunbookDraftNote` and then immediately clear it in the same flow; reopened drafts now keep the saved runbook note visible to the operator.
   - Added a direct unit-test guard for `parseGuidedRunbookDraftNote` so valid notes restore while missing or invalid payloads fall back cleanly.
   - Re-ran the focused and blocking verification stack on the updated branch state: `pnpm test -- --run src/features/workspace/workspaceDraftSession.test.ts src/features/workspace/workspaceAssistant.test.ts src/features/revamp/screens/QueueCommandCenterPage.test.tsx src/features/workspace/TicketWorkspaceRail.test.tsx src/features/app-shell/commands.test.ts`, `pnpm ui:gate:static`, `pnpm git:guard:all`, `pnpm ui:test:a11y`, `pnpm ui:test:visual`, `pnpm test:e2e:smoke`, `pnpm perf:workspace`, `pnpm perf:summary`, `cd src-tauri && cargo test -q --no-run`, and `cd src-tauri && cargo test -q test_reassign_runbook_session_by_id_moves_only_target_session`.
+- 2026-03-10: Post-merge workspace integrity follow-up completed on a dedicated fix branch.
+  - Autosaves created from an already-saved draft now remember their parent draft identity, so reopening that autosave keeps the correct guided runbook and later updates the real saved draft instead of treating the autosave as a standalone record.
+  - Guided runbooks are now limited to one live session per workspace. The UI blocks starting a second in-progress runbook, and the database enforces the same rule so earlier evidence cannot become unreachable behind a newer session.
+  - Follow-up verification: `pnpm git:guard:all`, `pnpm test`, `pnpm ui:gate:static`, `pnpm test:e2e:smoke`, `pnpm ui:test:a11y`, `pnpm ui:test:visual`, `pnpm perf:workspace`, `pnpm perf:summary`, and `cd src-tauri && cargo test -q --no-run`. Local Playwright browser suites were rerun serially where needed because parallel launches can contend for the same Vite port.
 
 ## Locked Decisions
 
@@ -282,6 +286,8 @@
 - Re-saving a saved draft must preserve the original draft identity; otherwise every downstream artifact link starts to drift onto superseded records.
 - Single-session migration is safer than scope-wide migration once the workspace is capable of showing legacy fallback sessions that may not all belong to the current piece of work.
 - Browser-backed Playwright suites on this repo can fight over the Vite dev-server port if launched in parallel from separate processes. Local final verification should run smoke serially after any parallel browser checks to avoid false `ERR_CONNECTION_REFUSED` failures.
+- Autosaves of saved drafts need to retain enough parent identity to behave like a working copy of the saved record instead of a detached fork.
+- The guided runbook UX is much safer when the product enforces a single live session per workspace instead of allowing multiple in-progress sessions that the current rail cannot surface together.
 
 ## Deviations
 
@@ -289,11 +295,13 @@
 - Collaboration dispatch kept the preview-first/manual-confirmation product default. A clearer `confirm_collaboration_dispatch` path was added for future callers, while the existing `send_collaboration_dispatch` command remains as a compatibility alias.
 - The active plan files now use repo-relative references for ongoing work. Historical audit documents still contain older machine-specific absolute path references, but they are retained as archival evidence rather than the active execution path.
 - The final merge-closeout fix favors a precise per-session reassignment API over the older scope-wide reassignment when the workspace can identify the active session confidently. The broader scope-based command remains for compatibility and bulk migration cases.
+- The post-merge follow-up keeps the autosave/saved-draft separation for record IDs, but restores the parent saved-draft link inside autosave metadata so operator work still lands back on the intended draft.
 
 ## PR Index
 
 - Product improvement branch pushed as `codex/feat/product-improvement-program`.
 - Late merge-blocker follow-up fix round is in progress as the final merge-to-main closeout.
+- Post-merge workspace integrity follow-up is being shipped from `codex/fix/workspace-postmerge-integrity`.
 
 ## Post-Launch Learnings
 

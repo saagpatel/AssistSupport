@@ -14,7 +14,7 @@ pub use path_helpers::{
 use crate::security::{MasterKey, SecurityError};
 use crate::validation::{normalize_and_validate_namespace_id, ValidationError};
 use chrono::Utc;
-use rusqlite::{params, Connection, Result as SqliteResult};
+use rusqlite::{params, Connection, OptionalExtension, Result as SqliteResult};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 use zeroize::Zeroize;
@@ -4465,6 +4465,21 @@ impl Database {
         steps_json: &str,
         scope_key: &str,
     ) -> Result<RunbookSessionRecord, DbError> {
+        let mut existing_stmt = self.conn.prepare(
+            "SELECT id FROM runbook_sessions
+             WHERE scope_key = ?
+               AND status IN ('active', 'paused')
+             LIMIT 1",
+        )?;
+        let existing_session = existing_stmt
+            .query_row([scope_key], |row| row.get::<_, String>(0))
+            .optional()?;
+        if existing_session.is_some() {
+            return Err(DbError::InvalidInput(
+                "an in-progress guided runbook already exists for this workspace".to_string(),
+            ));
+        }
+
         let id = uuid::Uuid::new_v4().to_string();
         let now = Utc::now().to_rfc3339();
         self.conn.execute(
@@ -6781,6 +6796,8 @@ mod tests {
                 "legacy:unscoped",
             )
             .expect("create target session");
+        db.advance_runbook_session(&target.id, 1, Some("completed"))
+            .expect("complete target session");
         let untouched = db
             .create_runbook_session(
                 "access-request",
@@ -6788,6 +6805,8 @@ mod tests {
                 "legacy:unscoped",
             )
             .expect("create untouched session");
+        db.advance_runbook_session(&untouched.id, 1, Some("completed"))
+            .expect("complete untouched session");
 
         db.reassign_runbook_session_by_id(&target.id, "draft:draft-1")
             .expect("reassign target session");
@@ -6803,6 +6822,40 @@ mod tests {
         assert_eq!(draft_sessions[0].id, target.id);
         assert_eq!(legacy_sessions.len(), 1);
         assert_eq!(legacy_sessions[0].id, untouched.id);
+    }
+
+    #[test]
+    fn test_create_runbook_session_rejects_second_live_session_in_same_scope() {
+        let (db, _dir) = create_test_db();
+
+        let session = db
+            .create_runbook_session(
+                "security-incident",
+                r#"["Acknowledge","Contain"]"#,
+                "draft:draft-1",
+            )
+            .expect("create first session");
+
+        let err = db
+            .create_runbook_session(
+                "access-request",
+                r#"["Verify","Approve"]"#,
+                "draft:draft-1",
+            )
+            .expect_err("reject second live session");
+        assert!(matches!(err, DbError::InvalidInput(_)));
+
+        db.advance_runbook_session(&session.id, 1, Some("completed"))
+            .expect("complete first session");
+
+        let replacement = db
+            .create_runbook_session(
+                "access-request",
+                r#"["Verify","Approve"]"#,
+                "draft:draft-1",
+            )
+            .expect("allow new session after completion");
+        assert_ne!(replacement.id, session.id);
     }
 
 }
