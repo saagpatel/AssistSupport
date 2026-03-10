@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   hasMeaningfulWorkspaceDraftContent,
   parseGuidedRunbookDraftNote,
+  parseWorkspaceDraftMetadata,
   resolveLoadedWorkspaceDraftState,
   resolveVisibleRunbookScopeKey,
   resolveWorkspaceAutosaveState,
@@ -152,6 +153,17 @@ describe('workspaceDraftSession', () => {
     });
   });
 
+  it('restores the parent saved draft identity for autosaves of saved drafts', () => {
+    expect(resolveLoadedWorkspaceDraftState('autosave-1', true, {
+      savedDraftId: 'draft-1',
+      savedDraftCreatedAt: '2026-03-10T17:00:00.000Z',
+    })).toEqual({
+      savedDraftId: 'draft-1',
+      autosaveDraftId: 'autosave-1',
+      workspaceRunbookScopeKey: 'draft:draft-1',
+    });
+  });
+
   it('restores the guided runbook draft note from diagnosis json and ignores bad payloads', () => {
     expect(parseGuidedRunbookDraftNote(JSON.stringify({
       notes: 'Captured evidence',
@@ -163,6 +175,28 @@ describe('workspaceDraftSession', () => {
     }))).toBe('');
 
     expect(parseGuidedRunbookDraftNote('{not-json')).toBe('');
+  });
+
+  it('restores workspace draft metadata from diagnosis json and ignores bad payloads', () => {
+    expect(parseWorkspaceDraftMetadata(JSON.stringify({
+      workspaceSavedDraftId: 'draft-1',
+      workspaceSavedDraftCreatedAt: '2026-03-10T17:00:00.000Z',
+    }))).toEqual({
+      savedDraftId: 'draft-1',
+      savedDraftCreatedAt: '2026-03-10T17:00:00.000Z',
+    });
+
+    expect(parseWorkspaceDraftMetadata(JSON.stringify({
+      notes: 'Captured evidence',
+    }))).toEqual({
+      savedDraftId: null,
+      savedDraftCreatedAt: null,
+    });
+
+    expect(parseWorkspaceDraftMetadata('{not-json')).toEqual({
+      savedDraftId: null,
+      savedDraftCreatedAt: null,
+    });
   });
 
   it('uses the legacy runbook scope only when the visible session comes from the fallback store', () => {
