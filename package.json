@@ -134,9 +134,11 @@
       "commitizen>lodash": "^4.17.23",
       "eslint>ajv": "^6.14.0",
       "external-editor>tmp": "^0.2.4",
+      "flatted": "^3.4.0",
       "minimatch": "^10.2.3",
       "rollup": "^4.59.0",
-      "tmp": "^0.2.4"
+      "tmp": "^0.2.4",
+      "yauzl": "^3.2.1"
     },
     "onlyBuiltDependencies": [
       "esbuild"
