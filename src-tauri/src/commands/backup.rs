@@ -195,9 +195,7 @@ pub async fn import_backup(
 
             let restore_result = {
                 let recovery_lock = state.recovery.lock().map_err(|e| e.to_string())?;
-                let recovery = recovery_lock
-                    .as_ref()
-                    .ok_or("Database not initialized")?;
+                let recovery = recovery_lock.as_ref().ok_or("Database not initialized")?;
                 let db_path = recovery
                     .db_path
                     .as_ref()
