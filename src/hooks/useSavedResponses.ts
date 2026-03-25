@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { SavedResponseTemplate } from '../types';
+import type { SavedResponseTemplate } from '../types/workspace';
 
 export function useSavedResponses() {
   const [templates, setTemplates] = useState<SavedResponseTemplate[]>([]);

@@ -3,8 +3,13 @@ import { Icon } from '../../../components/shared/Icon';
 import { useToastContext } from '../../../contexts/ToastContext';
 import { useAnalytics } from '../../../hooks/useAnalytics';
 import { useDrafts } from '../../../hooks/useDrafts';
-import { useFeatureOps } from '../../../hooks/useFeatureOps';
-import type { CollaborationDispatchPreview, DispatchHistoryRecord, SavedDraft, TriageClusterRecord } from '../../../types';
+import { useQueueOps } from '../../../hooks/useQueueOps';
+import type { CollaborationDispatchPreview, SavedDraft } from '../../../types/workspace';
+import type { DispatchHistoryRecord, TriageClusterRecord } from '../../../types/queue';
+import {
+  QueueHistoryTemplatesPanel,
+  type QueueHistoryTemplatesSection,
+} from './QueueHistoryTemplatesPanel';
 import { resolveRevampFlags } from '../../revamp';
 import {
   buildQueueHandoffSnapshot,
@@ -40,6 +45,8 @@ interface QueueCommandCenterPageProps {
   initialQueueView?: QueueView | null;
   onQueueViewConsumed?: () => void;
 }
+
+type QueueSection = 'triage' | QueueHistoryTemplatesSection;
 
 const QUEUE_OPERATOR_STORAGE_KEY = 'assistsupport.queue.operator';
 const QUEUE_VIEW_STORAGE_KEY = 'assistsupport.queue.favorite-view';
@@ -108,7 +115,24 @@ export function QueueCommandCenterPage({
 }: QueueCommandCenterPageProps) {
   const { success: showSuccess, error: showError } = useToastContext();
   const { logEvent } = useAnalytics();
-  const { drafts, loading, error: draftsError, loadDrafts } = useDrafts();
+  const draftStore = useDrafts();
+  const {
+    drafts,
+    templates,
+    loading,
+    error: draftsError,
+    loadDrafts,
+    searchDrafts,
+    loadTemplates,
+    deleteDraft,
+    saveTemplate,
+    updateTemplate,
+    deleteTemplate,
+    getDraft,
+    getDraftVersions,
+    restoreDraftVersion,
+    computeInputHash,
+  } = draftStore;
   const {
     clusterTicketsForTriage,
     listRecentTriageClusters,
@@ -116,11 +140,12 @@ export function QueueCommandCenterPage({
     confirmCollaborationDispatch,
     cancelCollaborationDispatch,
     listDispatchHistory,
-  } = useFeatureOps();
+  } = useQueueOps();
   const queueFlags = useMemo(() => resolveRevampFlags(), []);
   const [queueMetaMap, setQueueMetaMap] = useState<QueueMetaMap>(() => loadQueueMeta());
   const [previousHandoffSnapshot, setPreviousHandoffSnapshot] = useState(() => loadQueueHandoffSnapshot());
   const [queueView, setQueueView] = useState<QueueView>(loadPreferredQueueView);
+  const [queueSection, setQueueSection] = useState<QueueSection>('triage');
   const [queueFocusFilter, setQueueFocusFilter] = useState<QueueFocusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [operatorName, setOperatorName] = useState(loadOperatorName);
@@ -158,6 +183,7 @@ export function QueueCommandCenterPage({
 
   useEffect(() => {
     if (!initialQueueView) return;
+    setQueueSection('triage');
     setQueueView(initialQueueView);
     onQueueViewConsumed?.();
   }, [initialQueueView, onQueueViewConsumed]);
@@ -179,6 +205,37 @@ export function QueueCommandCenterPage({
   }, [queueView]);
 
   const queueItems = useMemo(() => buildQueueItems(drafts, queueMetaMap), [drafts, queueMetaMap]);
+  const followUpsDataSource = useMemo(() => ({
+    drafts,
+    templates,
+    loading,
+    loadDrafts,
+    searchDrafts,
+    loadTemplates,
+    deleteDraft,
+    saveTemplate,
+    updateTemplate,
+    deleteTemplate,
+    getDraft,
+    getDraftVersions,
+    restoreDraftVersion,
+    computeInputHash,
+  }), [
+    computeInputHash,
+    deleteDraft,
+    deleteTemplate,
+    drafts,
+    getDraft,
+    getDraftVersions,
+    loadDrafts,
+    loadTemplates,
+    loading,
+    restoreDraftVersion,
+    saveTemplate,
+    searchDrafts,
+    templates,
+    updateTemplate,
+  ]);
   const queueSummary = useMemo(() => summarizeQueue(queueItems), [queueItems]);
   const queueCoaching = useMemo(() => buildQueueCoachingSnapshot(queueItems, triageHistory), [queueItems, triageHistory]);
   const queueHandoffSnapshot = useMemo(() => buildQueueHandoffSnapshot(queueItems), [queueItems]);
@@ -854,7 +911,11 @@ export function QueueCommandCenterPage({
   );
 
   return (
-    <div className="as-queue" data-testid="queue-first-inbox" onKeyDown={handleQueueKeyDown}>
+    <div
+      className="as-queue"
+      data-testid="queue-first-inbox"
+      onKeyDown={queueSection === 'triage' ? handleQueueKeyDown : undefined}
+    >
       <div className="as-queue__header">
         <div>
           <h2 className="as-queue__title">Queue Command Center</h2>
@@ -871,6 +932,32 @@ export function QueueCommandCenterPage({
             maxLength={64}
             aria-label="Operator name"
           />
+        </div>
+      </div>
+
+      <div className="as-queue__controls" aria-label="Queue sections">
+        <div className="as-queue__viewButtons" role="tablist" aria-label="Queue sections">
+          <AsButton
+            tone={queueSection === 'triage' ? 'primary' : 'ghost'}
+            size="small"
+            onClick={() => setQueueSection('triage')}
+          >
+            Triage
+          </AsButton>
+          <AsButton
+            tone={queueSection === 'history' ? 'primary' : 'ghost'}
+            size="small"
+            onClick={() => setQueueSection('history')}
+          >
+            History
+          </AsButton>
+          <AsButton
+            tone={queueSection === 'templates' ? 'primary' : 'ghost'}
+            size="small"
+            onClick={() => setQueueSection('templates')}
+          >
+            Templates
+          </AsButton>
         </div>
       </div>
 
@@ -893,56 +980,77 @@ export function QueueCommandCenterPage({
         </Panel>
       </div>
 
-      <div className="as-queue__controls" aria-label="Queue controls">
-        <div className="as-queue__controlGroups">
-          <div className="as-queue__viewButtons" role="group" aria-label="Queue views">
-            {QUEUE_VIEWS.map((view) => (
-              <AsButton
-                key={view.id}
-                tone={queueView === view.id ? 'primary' : 'ghost'}
-                size="small"
-                onClick={() => {
-                  setQueueView(view.id);
-                  void logEvent('queue_view_changed', { queue_view: view.id, operator: operatorName });
-                }}
-              >
-                {view.label}
-              </AsButton>
-            ))}
+      {queueSection === 'triage' ? (
+        <>
+          <div className="as-queue__controls" aria-label="Queue controls">
+            <div className="as-queue__controlGroups">
+              <div className="as-queue__viewButtons" role="group" aria-label="Queue views">
+                {QUEUE_VIEWS.map((view) => (
+                  <AsButton
+                    key={view.id}
+                    tone={queueView === view.id ? 'primary' : 'ghost'}
+                    size="small"
+                    onClick={() => {
+                      setQueueView(view.id);
+                      void logEvent('queue_view_changed', { queue_view: view.id, operator: operatorName });
+                    }}
+                  >
+                    {view.label}
+                  </AsButton>
+                ))}
+              </div>
+
+              <div className="as-queue__viewButtons" role="group" aria-label="Queue focus filters">
+                {QUEUE_FOCUS_FILTERS.map((filter) => (
+                  <AsButton
+                    key={filter.id}
+                    tone={queueFocusFilter === filter.id ? 'primary' : 'ghost'}
+                    size="small"
+                    onClick={() => {
+                      setQueueFocusFilter(filter.id);
+                      void logEvent('queue_focus_filter_changed', { queue_focus_filter: filter.id, operator: operatorName });
+                    }}
+                  >
+                    {filter.label}
+                  </AsButton>
+                ))}
+              </div>
+            </div>
+
+            <input
+              className={['as-queue__input', 'as-queue__search'].join(' ')}
+              placeholder="Search queue, ticket, or resolution..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              aria-label="Search queue"
+            />
           </div>
 
-          <div className="as-queue__viewButtons" role="group" aria-label="Queue focus filters">
-            {QUEUE_FOCUS_FILTERS.map((filter) => (
-              <AsButton
-                key={filter.id}
-                tone={queueFocusFilter === filter.id ? 'primary' : 'ghost'}
-                size="small"
-                onClick={() => {
-                  setQueueFocusFilter(filter.id);
-                  void logEvent('queue_focus_filter_changed', { queue_focus_filter: filter.id, operator: operatorName });
-                }}
-              >
-                {filter.label}
-              </AsButton>
-            ))}
+          <div className="as-queue__insightsGrid">{insightsContent}</div>
+
+          <div className="as-queue__grid" aria-label="Queue workspace">
+            <div className="as-queue__list">{listContent}</div>
+            {detailContent}
           </div>
-        </div>
-
-        <input
-          className={['as-queue__input', 'as-queue__search'].join(' ')}
-          placeholder="Search queue, ticket, or resolution..."
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          aria-label="Search queue"
-        />
-      </div>
-
-      <div className="as-queue__insightsGrid">{insightsContent}</div>
-
-      <div className="as-queue__grid" aria-label="Queue workspace">
-        <div className="as-queue__list">{listContent}</div>
-        {detailContent}
-      </div>
+        </>
+      ) : (
+        <Panel
+          title={queueSection === 'history' ? 'Draft History' : 'Templates'}
+          subtitle={
+            queueSection === 'history'
+              ? 'Search saved drafts, inspect version history, and reopen work in the workspace.'
+              : 'Manage reusable templates without leaving Queue.'
+          }
+        >
+          <QueueHistoryTemplatesPanel
+            dataSource={followUpsDataSource}
+            activeSection={queueSection}
+            onActiveSectionChange={setQueueSection}
+            hideSectionTabs
+            onLoadDraft={onLoadDraft}
+          />
+        </Panel>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-use super::*;
+use crate::AppState;
+use tauri::State;
 
 fn with_db<T>(
     state: State<'_, AppState>,
@@ -7,6 +8,63 @@ fn with_db<T>(
     let db_guard = state.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
     let db = db_guard.as_ref().ok_or("Database not initialized")?;
     f(db).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn start_runbook_session(
+    state: State<'_, AppState>,
+    scenario: String,
+    steps: Vec<String>,
+    scope_key: String,
+) -> Result<crate::db::RunbookSessionRecord, String> {
+    let steps_json = serde_json::to_string(&steps).map_err(|e| e.to_string())?;
+    with_db(state, |db| db.create_runbook_session(&scenario, &steps_json, &scope_key))
+}
+
+#[tauri::command]
+pub async fn advance_runbook_session(
+    state: State<'_, AppState>,
+    session_id: String,
+    current_step: i32,
+    status: Option<String>,
+) -> Result<(), String> {
+    with_db(state, |db| {
+        db.advance_runbook_session(&session_id, current_step, status.as_deref())
+    })
+}
+
+#[tauri::command]
+pub async fn list_runbook_sessions(
+    state: State<'_, AppState>,
+    limit: Option<usize>,
+    status: Option<String>,
+    scope_key: Option<String>,
+) -> Result<Vec<crate::db::RunbookSessionRecord>, String> {
+    with_db(state, |db| {
+        db.list_runbook_sessions(
+            limit.unwrap_or(50).min(500),
+            status.as_deref(),
+            scope_key.as_deref(),
+        )
+    })
+}
+
+#[tauri::command]
+pub async fn reassign_runbook_session_scope(
+    state: State<'_, AppState>,
+    from_scope_key: String,
+    to_scope_key: String,
+) -> Result<(), String> {
+    with_db(state, |db| db.reassign_runbook_session_scope(&from_scope_key, &to_scope_key))
+}
+
+#[tauri::command]
+pub async fn reassign_runbook_session_by_id(
+    state: State<'_, AppState>,
+    session_id: String,
+    to_scope_key: String,
+) -> Result<(), String> {
+    with_db(state, |db| db.reassign_runbook_session_by_id(&session_id, &to_scope_key))
 }
 
 fn validate_integration_type(integration_type: &str) -> Result<String, String> {
@@ -217,4 +275,62 @@ pub async fn list_case_outcomes(
     limit: Option<usize>,
 ) -> Result<Vec<crate::db::CaseOutcomeRecord>, String> {
     with_db(state, |db| db.list_case_outcomes(limit.unwrap_or(50).min(200)))
+}
+
+#[tauri::command]
+pub async fn configure_integration(
+    state: State<'_, AppState>,
+    integration_type: String,
+    enabled: bool,
+    config_json: Option<String>,
+) -> Result<(), String> {
+    let normalized_type = integration_type.trim().to_ascii_lowercase();
+    if !matches!(normalized_type.as_str(), "servicenow" | "slack" | "teams") {
+        return Err(format!(
+            "unsupported integration type '{}'; expected one of: servicenow, slack, teams",
+            integration_type
+        ));
+    }
+
+    let normalized_config = match config_json.map(|raw| raw.trim().to_string()) {
+        Some(raw) if raw.is_empty() => None,
+        Some(raw) => {
+            let parsed: serde_json::Value = serde_json::from_str(&raw)
+                .map_err(|e| format!("integration config must be valid JSON: {}", e))?;
+            if !parsed.is_object() {
+                return Err("integration config must be a JSON object".to_string());
+            }
+            Some(parsed.to_string())
+        }
+        None => None,
+    };
+
+    with_db(state, |db| {
+        db.set_integration_config(&normalized_type, enabled, normalized_config.as_deref())
+    })
+}
+
+#[tauri::command]
+pub async fn list_integrations(
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::db::IntegrationConfigRecord>, String> {
+    with_db(state, |db| db.list_integration_configs())
+}
+
+#[tauri::command]
+pub async fn set_workspace_role(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    principal: String,
+    role_name: String,
+) -> Result<(), String> {
+    with_db(state, |db| db.set_workspace_role(&workspace_id, &principal, &role_name))
+}
+
+#[tauri::command]
+pub async fn list_workspace_roles(
+    state: State<'_, AppState>,
+    workspace_id: String,
+) -> Result<Vec<crate::db::WorkspaceRoleRecord>, String> {
+    with_db(state, |db| db.list_workspace_roles(&workspace_id))
 }

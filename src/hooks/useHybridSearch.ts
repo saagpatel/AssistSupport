@@ -4,7 +4,7 @@ import type {
   HybridSearchResponse,
   SearchApiHealthStatus,
   SearchApiStatsData,
-} from '../types';
+} from '../types/knowledge';
 
 export interface HybridSearchState {
   response: HybridSearchResponse | null;

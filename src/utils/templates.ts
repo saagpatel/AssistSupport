@@ -2,7 +2,7 @@
  * Template variable replacement utilities
  */
 
-import type { CustomVariable, TemplateContext } from '../types';
+import type { CustomVariable, TemplateContext } from '../types/workspace';
 
 // Regex to match template placeholders: {{variable_name}}
 const PLACEHOLDER_REGEX = /\{\{(\w+)\}\}/g;

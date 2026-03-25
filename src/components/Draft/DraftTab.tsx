@@ -1,15 +1,16 @@
 import { useState, useCallback, useEffect, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Button } from '../shared/Button';
-import { Dialog } from '../shared/Dialog';
 import { InputPanel } from './InputPanel';
 import { DiagnosisPanel, TreeResult } from './DiagnosisPanel';
 import { ResponsePanel } from './ResponsePanel';
 import { AlternativePanel } from './AlternativePanel';
-import { SaveAsTemplateModal } from './SaveAsTemplateModal';
 import { SavedResponsesSuggestion } from './SavedResponsesSuggestion';
 import { ConversationThread, ConversationEntry } from './ConversationThread';
 import { ConversationInput } from './ConversationInput';
+import { WorkspaceDialogs } from './WorkspaceDialogs';
+import { WorkspaceModeShell } from './WorkspaceModeShell';
+import { WorkspacePanels } from './WorkspacePanels';
+import { WorkspaceWorkflowStrip } from './WorkspaceWorkflowStrip';
 import { useLlm } from '../../hooks/useLlm';
 import { useDrafts } from '../../hooks/useDrafts';
 import { useKb } from '../../hooks/useKb';
@@ -17,28 +18,19 @@ import { useAnalytics } from '../../hooks/useAnalytics';
 import { useAlternatives } from '../../hooks/useAlternatives';
 import { useSavedResponses } from '../../hooks/useSavedResponses';
 import { useMemoryKernelEnrichment } from '../../hooks/useMemoryKernelEnrichment';
-import { useFeatureOps } from '../../hooks/useFeatureOps';
+import { useWorkspaceOps } from '../../hooks/useWorkspaceOps';
 import { useToastContext } from '../../contexts/ToastContext';
 import { useAppStatus } from '../../contexts/AppStatusContext';
 import { AiReadinessBanner } from './AiReadinessBanner';
 import { resolveRevampFlags } from '../../features/revamp';
 import { TicketWorkspaceRail } from '../../features/workspace/TicketWorkspaceRail';
-import {
-  WORKSPACE_ANALYZE_INTAKE_EVENT,
-  WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT,
-  WORKSPACE_COPY_EVIDENCE_EVENT,
-  WORKSPACE_COPY_HANDOFF_EVENT,
-  WORKSPACE_COPY_KB_DRAFT_EVENT,
-  WORKSPACE_REFRESH_SIMILAR_CASES_EVENT,
-} from '../../features/workspace/workspaceEvents';
+import { useWorkspaceCatalog } from '../../features/workspace/useWorkspaceCatalog';
+import { useWorkspaceDerivedArtifacts } from '../../features/workspace/useWorkspaceDerivedArtifacts';
+import { useWorkspaceCommandBridge } from '../../features/workspace/useWorkspaceCommandBridge';
+import { useWorkspaceDraftState } from '../../features/workspace/useWorkspaceDraftState';
 import {
   applyResolutionKit,
   analyzeCaseIntake,
-  buildEvidencePack,
-  buildHandoffPack,
-  buildKbDraft,
-  buildMissingQuestions,
-  buildNextActions,
   buildResolutionKitFromWorkspace,
   buildSimilarCases,
   compactLines,
@@ -46,49 +38,34 @@ import {
   formatHandoffPackForClipboard,
   formatKbDraftForClipboard,
   parseCaseIntake,
-  toGuidedRunbookSession,
-  toGuidedRunbookTemplate,
-  toResolutionKit,
-  toWorkspaceFavorite,
-  serializeCaseIntake,
 } from '../../features/workspace/workspaceAssistant';
 import {
-  hasMeaningfulWorkspaceDraftContent,
-  parseWorkspaceDraftMetadata,
-  parseGuidedRunbookDraftNote,
-  resolveLoadedWorkspaceDraftState,
-  resolveVisibleRunbookScopeKey,
-  resolveWorkspaceAutosaveState,
   shouldMigrateVisibleRunbookSession,
-  shouldTreatGuidedRunbookAsWorkspaceProgress,
   shouldProceedAfterSaveAttempt,
 } from '../../features/workspace/workspaceDraftSession';
 import { calculateEditRatio, countWords } from '../../features/analytics/qualityMetrics';
 import type { JiraTicket } from '../../hooks/useJira';
 import type {
-  CaseIntake,
-  ContextSource,
+  ChecklistState,
   ConfidenceAssessment,
-  EvidencePack,
   GenerationMetrics,
-  GuidedRunbookSession,
-  GuidedRunbookTemplate,
   GroundedClaim,
-  KbDraft,
-  MissingQuestion,
+  ChecklistItem,
+  FirstResponseTone,
+} from '../../types/llm';
+import type { ContextSource, SearchResult } from '../../types/knowledge';
+import type {
+  CaseIntake,
+  GuidedRunbookTemplate,
   NextActionRecommendation,
   NoteAudience,
-  ResponseLength,
   ResolutionKit,
+  ResponseLength,
   SavedDraft,
-  ChecklistItem,
-  ChecklistState,
-  FirstResponseTone,
-  SearchResult,
   SimilarCase,
   WorkspaceFavorite,
   WorkspacePersonalization,
-} from '../../types';
+} from '../../types/workspace';
 import './DraftTab.css';
 
 export interface DraftTabHandle {
@@ -253,7 +230,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     listRunbookStepEvidence,
     addRunbookStepEvidence,
     saveCaseOutcome,
-  } = useFeatureOps();
+  } = useWorkspaceOps();
   const appStatus = useAppStatus();
   const workspaceFlags = useMemo(() => resolveRevampFlags(), []);
   const workspaceRailEnabled = revampModeEnabled && workspaceFlags.ASSISTSUPPORT_TICKET_WORKSPACE_V2;
@@ -318,17 +295,9 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
   const [similarCases, setSimilarCases] = useState<SimilarCase[]>([]);
   const [similarCasesLoading, setSimilarCasesLoading] = useState(false);
   const [compareCase, setCompareCase] = useState<SimilarCase | null>(null);
-  const [resolutionKits, setResolutionKits] = useState<ResolutionKit[]>([]);
-  const [workspaceFavorites, setWorkspaceFavorites] = useState<WorkspaceFavorite[]>([]);
-  const [runbookTemplates, setRunbookTemplates] = useState<GuidedRunbookTemplate[]>([]);
-  const [guidedRunbookSession, setGuidedRunbookSession] = useState<GuidedRunbookSession | null>(null);
   const [guidedRunbookNote, setGuidedRunbookNote] = useState('');
-  const [workspaceCatalogLoading, setWorkspaceCatalogLoading] = useState(false);
   const [workspaceRunbookScopeKey, setWorkspaceRunbookScopeKey] = useState<string>(createWorkspaceRunbookScopeKey);
-  const [runbookSessionSourceScopeKey, setRunbookSessionSourceScopeKey] = useState<string | null>(null);
-  const [runbookSessionTouched, setRunbookSessionTouched] = useState(false);
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | null>(null);
-  const [pendingSimilarCaseOpen, setPendingSimilarCaseOpen] = useState<SimilarCase | null>(null);
 
   // Alternatives & saved responses
   const { alternatives, loadAlternatives, saveAlternative, chooseAlternative } = useAlternatives();
@@ -339,94 +308,32 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
   const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
   const firstDraftStartMsRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(
-      WORKSPACE_PERSONALIZATION_STORAGE_KEY,
-      JSON.stringify(workspacePersonalization),
-    );
-  }, [workspacePersonalization]);
-
-  const refreshWorkspaceCatalog = useCallback(async () => {
-    if (!workspaceRailEnabled) {
-      setResolutionKits([]);
-      setWorkspaceFavorites([]);
-      setRunbookTemplates([]);
-      setGuidedRunbookSession(null);
-      return;
-    }
-
-    setWorkspaceCatalogLoading(true);
-    try {
-      const [kitRecords, favoriteRecords, templateRecords, sessionRecords] = await Promise.all([
-        listResolutionKits(20).catch(() => []),
-        listWorkspaceFavorites().catch(() => []),
-        listRunbookTemplates(20).catch(() => []),
-        listRunbookSessions(20, undefined, workspaceRunbookScopeKey).catch(() => []),
-      ]);
-
-      let nextTemplateRecords = templateRecords;
-      if (workspaceFlags.ASSISTSUPPORT_GUIDED_RUNBOOKS_V2 && nextTemplateRecords.length === 0) {
-        await Promise.all(
-          DEFAULT_RUNBOOK_TEMPLATES.map((template) =>
-            saveRunbookTemplate({
-              name: template.name,
-              scenario: template.scenario,
-              steps_json: JSON.stringify(template.steps),
-            }),
-          ),
-        ).catch(() => undefined);
-        nextTemplateRecords = await listRunbookTemplates(20).catch(() => []);
-      }
-
-      setResolutionKits(kitRecords.map(toResolutionKit));
-      setWorkspaceFavorites(favoriteRecords.map(toWorkspaceFavorite));
-      setRunbookTemplates(nextTemplateRecords.map(toGuidedRunbookTemplate));
-
-      const legacySessionRecords = sessionRecords.length === 0
-        ? await listRunbookSessions(20, undefined, 'legacy:unscoped').catch(() => [])
-        : [];
-      const visibleSessionRecords = sessionRecords.length > 0 ? sessionRecords : legacySessionRecords;
-      const nextVisibleRunbookScopeKey = resolveVisibleRunbookScopeKey(
-        workspaceRunbookScopeKey,
-        sessionRecords.length > 0,
-        legacySessionRecords.length > 0,
-      );
-
-      const activeSessionRecord = visibleSessionRecords.find((session) => session.status === 'active' || session.status === 'paused')
-        ?? visibleSessionRecords[0]
-        ?? null;
-
-      if (!activeSessionRecord) {
-        setGuidedRunbookSession(null);
-        setRunbookSessionSourceScopeKey(null);
-        setRunbookSessionTouched(false);
-        return;
-      }
-
-      const evidenceRecords = await listRunbookStepEvidence(activeSessionRecord.id).catch(() => []);
-      if (guidedRunbookSession?.id !== activeSessionRecord.id) {
-        setRunbookSessionTouched(false);
-      }
-      setGuidedRunbookSession(toGuidedRunbookSession(activeSessionRecord, evidenceRecords));
-      setRunbookSessionSourceScopeKey(nextVisibleRunbookScopeKey);
-    } finally {
-      setWorkspaceCatalogLoading(false);
-    }
-  }, [
+  const {
+    resolutionKits,
+    workspaceFavorites,
+    runbookTemplates,
+    guidedRunbookSession,
+    setGuidedRunbookSession,
+    workspaceCatalogLoading,
+    runbookSessionSourceScopeKey,
+    runbookSessionTouched,
+    setRunbookSessionSourceScopeKey,
+    setRunbookSessionTouched,
+    refreshWorkspaceCatalog,
+  } = useWorkspaceCatalog({
     workspaceRailEnabled,
-    workspaceFlags.ASSISTSUPPORT_GUIDED_RUNBOOKS_V2,
-    listResolutionKits,
-    listWorkspaceFavorites,
-    listRunbookTemplates,
-    listRunbookSessions,
-    listRunbookStepEvidence,
-    saveRunbookTemplate,
-    guidedRunbookSession?.id,
+    guidedRunbooksEnabled: workspaceFlags.ASSISTSUPPORT_GUIDED_RUNBOOKS_V2,
     workspaceRunbookScopeKey,
-  ]);
+    defaultRunbookTemplates: DEFAULT_RUNBOOK_TEMPLATES,
+    ops: {
+      listResolutionKits,
+      listWorkspaceFavorites,
+      listRunbookTemplates,
+      saveRunbookTemplate,
+      listRunbookSessions,
+      listRunbookStepEvidence,
+    },
+  });
 
   useEffect(() => {
     void refreshWorkspaceCatalog();
@@ -1115,190 +1022,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     return () => window.clearTimeout(timer);
   }, [similarCasesEnabled, input, caseIntake.issue, caseIntake.symptoms, currentTicket?.summary, handleRefreshSimilarCases]);
 
-  const handleLoadDraft = useCallback((draft: SavedDraft) => {
-    const workspaceDraftMetadata = parseWorkspaceDraftMetadata(draft.diagnosis_json);
-    const loadedDraftState = resolveLoadedWorkspaceDraftState(
-      draft.id,
-      draft.is_autosave,
-      workspaceDraftMetadata,
-    );
-
-    setInput(draft.input_text);
-    const loadedResponse = draft.response_text || '';
-    setResponse(loadedResponse);
-    setOriginalResponse(loadedResponse);
-    setIsResponseEdited(false);
-    setSavedDraftId(loadedDraftState.savedDraftId);
-    setSavedDraftCreatedAt(
-      draft.is_autosave
-        ? workspaceDraftMetadata.savedDraftCreatedAt
-        : draft.created_at,
-    );
-    setAutosaveDraftId(loadedDraftState.autosaveDraftId);
-    setWorkspaceRunbookScopeKey(loadedDraftState.workspaceRunbookScopeKey);
-    if (draft.diagnosis_json) {
-      try {
-        const diagData = JSON.parse(draft.diagnosis_json);
-        setDiagnosticNotes(diagData.notes || '');
-        setTreeResult(diagData.treeResult || null);
-        const checklistState = diagData.checklist;
-        if (checklistState?.items) {
-          setChecklistItems(checklistState.items);
-          const completed: Record<string, boolean> = {};
-          for (const id of checklistState.completed_ids || []) {
-            completed[id] = true;
-          }
-          setChecklistCompleted(completed);
-        } else {
-          setChecklistItems([]);
-          setChecklistCompleted({});
-        }
-        setChecklistError(null);
-
-        const firstResponseState = diagData.firstResponse;
-        if (firstResponseState?.text) {
-          setFirstResponse(firstResponseState.text);
-          setFirstResponseTone(firstResponseState.tone || 'slack');
-        } else {
-          setFirstResponse('');
-          setFirstResponseTone('slack');
-        }
-
-        const approvalState = diagData.approval;
-        if (approvalState) {
-          setApprovalQuery(approvalState.query || '');
-          setApprovalSummary(approvalState.summary || '');
-          setApprovalSources(approvalState.sources || []);
-        } else {
-          setApprovalQuery('');
-          setApprovalSummary('');
-          setApprovalSources([]);
-        }
-        setApprovalResults([]);
-        setApprovalError(null);
-
-        const trustState = diagData.trust;
-        setConfidence(trustState?.confidence || null);
-        setGrounding(trustState?.grounding || []);
-        setGuidedRunbookNote(parseGuidedRunbookDraftNote(draft.diagnosis_json));
-      } catch {
-        setDiagnosticNotes('');
-        setTreeResult(null);
-        setChecklistItems([]);
-        setChecklistCompleted({});
-        setChecklistError(null);
-        setFirstResponse('');
-        setFirstResponseTone('slack');
-        setApprovalQuery('');
-        setApprovalSummary('');
-        setApprovalSources([]);
-        setApprovalResults([]);
-        setApprovalError(null);
-        setConfidence(null);
-        setGrounding([]);
-        setGuidedRunbookNote('');
-      }
-    } else {
-      setDiagnosticNotes('');
-      setTreeResult(null);
-      setChecklistItems([]);
-      setChecklistCompleted({});
-      setChecklistError(null);
-      setFirstResponse('');
-      setFirstResponseTone('slack');
-      setApprovalQuery('');
-      setApprovalSummary('');
-      setApprovalSources([]);
-      setApprovalResults([]);
-      setApprovalError(null);
-      setConfidence(null);
-      setGrounding([]);
-      setGuidedRunbookNote('');
-    }
-    const draftTicketId = draft.ticket_id?.trim() || null;
-    setCurrentTicketId(draftTicketId);
-    if (draftTicketId) {
-      void invoke<JiraTicket>('get_jira_ticket', { ticketKey: draftTicketId })
-        .then((ticket) => setCurrentTicket(ticket))
-        .catch(() => setCurrentTicket(null));
-    } else {
-      setCurrentTicket(null);
-    }
-    if (draft.kb_sources_json) {
-      try {
-        setSources(JSON.parse(draft.kb_sources_json));
-      } catch {
-        setSources([]);
-      }
-    } else {
-      setSources([]);
-    }
-    const parsedIntake = parseCaseIntake(draft.case_intake_json);
-    setCaseIntake({
-      ...parsedIntake,
-      note_audience: parsedIntake.note_audience ?? workspacePersonalization.preferred_note_audience,
-    });
-    setHandoffTouched(Boolean(draft.handoff_summary));
-    setCompareCase(null);
-    setGuidedRunbookSession(null);
-    setRunbookSessionSourceScopeKey(loadedDraftState.workspaceRunbookScopeKey);
-    setRunbookSessionTouched(false);
-    setPendingSimilarCaseOpen(null);
-    setOcrText(null);
-  }, [workspacePersonalization.preferred_note_audience]);
-
-  useEffect(() => {
-    if (savedDraftId || !autosaveDraftId) {
-      return;
-    }
-
-    const autosaveScopeKey = `draft:${autosaveDraftId}`;
-    const activeRunbookScopeKey = guidedRunbookSession
-      ? (runbookSessionSourceScopeKey ?? workspaceRunbookScopeKey)
-      : workspaceRunbookScopeKey;
-    if (activeRunbookScopeKey === autosaveScopeKey) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const shouldMigrateActiveRunbookSession = guidedRunbookSession
-      ? shouldMigrateVisibleRunbookSession({
-          hasGuidedRunbookSession: true,
-          runbookSessionTouched,
-          runbookSessionSourceScopeKey,
-          workspaceRunbookScopeKey,
-        })
-      : false;
-
-    const activeRunbookSessionId = guidedRunbookSession?.id ?? null;
-    const migrateRunbookScope = shouldMigrateActiveRunbookSession && activeRunbookSessionId
-      ? reassignRunbookSessionById(activeRunbookSessionId, autosaveScopeKey)
-      : reassignRunbookSessionScope(workspaceRunbookScopeKey, autosaveScopeKey);
-
-    void migrateRunbookScope
-      .then(() => {
-        if (!cancelled) {
-          setWorkspaceRunbookScopeKey(autosaveScopeKey);
-          setRunbookSessionSourceScopeKey(autosaveScopeKey);
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    autosaveDraftId,
-    guidedRunbookSession,
-    reassignRunbookSessionById,
-    reassignRunbookSessionScope,
-    runbookSessionSourceScopeKey,
-    runbookSessionTouched,
-    savedDraftId,
-    workspaceRunbookScopeKey,
-  ]);
-
   const buildDiagnosisJson = useCallback(() => {
     const completedIds = Object.keys(checklistCompleted).filter(id => checklistCompleted[id]);
     const checklistState = checklistItems.length > 0
@@ -1361,112 +1084,112 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     savedDraftId,
   ]);
 
-  const handoffPack = useMemo(() => buildHandoffPack({
-    inputText: input,
-    responseText: response,
-    intake: caseIntake,
-    sources,
-    ticket: currentTicket ?? undefined,
-    diagnosticNotes,
-  }), [input, response, caseIntake, sources, currentTicket, diagnosticNotes]);
-
-  const serializedCaseIntake = useMemo(
-    () => (structuredIntakeEnabled ? serializeCaseIntake(caseIntake) : null),
-    [caseIntake, structuredIntakeEnabled],
-  );
-
-  const hasSaveableWorkspaceContent = useMemo(() => hasMeaningfulWorkspaceDraftContent({
-    inputText: input,
-    responseText: response,
-    diagnosisJson: buildDiagnosisJson(),
-    caseIntake,
-    handoffTouched,
-    hasGuidedRunbookState: Boolean(
-      guidedRunbookNote.trim()
-      || shouldTreatGuidedRunbookAsWorkspaceProgress({
-        hasGuidedRunbookSession: Boolean(guidedRunbookSession),
-        runbookSessionTouched,
-        runbookSessionSourceScopeKey,
-        workspaceRunbookScopeKey,
-      }),
-    ),
-  }), [
-    buildDiagnosisJson,
-    caseIntake,
-    guidedRunbookNote,
-    guidedRunbookSession,
-    handoffTouched,
+  const {
+    handoffPack,
+    serializedCaseIntake,
+    activeWorkspaceDraft,
+    missingQuestions,
+    nextActions,
+    evidencePack,
+    kbDraft,
+    hasSaveableWorkspaceContent,
+    hasLiveWorkspaceContent,
+    responseWordCount,
+    responseEditRatio,
+    checklistCompletedCount,
+  } = useWorkspaceDerivedArtifacts({
+    structuredIntakeEnabled,
+    nextBestActionEnabled,
     input,
     response,
-    runbookSessionSourceScopeKey,
-    runbookSessionTouched,
-    workspaceRunbookScopeKey,
-  ]);
-
-  const activeWorkspaceDraft = useMemo<SavedDraft>(() => ({
-    id: savedDraftId ?? autosaveDraftId ?? 'workspace-draft',
-    input_text: input,
-    summary_text: currentTicket?.summary ?? null,
-    diagnosis_json: buildDiagnosisJson(),
-    response_text: response || null,
-    ticket_id: currentTicketId,
-    kb_sources_json: sources.length > 0 ? JSON.stringify(sources) : null,
-    created_at: savedDraftCreatedAt ?? new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    is_autosave: false,
-    model_name: loadedModelName,
-    case_intake_json: serializedCaseIntake,
-    status: 'draft',
-    handoff_summary: handoffPack.summary,
-    finalized_at: null,
-    finalized_by: null,
-  }), [
+    diagnosticNotes,
+    sources,
+    caseIntake,
+    currentTicket,
+    currentTicketId,
     savedDraftId,
     autosaveDraftId,
-    input,
-    currentTicket?.summary,
+    savedDraftCreatedAt,
+    loadedModelName,
     buildDiagnosisJson,
-    response,
+    handoffTouched,
+    guidedRunbookNote,
+    guidedRunbookSession,
+    runbookSessionTouched,
+    runbookSessionSourceScopeKey,
+    workspaceRunbookScopeKey,
+    checklistItems,
+    checklistCompleted,
+    firstResponse,
+    originalResponse,
+  });
+
+  const {
+    pendingSimilarCaseOpen,
+    setPendingSimilarCaseOpen,
+    pendingDraftOpen,
+    setPendingDraftOpen,
+    applyLoadedDraft,
+    handleLoadDraft,
+    requestOpenSimilarCase,
+  } = useWorkspaceDraftState({
+    workspacePersonalizationStorageKey: WORKSPACE_PERSONALIZATION_STORAGE_KEY,
+    workspacePersonalization,
+    savedDraftId,
+    setSavedDraftId,
+    setSavedDraftCreatedAt,
+    autosaveDraftId,
+    setAutosaveDraftId,
+    workspaceRunbookScopeKey,
+    setWorkspaceRunbookScopeKey,
+    runbookSessionSourceScopeKey,
+    setRunbookSessionSourceScopeKey,
+    runbookSessionTouched,
+    setRunbookSessionTouched,
+    guidedRunbookSession,
+    setGuidedRunbookNote,
+    hasLiveWorkspaceContent,
+    hasSaveableWorkspaceContent,
+    currentTicket,
     currentTicketId,
+    input,
+    response,
     sources,
     loadedModelName,
     serializedCaseIntake,
-    savedDraftCreatedAt,
-    handoffPack.summary,
-  ]);
-
-  const missingQuestions = useMemo<MissingQuestion[]>(
-    () => (nextBestActionEnabled ? buildMissingQuestions(caseIntake) : []),
-    [caseIntake, nextBestActionEnabled],
-  );
-
-  const nextActions = useMemo<NextActionRecommendation[]>(
-    () => (nextBestActionEnabled
-      ? buildNextActions({
-          inputText: input,
-          responseText: response,
-          intake: caseIntake,
-          sources,
-          ticket: currentTicket ?? undefined,
-        })
-      : []),
-    [nextBestActionEnabled, input, response, caseIntake, sources, currentTicket],
-  );
-
-  const evidencePack = useMemo<EvidencePack>(() => buildEvidencePack({
-    draft: activeWorkspaceDraft,
-    intake: caseIntake,
     handoffPack,
-    nextActions,
-    sources,
-  }), [activeWorkspaceDraft, caseIntake, handoffPack, nextActions, sources]);
-
-  const kbDraft = useMemo<KbDraft>(() => buildKbDraft({
-    draft: activeWorkspaceDraft,
-    intake: caseIntake,
-    handoffPack,
-    sources,
-  }), [activeWorkspaceDraft, caseIntake, handoffPack, sources]);
+    buildDiagnosisJson,
+    triggerAutosave,
+    cancelAutosave,
+    reassignRunbookSessionScope,
+    reassignRunbookSessionById,
+    preferredNoteAudience: workspacePersonalization.preferred_note_audience,
+    setInput,
+    setResponse,
+    setOriginalResponse,
+    setIsResponseEdited,
+    setDiagnosticNotes,
+    setTreeResult,
+    setChecklistItems,
+    setChecklistCompleted,
+    setChecklistError,
+    setFirstResponse,
+    setFirstResponseTone,
+    setApprovalQuery,
+    setApprovalSummary,
+    setApprovalSources,
+    setApprovalResults,
+    setApprovalError,
+    setConfidence,
+    setGrounding,
+    setCurrentTicketId,
+    setCurrentTicket,
+    setSources,
+    setCaseIntake,
+    setHandoffTouched,
+    setCompareCase,
+    setOcrText,
+  });
 
   const handleCopyHandoffPack = useCallback(async () => {
     try {
@@ -1749,36 +1472,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     }
   }, []);
 
-  const hasLiveWorkspaceContent = useMemo(() => Boolean(
-    input.trim()
-    || response.trim()
-    || diagnosticNotes.trim()
-    || firstResponse.trim()
-    || checklistItems.length > 0
-    || similarCases.length > 0
-    || handoffTouched
-    || guidedRunbookNote.trim()
-    || shouldTreatGuidedRunbookAsWorkspaceProgress({
-      hasGuidedRunbookSession: Boolean(guidedRunbookSession),
-      runbookSessionTouched,
-      runbookSessionSourceScopeKey,
-      workspaceRunbookScopeKey,
-    }),
-  ), [
-    diagnosticNotes,
-    firstResponse,
-    guidedRunbookNote,
-    guidedRunbookSession,
-    handoffTouched,
-    input,
-    checklistItems.length,
-    response,
-    runbookSessionSourceScopeKey,
-    runbookSessionTouched,
-    similarCases.length,
-    workspaceRunbookScopeKey,
-  ]);
-
   const loadSimilarCaseIntoWorkspace = useCallback(async (similarCase: SimilarCase) => {
     const fullDraft = await getDraft(similarCase.draft_id);
     if (!fullDraft) {
@@ -1788,8 +1481,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
   }, [getDraft, handleLoadDraft]);
 
   const handleOpenSimilarCase = useCallback(async (similarCase: SimilarCase) => {
-    if (similarCase.draft_id !== savedDraftId && hasLiveWorkspaceContent) {
-      setPendingSimilarCaseOpen(similarCase);
+    if (!requestOpenSimilarCase(similarCase)) {
       return;
     }
 
@@ -1806,12 +1498,10 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
       showError('Failed to open similar case');
     }
   }, [
-    hasLiveWorkspaceContent,
     loadSimilarCaseIntoWorkspace,
     logEvent,
     currentTicketId,
-    savedDraftId,
-    setPendingSimilarCaseOpen,
+    requestOpenSimilarCase,
     showError,
     showSuccess,
   ]);
@@ -1908,42 +1598,15 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     handleCopyKbDraft,
   ]);
 
-  useEffect(() => {
-    if (!workspaceRailEnabled) {
-      return;
-    }
-
-    const handleAnalyze = () => handleAnalyzeIntake();
-    const handleCopyHandoff = () => void handleCopyHandoffPack();
-    const handleCopyEvidence = () => void handleCopyEvidencePack();
-    const handleCopyKbDraftFromEvent = () => void handleCopyKbDraft();
-    const handleRefreshCases = () => void handleRefreshSimilarCases();
-    const handleCompareLast = () => handleCompareLastResolution();
-
-    window.addEventListener(WORKSPACE_ANALYZE_INTAKE_EVENT, handleAnalyze);
-    window.addEventListener(WORKSPACE_COPY_HANDOFF_EVENT, handleCopyHandoff);
-    window.addEventListener(WORKSPACE_COPY_EVIDENCE_EVENT, handleCopyEvidence);
-    window.addEventListener(WORKSPACE_COPY_KB_DRAFT_EVENT, handleCopyKbDraftFromEvent);
-    window.addEventListener(WORKSPACE_REFRESH_SIMILAR_CASES_EVENT, handleRefreshCases);
-    window.addEventListener(WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT, handleCompareLast);
-
-    return () => {
-      window.removeEventListener(WORKSPACE_ANALYZE_INTAKE_EVENT, handleAnalyze);
-      window.removeEventListener(WORKSPACE_COPY_HANDOFF_EVENT, handleCopyHandoff);
-      window.removeEventListener(WORKSPACE_COPY_EVIDENCE_EVENT, handleCopyEvidence);
-      window.removeEventListener(WORKSPACE_COPY_KB_DRAFT_EVENT, handleCopyKbDraftFromEvent);
-      window.removeEventListener(WORKSPACE_REFRESH_SIMILAR_CASES_EVENT, handleRefreshCases);
-      window.removeEventListener(WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT, handleCompareLast);
-    };
-  }, [
-    workspaceRailEnabled,
-    handleAnalyzeIntake,
-    handleCompareLastResolution,
-    handleCopyEvidencePack,
-    handleCopyHandoffPack,
-    handleCopyKbDraft,
-    handleRefreshSimilarCases,
-  ]);
+  useWorkspaceCommandBridge({
+    enabled: workspaceRailEnabled,
+    onAnalyzeIntake: handleAnalyzeIntake,
+    onCopyHandoffPack: handleCopyHandoffPack,
+    onCopyEvidencePack: handleCopyEvidencePack,
+    onCopyKbDraft: handleCopyKbDraft,
+    onRefreshSimilarCases: handleRefreshSimilarCases,
+    onCompareLastResolution: handleCompareLastResolution,
+  });
 
   const handleSaveDraft = useCallback(async () => {
     if (!hasSaveableWorkspaceContent) {
@@ -2099,6 +1762,33 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     showSuccess,
   ]);
 
+  const handleConfirmOpenDraft = useCallback(async (
+    mode: 'replace' | 'save-and-open',
+  ) => {
+    if (!pendingDraftOpen) {
+      return;
+    }
+
+    try {
+      if (mode === 'save-and-open') {
+        const savedId = await handleSaveDraft();
+        if (!shouldProceedAfterSaveAttempt(mode, savedId)) {
+          return;
+        }
+      }
+
+      applyLoadedDraft(pendingDraftOpen);
+      setPendingDraftOpen(null);
+      showSuccess(
+        mode === 'save-and-open'
+          ? 'Saved the current workspace and opened the selected draft'
+          : 'Opened the selected draft in the workspace',
+      );
+    } catch {
+      showError('Failed to open the selected draft');
+    }
+  }, [applyLoadedDraft, handleSaveDraft, pendingDraftOpen, showError, showSuccess]);
+
   // Load initial draft if provided
   useEffect(() => {
     if (initialDraft) {
@@ -2119,40 +1809,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
       setApprovalError(null);
     }
   }, [approvalQuery]);
-
-  // Trigger autosave on content changes
-  useEffect(() => {
-    const autosaveState = resolveWorkspaceAutosaveState({
-      hasMeaningfulContent: hasSaveableWorkspaceContent,
-      savedDraftId,
-      autosaveDraftId,
-      createDraftId: () => crypto.randomUUID(),
-    });
-
-    if (autosaveState.stateAutosaveDraftId !== autosaveDraftId) {
-      setAutosaveDraftId(autosaveState.stateAutosaveDraftId);
-    }
-
-    if (autosaveState.autosaveRecordId) {
-      const diagnosisData = buildDiagnosisJson();
-
-      triggerAutosave({
-        input_text: input,
-        summary_text: currentTicket?.summary ?? null,
-        diagnosis_json: diagnosisData,
-        response_text: response || null,
-        ticket_id: currentTicketId,
-        kb_sources_json: sources.length > 0 ? JSON.stringify(sources) : null,
-        model_name: loadedModelName,
-        case_intake_json: serializedCaseIntake,
-        handoff_summary: handoffPack.summary,
-        status: 'draft',
-      }, autosaveState.autosaveRecordId, hasSaveableWorkspaceContent);
-    }
-    return () => {
-      cancelAutosave();
-    };
-  }, [input, savedDraftId, autosaveDraftId, currentTicket?.summary, buildDiagnosisJson, response, currentTicketId, sources, loadedModelName, triggerAutosave, cancelAutosave, serializedCaseIntake, handoffPack.summary, hasSaveableWorkspaceContent]);
 
   const handleCopyResponse = useCallback(async () => {
     if (!response) return;
@@ -2231,11 +1887,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
   }), [handleGenerate, handleLoadDraft, handleSaveDraft, handleCopyResponse, handleCancel, handleExportResponse, handleClear]);
 
   const isConversation = viewMode === 'conversation';
-  const checklistCompletedCount = checklistItems.reduce((count, item) => {
-    return checklistCompleted[item.id] ? count + 1 : count;
-  }, 0);
-  const responseWordCount = countWords(response);
-  const responseEditRatio = calculateEditRatio(originalResponse, response);
 
   const viewToggle = (
     <div className="draft-view-header">
@@ -2246,29 +1897,235 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
     </div>
   );
 
-  if (isConversation) {
-    return (
-      <div className={['draft-tab', 'conversation-mode', revampModeEnabled ? 'draft-tab--revamp' : ''].filter(Boolean).join(' ')}>
-        {viewToggle}
-        <AiReadinessBanner
-          modelLoaded={modelLoaded}
-          modelName={loadedModelName}
-          kbIndexed={appStatus.kbIndexed}
-          kbDocumentCount={appStatus.kbDocumentCount}
-          kbChunkCount={appStatus.kbChunkCount}
-          memoryKernelEnabled={appStatus.memoryKernelFeatureEnabled}
-          memoryKernelReady={appStatus.memoryKernelReady}
-          memoryKernelStatus={appStatus.memoryKernelStatus}
-          memoryKernelDetail={appStatus.memoryKernelDetail}
-          onRefreshStatus={() => {
-            void appStatus.refresh();
-          }}
+  const readinessBanner = (
+    <AiReadinessBanner
+      modelLoaded={modelLoaded}
+      modelName={loadedModelName}
+      kbIndexed={appStatus.kbIndexed}
+      kbDocumentCount={appStatus.kbDocumentCount}
+      kbChunkCount={appStatus.kbChunkCount}
+      memoryKernelEnabled={appStatus.memoryKernelFeatureEnabled}
+      memoryKernelReady={appStatus.memoryKernelReady}
+      memoryKernelStatus={appStatus.memoryKernelStatus}
+      memoryKernelDetail={appStatus.memoryKernelDetail}
+      onRefreshStatus={() => {
+        void appStatus.refresh();
+      }}
+    />
+  );
+
+  const workflowStrip = (
+    <WorkspaceWorkflowStrip
+      inputWordCount={countWords(input)}
+      currentTicketId={currentTicketId}
+      treeCompleted={Boolean(treeResult)}
+      checklistCompletedCount={checklistCompletedCount}
+      checklistItemCount={checklistItems.length}
+      responseWordCount={responseWordCount}
+      isResponseEdited={isResponseEdited}
+      responseEditRatio={responseEditRatio}
+      hasResponseReady={Boolean(response?.trim())}
+      handoffTouched={handoffTouched}
+      panelDensityMode={panelDensityMode}
+      modelLoaded={modelLoaded}
+      firstResponseGenerating={firstResponseGenerating}
+      checklistGenerating={checklistGenerating}
+      generating={generating}
+      hasInput={Boolean(input.trim())}
+      hasChecklistInput={Boolean(input.trim() || ocrText?.trim() || currentTicket)}
+      onPanelDensityModeChange={handlePanelDensityModeChange}
+      onGenerateFirstResponse={handleGenerateFirstResponse}
+      onChecklistGenerate={handleChecklistGenerate}
+      onGenerate={handleGenerate}
+      onSaveDraft={() => {
+        void handleSaveDraft();
+      }}
+    />
+  );
+
+  const inputPanel = (
+    <InputPanel
+      value={input}
+      onChange={setInput}
+      ocrText={ocrText}
+      onOcrTextChange={setOcrText}
+      onGenerate={handleGenerate}
+      onClear={handleClear}
+      generating={generating}
+      modelLoaded={modelLoaded}
+      responseLength={responseLength}
+      onResponseLengthChange={handleResponseLengthChange}
+      ticketId={currentTicketId}
+      onTicketIdChange={setCurrentTicketId}
+      ticket={currentTicket}
+      onTicketChange={setCurrentTicket}
+      firstResponse={firstResponse}
+      onFirstResponseChange={setFirstResponse}
+      firstResponseTone={firstResponseTone}
+      onFirstResponseToneChange={setFirstResponseTone}
+      onGenerateFirstResponse={handleGenerateFirstResponse}
+      onCopyFirstResponse={handleCopyFirstResponse}
+      onClearFirstResponse={handleClearFirstResponse}
+      firstResponseGenerating={firstResponseGenerating}
+      templates={templates}
+      onApplyTemplate={handleApplyTemplate}
+      onNavigateToSource={onNavigateToSource}
+    />
+  );
+
+  const diagnosisPanel = (
+    <DiagnosisPanel
+      input={input}
+      ocrText={ocrText}
+      notes={diagnosticNotes}
+      onNotesChange={setDiagnosticNotes}
+      treeResult={treeResult}
+      onTreeComplete={handleTreeComplete}
+      onTreeClear={handleTreeClear}
+      checklistItems={checklistItems}
+      checklistCompleted={checklistCompleted}
+      checklistGenerating={checklistGenerating}
+      checklistUpdating={checklistUpdating}
+      checklistError={checklistError}
+      onChecklistToggle={handleChecklistToggle}
+      onChecklistGenerate={handleChecklistGenerate}
+      onChecklistUpdate={handleChecklistUpdate}
+      onChecklistClear={handleChecklistClear}
+      approvalQuery={approvalQuery}
+      onApprovalQueryChange={setApprovalQuery}
+      approvalResults={approvalResults}
+      approvalSearching={approvalSearching}
+      approvalSummary={approvalSummary}
+      approvalSummarizing={approvalSummarizing}
+      approvalSources={approvalSources}
+      onApprovalSearch={handleApprovalSearch}
+      onApprovalSummarize={handleApprovalSummarize}
+      approvalError={approvalError}
+      modelLoaded={modelLoaded}
+      hasTicket={!!currentTicket}
+      collapsed={diagnosisCollapsed}
+      onToggleCollapse={() => setDiagnosisCollapsed(!diagnosisCollapsed)}
+    />
+  );
+
+  const responsePanel = (
+    <>
+      {!suggestionsDismissed && suggestions.length > 0 && !response ? (
+        <SavedResponsesSuggestion
+          suggestions={suggestions}
+          onApply={handleSuggestionApply}
+          onDismiss={handleSuggestionDismiss}
         />
+      ) : null}
+      <ResponsePanel
+        response={response}
+        streamingText={streamingText}
+        isStreaming={isStreaming}
+        sources={sources}
+        generating={generating}
+        metrics={metrics}
+        confidence={confidence}
+        grounding={grounding}
+        draftId={savedDraftId}
+        onSaveDraft={handleSaveDraft}
+        onCancel={handleCancel}
+        hasInput={!!input.trim()}
+        onResponseChange={handleResponseChange}
+        isEdited={isResponseEdited}
+        modelName={loadedModelName}
+        onGenerateAlternative={handleGenerateAlternative}
+        generatingAlternative={generatingAlternative}
+        ticketKey={currentTicketId}
+        onSaveAsTemplate={handleSaveAsTemplate}
+      />
+      {alternatives.length > 0 && response && !generating && !isStreaming ? (
+        <AlternativePanel
+          alternatives={alternatives}
+          onChoose={handleChooseAlternative}
+          onUseAlternative={handleUseAlternative}
+        />
+      ) : null}
+    </>
+  );
+
+  const workspacePanel = (
+    <TicketWorkspaceRail
+      intake={caseIntake}
+      onIntakeChange={handleIntakeFieldChange}
+      onAnalyzeIntake={handleAnalyzeIntake}
+      onApplyIntakePreset={handleApplyIntakePreset}
+      onNoteAudienceChange={handleNoteAudienceChange}
+      nextActions={nextActions}
+      missingQuestions={missingQuestions}
+      onAcceptNextAction={handleAcceptNextAction}
+      similarCases={similarCases}
+      similarCasesLoading={similarCasesLoading}
+      onRefreshSimilarCases={handleRefreshSimilarCases}
+      onOpenSimilarCase={handleOpenSimilarCase}
+      onCompareSimilarCase={handleCompareSimilarCase}
+      onCompareLastResolution={handleCompareLastResolution}
+      compareCase={compareCase}
+      onCloseCompareCase={() => setCompareCase(null)}
+      handoffPack={handoffPack}
+      evidencePack={evidencePack}
+      kbDraft={kbDraft}
+      onCopyHandoffPack={handleCopyHandoffPack}
+      onCopyEvidencePack={handleCopyEvidencePack}
+      onCopyKbDraft={handleCopyKbDraft}
+      resolutionKits={resolutionKits}
+      onSaveResolutionKit={handleSaveCurrentResolutionKit}
+      onApplyResolutionKit={handleApplyResolutionKit}
+      favorites={workspaceFavorites}
+      onToggleFavorite={handleToggleWorkspaceFavorite}
+      runbookTemplates={runbookTemplates}
+      guidedRunbookSession={guidedRunbookSession}
+      runbookNote={guidedRunbookNote}
+      onRunbookNoteChange={handleGuidedRunbookNoteChange}
+      onStartGuidedRunbook={handleStartGuidedRunbook}
+      onAdvanceGuidedRunbook={handleAdvanceGuidedRunbook}
+      onCopyRunbookProgressToNotes={handleCopyRunbookProgressToNotes}
+      workspacePersonalization={workspacePersonalization}
+      onPersonalizationChange={handleWorkspacePersonalizationChange}
+      workspaceCatalogLoading={workspaceCatalogLoading}
+      currentResponse={response}
+    />
+  );
+
+  const dialogs = (
+    <WorkspaceDialogs
+      showTemplateModal={showTemplateModal}
+      response={response}
+      savedDraftId={savedDraftId}
+      templateModalRating={templateModalRating}
+      onTemplateSave={handleTemplateModalSave}
+      onCloseTemplateModal={() => setShowTemplateModal(false)}
+      pendingSimilarCaseOpen={pendingSimilarCaseOpen}
+      onCloseSimilarCaseDialog={() => setPendingSimilarCaseOpen(null)}
+      onConfirmOpenSimilarCase={handleConfirmOpenSimilarCase}
+      hasResponse={Boolean(response.trim())}
+      pendingDraftOpen={pendingDraftOpen}
+      onCloseDraftDialog={() => setPendingDraftOpen(null)}
+      onConfirmOpenDraft={handleConfirmOpenDraft}
+    />
+  );
+
+  return (
+    <WorkspaceModeShell
+      isConversation={isConversation}
+      revampModeEnabled={revampModeEnabled}
+      panelDensityMode={panelDensityMode}
+      diagnosisCollapsed={diagnosisCollapsed}
+      workspaceRailEnabled={workspaceRailEnabled}
+      viewToggle={viewToggle}
+      readinessBanner={readinessBanner}
+      conversationThread={(
         <ConversationThread
           entries={conversationEntries}
           streamingText={streamingText}
           isStreaming={isStreaming}
         />
+      )}
+      conversationInput={(
         <ConversationInput
           onSubmit={handleConversationSubmit}
           generating={generating}
@@ -2277,340 +2134,19 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(function Draft
           onResponseLengthChange={handleResponseLengthChange}
           onCancel={handleCancel}
         />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={[
-        'draft-tab',
-        `panel-density-${panelDensityMode}`,
-        diagnosisCollapsed ? 'diagnosis-collapsed' : '',
-        revampModeEnabled ? 'draft-tab--revamp' : '',
-        workspaceRailEnabled ? 'has-workspace-rail' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      {viewToggle}
-      <AiReadinessBanner
-        modelLoaded={modelLoaded}
-        modelName={loadedModelName}
-        kbIndexed={appStatus.kbIndexed}
-        kbDocumentCount={appStatus.kbDocumentCount}
-        kbChunkCount={appStatus.kbChunkCount}
-        memoryKernelEnabled={appStatus.memoryKernelFeatureEnabled}
-        memoryKernelReady={appStatus.memoryKernelReady}
-        memoryKernelStatus={appStatus.memoryKernelStatus}
-        memoryKernelDetail={appStatus.memoryKernelDetail}
-        onRefreshStatus={() => {
-          void appStatus.refresh();
-        }}
-      />
-      <section className="draft-workflow-strip" aria-label="Draft workflow overview">
-        <div className="draft-workflow-step">
-          <h4>1. Intake</h4>
-          <p>{countWords(input)} words captured {currentTicketId ? '· ticket linked' : '· no ticket linked'}</p>
-        </div>
-        <div className="draft-workflow-step">
-          <h4>2. Diagnose</h4>
-          <p>
-            {treeResult ? 'Tree completed' : 'Tree not run'}
-            {' · '}
-            checklist {checklistCompletedCount}/{checklistItems.length}
-          </p>
-        </div>
-        <div className="draft-workflow-step">
-          <h4>3. Draft</h4>
-          <p>
-            {responseWordCount} words
-            {isResponseEdited ? ` · edited (${Math.round(responseEditRatio * 100)}%)` : ' · unedited'}
-          </p>
-        </div>
-        <div className="draft-workflow-step">
-          <h4>4. Handoff</h4>
-          <p>
-            {response?.trim()
-              ? handoffTouched
-                ? 'Copied/exported'
-                : 'Ready to copy/export'
-              : 'No response yet'}
-          </p>
-        </div>
-        <div className="draft-workflow-actions">
-          <div className="draft-layout-mode-toggle" role="group" aria-label="Draft panel layout">
-            <button
-              type="button"
-              className={`draft-layout-mode-btn ${panelDensityMode === 'balanced' ? 'active' : ''}`}
-              onClick={() => handlePanelDensityModeChange('balanced')}
-            >
-              Balanced
-            </button>
-            <button
-              type="button"
-              className={`draft-layout-mode-btn ${panelDensityMode === 'focus-intake' ? 'active' : ''}`}
-              onClick={() => handlePanelDensityModeChange('focus-intake')}
-            >
-              Intake Focus
-            </button>
-            <button
-              type="button"
-              className={`draft-layout-mode-btn ${panelDensityMode === 'focus-response' ? 'active' : ''}`}
-              onClick={() => handlePanelDensityModeChange('focus-response')}
-            >
-              Response Focus
-            </button>
-          </div>
-          <Button
-            size="small"
-            variant="secondary"
-            onClick={handleGenerateFirstResponse}
-            disabled={!modelLoaded || firstResponseGenerating || !input.trim()}
-          >
-            Draft First Reply
-          </Button>
-          <Button
-            size="small"
-            variant="ghost"
-            onClick={handleChecklistGenerate}
-            disabled={!modelLoaded || checklistGenerating || (!input.trim() && !ocrText?.trim() && !currentTicket)}
-          >
-            Build Checklist
-          </Button>
-          <Button
-            size="small"
-            variant="primary"
-            onClick={handleGenerate}
-            disabled={!modelLoaded || generating || !input.trim()}
-            title="Generate response (Cmd+G in input)"
-            aria-keyshortcuts="Meta+G"
-          >
-            Generate Full Response
-          </Button>
-          <Button
-            size="small"
-            variant="ghost"
-            onClick={handleSaveDraft}
-            disabled={!input.trim()}
-          >
-            Save
-          </Button>
-          <div className="draft-workflow-shortcuts" aria-label="Keyboard shortcuts">
-            <span><kbd>Cmd</kbd>+<kbd>G</kbd> Generate</span>
-            <span><kbd>Cmd</kbd>+<kbd>N</kbd> Clear</span>
-            <span><kbd>Cmd</kbd>+<kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> Layout</span>
-          </div>
-        </div>
-      </section>
-      <div className="draft-panels-container">
-        <div className="draft-panel input-panel">
-          <InputPanel
-            value={input}
-            onChange={setInput}
-            ocrText={ocrText}
-            onOcrTextChange={setOcrText}
-            onGenerate={handleGenerate}
-            onClear={handleClear}
-            generating={generating}
-            modelLoaded={modelLoaded}
-            responseLength={responseLength}
-            onResponseLengthChange={handleResponseLengthChange}
-            ticketId={currentTicketId}
-            onTicketIdChange={setCurrentTicketId}
-            ticket={currentTicket}
-            onTicketChange={setCurrentTicket}
-            firstResponse={firstResponse}
-            onFirstResponseChange={setFirstResponse}
-            firstResponseTone={firstResponseTone}
-            onFirstResponseToneChange={setFirstResponseTone}
-            onGenerateFirstResponse={handleGenerateFirstResponse}
-            onCopyFirstResponse={handleCopyFirstResponse}
-            onClearFirstResponse={handleClearFirstResponse}
-            firstResponseGenerating={firstResponseGenerating}
-            templates={templates}
-            onApplyTemplate={handleApplyTemplate}
-            onNavigateToSource={onNavigateToSource}
-          />
-        </div>
-
-        <div className={`draft-panel diagnosis-panel ${diagnosisCollapsed ? 'collapsed' : ''}`}>
-          <DiagnosisPanel
-            input={input}
-            ocrText={ocrText}
-            notes={diagnosticNotes}
-            onNotesChange={setDiagnosticNotes}
-            treeResult={treeResult}
-            onTreeComplete={handleTreeComplete}
-            onTreeClear={handleTreeClear}
-            checklistItems={checklistItems}
-            checklistCompleted={checklistCompleted}
-            checklistGenerating={checklistGenerating}
-            checklistUpdating={checklistUpdating}
-            checklistError={checklistError}
-            onChecklistToggle={handleChecklistToggle}
-            onChecklistGenerate={handleChecklistGenerate}
-            onChecklistUpdate={handleChecklistUpdate}
-            onChecklistClear={handleChecklistClear}
-            approvalQuery={approvalQuery}
-            onApprovalQueryChange={setApprovalQuery}
-            approvalResults={approvalResults}
-            approvalSearching={approvalSearching}
-            approvalSummary={approvalSummary}
-            approvalSummarizing={approvalSummarizing}
-            approvalSources={approvalSources}
-            onApprovalSearch={handleApprovalSearch}
-            onApprovalSummarize={handleApprovalSummarize}
-            approvalError={approvalError}
-            modelLoaded={modelLoaded}
-            hasTicket={!!currentTicket}
-            collapsed={diagnosisCollapsed}
-            onToggleCollapse={() => setDiagnosisCollapsed(!diagnosisCollapsed)}
-          />
-        </div>
-
-        <div className="draft-panel response-panel">
-          {!suggestionsDismissed && suggestions.length > 0 && !response && (
-            <SavedResponsesSuggestion
-              suggestions={suggestions}
-              onApply={handleSuggestionApply}
-              onDismiss={handleSuggestionDismiss}
-            />
-          )}
-          <ResponsePanel
-            response={response}
-            streamingText={streamingText}
-            isStreaming={isStreaming}
-            sources={sources}
-            generating={generating}
-            metrics={metrics}
-            confidence={confidence}
-            grounding={grounding}
-            draftId={savedDraftId}
-            onSaveDraft={handleSaveDraft}
-            onCancel={handleCancel}
-            hasInput={!!input.trim()}
-            onResponseChange={handleResponseChange}
-            isEdited={isResponseEdited}
-            modelName={loadedModelName}
-            onGenerateAlternative={handleGenerateAlternative}
-            generatingAlternative={generatingAlternative}
-            ticketKey={currentTicketId}
-            onSaveAsTemplate={handleSaveAsTemplate}
-          />
-          {alternatives.length > 0 && response && !generating && !isStreaming && (
-            <AlternativePanel
-              alternatives={alternatives}
-              onChoose={handleChooseAlternative}
-              onUseAlternative={handleUseAlternative}
-            />
-          )}
-        </div>
-
-        {workspaceRailEnabled && (
-          <div className="draft-panel workspace-panel">
-            <TicketWorkspaceRail
-              intake={caseIntake}
-              onIntakeChange={handleIntakeFieldChange}
-              onAnalyzeIntake={handleAnalyzeIntake}
-              onApplyIntakePreset={handleApplyIntakePreset}
-              onNoteAudienceChange={handleNoteAudienceChange}
-              nextActions={nextActions}
-              missingQuestions={missingQuestions}
-              onAcceptNextAction={handleAcceptNextAction}
-              similarCases={similarCases}
-              similarCasesLoading={similarCasesLoading}
-              onRefreshSimilarCases={handleRefreshSimilarCases}
-              onOpenSimilarCase={handleOpenSimilarCase}
-              onCompareSimilarCase={handleCompareSimilarCase}
-              onCompareLastResolution={handleCompareLastResolution}
-              compareCase={compareCase}
-              onCloseCompareCase={() => setCompareCase(null)}
-              handoffPack={handoffPack}
-              evidencePack={evidencePack}
-              kbDraft={kbDraft}
-              onCopyHandoffPack={handleCopyHandoffPack}
-              onCopyEvidencePack={handleCopyEvidencePack}
-              onCopyKbDraft={handleCopyKbDraft}
-              resolutionKits={resolutionKits}
-              onSaveResolutionKit={handleSaveCurrentResolutionKit}
-              onApplyResolutionKit={handleApplyResolutionKit}
-              favorites={workspaceFavorites}
-              onToggleFavorite={handleToggleWorkspaceFavorite}
-              runbookTemplates={runbookTemplates}
-              guidedRunbookSession={guidedRunbookSession}
-              runbookNote={guidedRunbookNote}
-              onRunbookNoteChange={handleGuidedRunbookNoteChange}
-              onStartGuidedRunbook={handleStartGuidedRunbook}
-              onAdvanceGuidedRunbook={handleAdvanceGuidedRunbook}
-              onCopyRunbookProgressToNotes={handleCopyRunbookProgressToNotes}
-              workspacePersonalization={workspacePersonalization}
-              onPersonalizationChange={handleWorkspacePersonalizationChange}
-              workspaceCatalogLoading={workspaceCatalogLoading}
-              currentResponse={response}
-            />
-          </div>
-        )}
-      </div>
-
-      {showTemplateModal && response && (
-        <SaveAsTemplateModal
-          content={response}
-          sourceDraftId={savedDraftId ?? undefined}
-          sourceRating={templateModalRating}
-          onSave={handleTemplateModalSave}
-          onClose={() => setShowTemplateModal(false)}
+      )}
+      workflowStrip={workflowStrip}
+      panels={(
+        <WorkspacePanels
+          diagnosisCollapsed={diagnosisCollapsed}
+          workspaceRailEnabled={workspaceRailEnabled}
+          inputPanel={inputPanel}
+          diagnosisPanel={diagnosisPanel}
+          responsePanel={responsePanel}
+          workspacePanel={workspacePanel}
         />
       )}
-
-      <Dialog
-        open={pendingSimilarCaseOpen !== null}
-        onClose={() => setPendingSimilarCaseOpen(null)}
-        ariaLabel="Open another saved case"
-      >
-        <div className="draft-tab__confirm-dialog">
-          <h3>Open another saved case?</h3>
-          <p>
-            Your current workspace still has in-progress content. Save it first, compare it to the
-            saved case, or replace it intentionally.
-          </p>
-          {pendingSimilarCaseOpen && (
-            <p className="draft-tab__confirm-dialog-target">
-              Next case: <strong>{pendingSimilarCaseOpen.title}</strong>
-            </p>
-          )}
-          <div className="draft-tab__confirm-dialog-actions">
-            <Button variant="ghost" onClick={() => setPendingSimilarCaseOpen(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                void handleConfirmOpenSimilarCase('compare');
-              }}
-              disabled={!response.trim()}
-            >
-              Compare instead
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                void handleConfirmOpenSimilarCase('save-and-open');
-              }}
-            >
-              Save and open
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                void handleConfirmOpenSimilarCase('replace');
-              }}
-            >
-              Open anyway
-            </Button>
-          </div>
-        </div>
-      </Dialog>
-    </div>
+      dialogs={dialogs}
+    />
   );
 });

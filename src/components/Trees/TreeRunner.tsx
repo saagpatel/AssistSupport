@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { TreeStructure } from '../../types';
+import type { TreeStructure } from '../../types/llm';
 import './TreeRunner.css';
 
 interface TreeRunnerProps {

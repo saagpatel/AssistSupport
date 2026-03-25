@@ -888,7 +888,6 @@ export function setupE2eTauriMock(): void {
               latency_ms: 18.7,
               embedding_time_ms: 2.1,
               search_time_ms: 6.3,
-              rerank_time_ms: 4.1,
               result_count: 1,
               timestamp: '2026-02-03T10:00:00Z',
             },

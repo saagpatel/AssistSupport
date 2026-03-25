@@ -3,13 +3,14 @@ use std::fs;
 
 fn tauri_commands() -> BTreeSet<String> {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let lib_rs =
-        fs::read_to_string(format!("{manifest_dir}/src/lib.rs")).expect("read src/lib.rs");
-    let body = lib_rs
-        .split("invoke_handler(tauri::generate_handler![")
+    let registry_rs =
+        fs::read_to_string(format!("{manifest_dir}/src/commands/registry.rs"))
+            .expect("read src/commands/registry.rs");
+    let body = registry_rs
+        .split("tauri::generate_handler![")
         .nth(1)
         .and_then(|rest| rest.split("])").next())
-        .expect("invoke handler block");
+        .expect("registry generate_handler block");
 
     body.lines()
         .filter_map(|line| line.find("commands::").map(|index| &line[index + "commands::".len()..]))
@@ -21,6 +22,29 @@ fn tauri_commands() -> BTreeSet<String> {
         .filter(|entry| !entry.is_empty())
         .map(|entry| entry.rsplit("::").next().unwrap_or(entry).trim().to_string())
         .collect()
+}
+
+#[test]
+fn commands_mod_remains_a_thin_index_without_tauri_commands() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let mod_rs =
+        fs::read_to_string(format!("{manifest_dir}/src/commands/mod.rs")).expect("read commands/mod.rs");
+
+    assert!(
+        !mod_rs.contains("#[tauri::command]"),
+        "commands/mod.rs must remain an index layer without direct tauri commands",
+    );
+}
+
+#[test]
+fn legacy_commands_module_is_retired() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let legacy_path = format!("{manifest_dir}/src/commands/legacy_commands.rs");
+
+    assert!(
+        !std::path::Path::new(&legacy_path).exists(),
+        "legacy_commands.rs should be retired once command ownership fully converges",
+    );
 }
 
 fn permission_file_commands() -> BTreeSet<String> {

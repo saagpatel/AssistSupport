@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAnalytics } from './useAnalytics';
-import type { SavedDraft, ResponseTemplate } from '../types';
+import type { ResponseTemplate, SavedDraft } from '../types/workspace';
 
 const AUTOSAVE_DEBOUNCE_MS = 5000;
 const AUTOSAVE_KEEP_COUNT = 10;

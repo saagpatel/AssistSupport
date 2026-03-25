@@ -6,7 +6,7 @@ import type {
   IngestSource,
   KbDocumentInfo,
   DocumentChunk,
-} from '../types';
+} from '../types/knowledge';
 
 // Frontend type with camelCase properties
 export interface NamespaceWithCounts extends Namespace {

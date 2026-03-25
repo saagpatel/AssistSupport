@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useDecisionTrees } from '../../hooks/useDecisionTrees';
 import { TreeRunner } from '../Trees/TreeRunner';
 import { Button } from '../shared/Button';
-import type { TreeStructure, ChecklistItem, SearchResult, ContextSource } from '../../types';
+import type { ChecklistItem, TreeStructure } from '../../types/llm';
+import type { ContextSource, SearchResult } from '../../types/knowledge';
 import './DiagnosisPanel.css';
 
 export interface TreeResult {

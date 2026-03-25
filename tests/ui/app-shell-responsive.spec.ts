@@ -9,7 +9,13 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(hasHorizontalOverflow).toBe(false);
 }
 
-async function navigateToTab(page: Page, label: "Sources" | "Settings") {
+async function navigateToTab(page: Page, label: "Knowledge" | "Settings") {
+  const mobileRevampNav = page.locator('.as-shell__mobileNav[aria-label="Compact navigation"]');
+  if (await mobileRevampNav.isVisible()) {
+    await mobileRevampNav.getByRole("button", { name: label, exact: true }).click();
+    return "mobile-revamp-nav" as const;
+  }
+
   const mobileTabBar = page.locator(".tab-bar");
   if (await mobileTabBar.isVisible()) {
     await mobileTabBar.getByRole("button", { name: label, exact: true }).click();
@@ -39,9 +45,10 @@ test("@smoke @responsive desktop shell keeps navigation and content in sync", as
   await expect(page.locator(".app")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Application Error")).toHaveCount(0);
 
-  const desktopNav = await navigateToTab(page, "Sources");
+  const desktopNav = await navigateToTab(page, "Knowledge");
   expect(desktopNav).not.toBeNull();
-  await expect(page.getByRole("heading", { name: "Knowledge Base" })).toBeVisible();
+  await expect(page.locator(".as-shell__pageTitle")).toHaveText("Knowledge");
+  await expect(page.getByRole("tab", { name: "Documents" })).toBeVisible();
 
   await navigateToTab(page, "Settings");
   await expect(page.getByRole("heading", { name: "Operator console" })).toBeVisible();
@@ -56,18 +63,14 @@ test("@smoke @responsive mobile shell keeps tab-bar navigation usable across tab
 
   await expect(page.locator(".app")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Application Error")).toHaveCount(0);
-  const mobileNav = await navigateToTab(page, "Sources");
+  const mobileNav = await navigateToTab(page, "Knowledge");
+  expect(mobileNav).not.toBeNull();
+  await expect(page.locator(".as-shell__pageTitle")).toHaveText("Knowledge");
+  await expect(page.getByRole("tab", { name: "Documents" })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
 
-  if (mobileNav) {
-    await expect(page.getByRole("heading", { name: "Knowledge Base" })).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-
-    await navigateToTab(page, "Settings");
-    await expect(page.getByRole("heading", { name: "Operator console" })).toBeVisible();
-  } else {
-    await expect(page.getByText("Draft Workbench")).toBeVisible();
-    await expect(page.locator(".as-shell__topbar, .header")).toBeVisible();
-  }
+  await navigateToTab(page, "Settings");
+  await expect(page.getByRole("heading", { name: "Operator console" })).toBeVisible();
 
   await expectNoHorizontalOverflow(page);
 });

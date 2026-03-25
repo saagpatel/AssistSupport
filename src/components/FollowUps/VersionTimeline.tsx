@@ -1,5 +1,5 @@
 import { Button } from '../shared/Button';
-import type { SavedDraft } from '../../types';
+import type { SavedDraft } from '../../types/workspace';
 import './VersionTimeline.css';
 
 interface VersionTimelineProps {

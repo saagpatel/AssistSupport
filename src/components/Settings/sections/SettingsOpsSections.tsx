@@ -3,7 +3,7 @@ import type {
   AuditEntry,
   DeploymentHealthSummary,
   IntegrationConfigRecord,
-} from '../../../types';
+} from '../../../types/settings';
 import type { ResponseQualityThresholds } from '../../../features/analytics/qualityThresholds';
 
 type AuditSeverityFilter = 'all' | 'info' | 'warning' | 'error' | 'critical';

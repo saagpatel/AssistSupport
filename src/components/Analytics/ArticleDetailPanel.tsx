@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Button } from '../shared/Button';
-import type { ArticleAnalytics } from '../../types';
+import type { ArticleAnalytics } from '../../types/insights';
 import './ArticleDetailPanel.css';
 
 interface ArticleDetailPanelProps {

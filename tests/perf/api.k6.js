@@ -40,7 +40,6 @@ export function setup() {
   const payload = JSON.stringify({
     query: searchQuery,
     top_k: Number.isFinite(topK) && topK > 0 ? topK : 5,
-    fusion_strategy: "adaptive",
   });
 
   const warmupResponse = http.post(`${baseUrl}${searchPath}`, payload, { headers });

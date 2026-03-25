@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { InputPanel } from "./InputPanel";
 import { DiagnosisPanel } from "./DiagnosisPanel";
-import type { ChecklistItem } from "../../types";
+import type { ChecklistItem } from "../../types/llm";
 
 vi.mock("../../hooks/useJira", () => ({
   useJira: () => ({

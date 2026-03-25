@@ -1,14 +1,14 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type {
-  Namespace,
-  IngestSource,
-  IngestResult,
   BatchIngestResult,
-  KbDocumentInfo,
   DocumentChunk,
+  IngestResult,
+  IngestSource,
+  KbDocumentInfo,
+  Namespace,
   SourceHealthSummary,
-} from '../types';
+} from '../types/knowledge';
 
 export interface IngestState {
   namespaces: Namespace[];

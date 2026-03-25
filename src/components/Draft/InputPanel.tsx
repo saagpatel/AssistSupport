@@ -6,7 +6,8 @@ import { AutoSuggest } from './AutoSuggest';
 import { VoiceInput } from './VoiceInput';
 import { TemplateSelector } from './TemplateSelector';
 import { BatchPanel } from '../Batch/BatchPanel';
-import type { ResponseLength, OcrResult, FirstResponseTone, ResponseTemplate } from '../../types';
+import type { FirstResponseTone, OcrResult } from '../../types/llm';
+import type { ResponseLength, ResponseTemplate } from '../../types/workspace';
 import './InputPanel.css';
 
 interface InputPanelProps {

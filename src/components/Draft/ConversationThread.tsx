@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { ContextSource } from '../../types';
+import type { ContextSource } from '../../types/knowledge';
 import './ConversationThread.css';
 
 export interface ConversationEntry {

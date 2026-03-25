@@ -4,7 +4,13 @@ import { freezeAppClock } from "./support/freezeAppClock";
 
 const WORKSPACE_READY_MEASURE = "assistsupport:perf:ticket-workspace-ready-ms";
 
-async function navigateToTab(page: Page, label: "Follow-ups") {
+async function navigateToTab(page: Page, label: "Queue") {
+  const mobileNav = page.locator('.as-shell__mobileNav[aria-label="Compact navigation"]');
+  if (await mobileNav.isVisible()) {
+    await mobileNav.getByRole("button", { name: label, exact: true }).click();
+    return;
+  }
+
   const mobileTabBar = page.locator(".tab-bar");
   if (await mobileTabBar.isVisible()) {
     await mobileTabBar.getByRole("button", { name: label, exact: true }).click();
@@ -58,8 +64,12 @@ test("@perf workspace flows stay inside roadmap budgets", async ({ page }) => {
   expect(workspaceReadyMs).not.toBeNull();
   expect(workspaceReadyMs ?? Number.POSITIVE_INFINITY).toBeLessThan(1500);
 
-  await navigateToTab(page, "Follow-ups");
+  await navigateToTab(page, "Queue");
+
   await expect(page.getByRole("heading", { name: "Queue Command Center" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Triage", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "History", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Templates", exact: true })).toBeVisible();
 
   const batchInput = page.getByLabel("Batch triage input");
   const triageSeed = Array.from({ length: 25 }, (_, index) => {
@@ -76,14 +86,14 @@ test("@perf workspace flows stay inside roadmap budgets", async ({ page }) => {
     timeout: 20_000,
   });
   const batchTriageMs = Number((performance.now() - batchTriageStartedAt).toFixed(2));
+  expect(batchTriageMs).toBeLessThan(20000);
 
   writeWorkspaceUiResults({
     capturedAt: new Date().toISOString(),
     workspaceReadyMs: workspaceReadyMs ?? -1,
     workspaceReadyBudgetMs: 1500,
+    queueSurface: "queue-command-center",
     batchTriageMs,
     batchTriageBudgetMs: 20000,
   });
-
-  expect(batchTriageMs).toBeLessThan(20000);
 });

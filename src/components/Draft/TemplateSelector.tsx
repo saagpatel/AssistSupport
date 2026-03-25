@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ResponseTemplate, TemplateContext, SavedResponseTemplate } from '../../types';
+import type { ResponseTemplate, SavedResponseTemplate, TemplateContext } from '../../types/workspace';
 import { applyTemplate } from '../../utils/templates';
 import { Button } from '../shared/Button';
 import './TemplateSelector.css';

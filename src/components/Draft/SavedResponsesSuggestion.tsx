@@ -1,4 +1,4 @@
-import type { SavedResponseTemplate } from '../../types';
+import type { SavedResponseTemplate } from '../../types/workspace';
 import './SavedResponsesSuggestion.css';
 
 interface SavedResponsesSuggestionProps {

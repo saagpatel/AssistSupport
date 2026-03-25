@@ -1,7 +1,7 @@
-//! Tauri commands for PostgreSQL hybrid search API
+//! Tauri commands for the local AssistSupport search sidecar.
 //!
 //! These commands proxy requests to the Python Flask API running on localhost:3000,
-//! which performs hybrid BM25 + HNSW vector search against PostgreSQL.
+//! which performs adaptive hybrid BM25 + HNSW vector search against PostgreSQL.
 
 use crate::security::{FileKeyStore, TOKEN_SEARCH_API};
 use crate::validation::validate_loopback_http_base_url;
@@ -22,7 +22,6 @@ struct SearchApiRequest {
     query: String,
     top_k: usize,
     include_scores: bool,
-    fusion_strategy: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -351,7 +350,6 @@ pub async fn hybrid_search(
         query,
         top_k: sanitize_top_k(top_k),
         include_scores: true,
-        fusion_strategy: "adaptive".to_string(),
     };
 
     let response = client

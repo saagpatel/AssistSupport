@@ -1,5 +1,9 @@
 import { AnalyticsTab } from '../../components/Analytics/AnalyticsTab';
 
-export function AnalyticsPage() {
-  return <AnalyticsTab />;
+interface AnalyticsPageProps {
+  initialSection?: 'overview' | 'pilot';
+}
+
+export function AnalyticsPage({ initialSection }: AnalyticsPageProps) {
+  return <AnalyticsTab initialSection={initialSection} />;
 }

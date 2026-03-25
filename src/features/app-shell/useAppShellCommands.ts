@@ -6,7 +6,6 @@ import type { RevampFlags } from '../revamp';
 
 interface UseAppShellCommandsParams {
   activeTab: TabId;
-  sidebarCollapsed: boolean;
   revampCommandPaletteV2Enabled: boolean;
   queueFirstInboxEnabled: boolean;
   revampFlags: RevampFlags;
@@ -17,14 +16,12 @@ interface UseAppShellCommandsParams {
   handleCopyResponse: () => void;
   handleExport: () => void;
   handleCancelGeneration: () => void;
-  handleToggleSidebar: () => void;
   onOpenShortcuts: () => void;
   clearDraft: () => void;
 }
 
 export function useAppShellCommands({
   activeTab,
-  sidebarCollapsed,
   revampCommandPaletteV2Enabled,
   queueFirstInboxEnabled,
   revampFlags,
@@ -35,13 +32,11 @@ export function useAppShellCommands({
   handleCopyResponse,
   handleExport,
   handleCancelGeneration,
-  handleToggleSidebar,
   onOpenShortcuts,
   clearDraft,
 }: UseAppShellCommandsParams) {
   return useMemo(() => buildAppShellCommands({
     activeTab,
-    sidebarCollapsed,
     revampCommandPaletteV2Enabled,
     queueFirstInboxEnabled,
     revampFlags,
@@ -52,12 +47,10 @@ export function useAppShellCommands({
     handleCopyResponse,
     handleExport,
     handleCancelGeneration,
-    handleToggleSidebar,
     onOpenShortcuts,
     clearDraft,
   }), [
     activeTab,
-    sidebarCollapsed,
     revampCommandPaletteV2Enabled,
     queueFirstInboxEnabled,
     revampFlags,
@@ -68,7 +61,6 @@ export function useAppShellCommands({
     handleCopyResponse,
     handleExport,
     handleCancelGeneration,
-    handleToggleSidebar,
     onOpenShortcuts,
     clearDraft,
   ]);

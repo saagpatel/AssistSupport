@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { MemoryKernelEnrichmentResult } from '../types';
+import type { MemoryKernelEnrichmentResult } from '../types/app';
 
 const ENRICHMENT_SECTION_HEADING = 'MemoryKernel Policy Context';
 const FALLBACK_HINTS: Record<string, string> = {

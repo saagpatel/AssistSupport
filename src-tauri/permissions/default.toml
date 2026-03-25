@@ -129,8 +129,10 @@ commands.allow = [
 
 [[permission]]
 identifier = "drafts-and-templates"
-description = "Enables draft authoring, template management, and response-generation commands."
+description = "Enables draft authoring, runbook workflows, template management, and response-generation commands."
 commands.allow = [
+  "add_runbook_step_evidence",
+  "advance_runbook_session",
   "archive_draft",
   "export_draft",
   "choose_alternative",
@@ -152,18 +154,29 @@ commands.allow = [
   "get_draft_versions",
   "get_template",
   "increment_saved_template_usage",
+  "list_case_outcomes",
   "list_autosaves",
   "list_draft_versions",
   "list_drafts",
+  "list_resolution_kits",
+  "list_runbook_sessions",
+  "list_runbook_step_evidence",
+  "list_runbook_templates",
   "list_saved_response_templates",
   "list_templates",
   "rate_response",
+  "reassign_runbook_session_by_id",
+  "reassign_runbook_session_scope",
   "restore_draft_version",
+  "save_case_outcome",
   "save_draft",
+  "save_resolution_kit",
   "save_response_alternative",
   "save_response_as_template",
+  "save_runbook_template",
   "save_template",
   "search_drafts",
+  "start_runbook_session",
   "set_context_window",
   "update_draft_handoff",
   "export_draft_formatted",
@@ -175,13 +188,16 @@ description = "Enables local shortcut, variable, and workspace-role customizatio
 commands.allow = [
   "delete_action_shortcut",
   "delete_custom_variable",
+  "delete_workspace_favorite",
   "get_action_shortcut",
   "get_custom_variable",
   "list_action_shortcuts",
   "list_custom_variables",
+  "list_workspace_favorites",
   "list_workspace_roles",
   "save_action_shortcut",
   "save_custom_variable",
+  "save_workspace_favorite",
   "set_workspace_role",
 ]
 
@@ -190,11 +206,13 @@ identifier = "integrations-and-secrets"
 description = "Enables integration configuration, secure token storage, and external ticketing/service commands."
 commands.allow = [
   "add_jira_comment",
+  "cancel_collaboration_dispatch",
   "clear_github_token",
   "clear_hf_token",
   "clear_jira_config",
   "clear_memorykernel_service_token",
   "clear_search_api_token",
+  "confirm_collaboration_dispatch",
   "configure_integration",
   "configure_jira",
   "get_jira_config",
@@ -205,12 +223,15 @@ commands.allow = [
   "has_memorykernel_service_token",
   "has_search_api_token",
   "is_jira_configured",
+  "list_dispatch_history",
   "list_integrations",
   "get_memory_kernel_integration_pin",
   "get_memory_kernel_preflight_status",
   "memory_kernel_query_ask",
   "post_and_transition",
+  "preview_collaboration_dispatch",
   "push_draft_to_jira",
+  "send_collaboration_dispatch",
   "set_github_token",
   "set_hf_token",
   "set_memorykernel_service_token",
@@ -250,9 +271,8 @@ commands.allow = [
 
 [[permission]]
 identifier = "operations-and-analytics"
-description = "Enables pilot analytics, deployment operations, runbook workflows, and audit-oriented reporting commands."
+description = "Enables pilot analytics, deployment operations, and audit-oriented reporting commands."
 commands.allow = [
-  "advance_runbook_session",
   "audit_response_copy_override",
   "cluster_tickets_for_triage",
   "export_pilot_data",
@@ -273,16 +293,13 @@ commands.allow = [
   "list_deployment_artifacts",
   "list_playbooks",
   "list_recent_triage_clusters",
-  "list_runbook_sessions",
   "log_analytics_event",
   "log_pilot_query",
   "record_deployment_artifact",
   "delete_playbook",
-  "reassign_runbook_session_by_id",
   "rollback_deployment_run",
   "run_deployment_preflight",
   "save_playbook",
-  "start_runbook_session",
   "submit_pilot_feedback",
   "update_troubleshooting_checklist",
   "use_playbook",

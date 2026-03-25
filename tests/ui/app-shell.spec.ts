@@ -34,7 +34,7 @@ test("@smoke @responsive app shell stays usable on a narrow viewport", async ({ 
   const appShell = page.locator(".app");
   await expect(appShell).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Application Error")).toHaveCount(0);
-  await expect(page.getByText("Draft Workbench")).toBeVisible();
+  await expect(page.locator(".as-shell__pageTitle")).toHaveText("Workspace");
 
   const hasHorizontalOverflow = await page.evaluate(() => {
     const tolerance = 1;

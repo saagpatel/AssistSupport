@@ -11,7 +11,7 @@ import type {
   SimilarCase,
   WorkspaceFavorite,
   WorkspacePersonalization,
-} from '../../types';
+} from '../../types/workspace';
 
 const baseIntake: CaseIntake = {
   issue: 'VPN disconnects every morning',

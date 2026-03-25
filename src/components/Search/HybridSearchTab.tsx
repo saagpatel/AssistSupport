@@ -3,7 +3,7 @@ import { useHybridSearch } from '../../hooks/useHybridSearch';
 import { useToastContext } from '../../contexts/ToastContext';
 import { Button } from '../shared/Button';
 import { Icon } from '../shared/Icon';
-import type { HybridSearchResult, SearchApiStatsData } from '../../types';
+import type { HybridSearchResult, SearchApiStatsData } from '../../types/knowledge';
 import './HybridSearchTab.css';
 
 const CATEGORY_COLORS: Record<string, string> = {

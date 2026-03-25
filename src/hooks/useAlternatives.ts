@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { ResponseAlternative } from '../types';
+import type { ResponseAlternative } from '../types/workspace';
 
 export function useAlternatives() {
   const [alternatives, setAlternatives] = useState<ResponseAlternative[]>([]);

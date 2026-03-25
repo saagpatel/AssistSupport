@@ -4,7 +4,7 @@
  */
 
 import { Icon, IconName } from '../shared/Icon';
-import type { Tab } from '../../types';
+import type { Tab } from '../../types/app';
 import type { RevampFlags } from '../../features/revamp';
 import { isTabEnabled } from '../../features/app-shell/tabPolicy';
 import './Sidebar.css';
@@ -28,65 +28,38 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     id: 'draft',
-    label: 'Draft',
+    label: 'Workspace',
     icon: 'draft',
     shortcut: '1',
-    description: 'Compose responses with AI assistance'
+    description: 'Open the main support workspace'
   },
   {
     id: 'followups',
-    label: 'Follow-ups',
+    label: 'Queue',
     icon: 'followups',
     shortcut: '2',
-    description: 'Manage saved drafts and history'
-  },
-  {
-    id: 'sources',
-    label: 'Sources',
-    icon: 'sources',
-    shortcut: '3',
-    description: 'Browse knowledge base sources'
-  },
-  {
-    id: 'ingest',
-    label: 'Ingest',
-    icon: 'ingest',
-    shortcut: '4',
-    description: 'Add new content to knowledge base'
+    description: 'Triage the queue and manage follow-up work'
   },
   {
     id: 'knowledge',
     label: 'Knowledge',
     icon: 'knowledge',
-    shortcut: '5',
-    description: 'Search and explore knowledge base'
+    shortcut: '3',
+    description: 'Browse documents and search diagnostics'
   },
   {
     id: 'analytics',
     label: 'Analytics',
     icon: 'sparkles',
     shortcut: '6',
-    description: 'View usage analytics and statistics'
-  },
-  {
-    id: 'pilot',
-    label: 'Pilot',
-    icon: 'list',
-    shortcut: '7',
-    description: 'View pilot feedback dashboard'
-  },
-  {
-    id: 'search',
-    label: 'Search',
-    icon: 'database',
-    shortcut: '8',
-    description: 'Hybrid PostgreSQL search (BM25 + HNSW)'
+    description: 'View admin analytics and pilot diagnostics'
   },
   {
     id: 'ops',
-    label: 'Ops',
+    label: 'Operations',
     icon: 'terminal',
-    description: 'Deployment, evaluation, triage, and runbooks',
+    shortcut: '9',
+    description: 'Open deployment and integration diagnostics',
   },
 ];
 
@@ -95,7 +68,7 @@ const settingsItem: NavItem = {
   label: 'Settings',
   icon: 'settings',
   shortcut: '0',
-  description: 'Configure app and model settings'
+  description: 'Configure app preferences'
 };
 
 export function Sidebar({ activeTab, onTabChange, collapsed, onToggleCollapse, revampFlags }: SidebarProps) {

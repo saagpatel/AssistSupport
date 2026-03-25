@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { DocumentReviewInfo } from '../../types';
+import type { DocumentReviewInfo } from '../../types/knowledge';
 import './KbHealthPanel.css';
 
 interface KbHealthStats {

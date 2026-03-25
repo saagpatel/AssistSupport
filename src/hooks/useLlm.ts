@@ -8,7 +8,6 @@ import type {
   GenerationResult,
   GenerateWithContextParams,
   GenerateWithContextResult,
-  ResponseLength,
   StreamToken,
   TreeDecisions,
   JiraTicketContext,
@@ -18,7 +17,8 @@ import type {
   ChecklistGenerateParams,
   ChecklistUpdateParams,
   ChecklistResult,
-} from '../types';
+} from '../types/llm';
+import type { ResponseLength } from '../types/workspace';
 
 // Maximum streaming text buffer size (500KB) to prevent memory spikes
 const MAX_STREAMING_TEXT_SIZE = 500 * 1024;

@@ -2,9 +2,19 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueueCommandCenterPage } from './QueueCommandCenterPage';
-import type { SavedDraft } from '../../../types';
+import type { SavedDraft } from '../../../types/workspace';
 
 const loadDraftsMock = vi.fn();
+const searchDraftsMock = vi.fn();
+const loadTemplatesMock = vi.fn();
+const deleteDraftMock = vi.fn();
+const saveTemplateMock = vi.fn();
+const updateTemplateMock = vi.fn();
+const deleteTemplateMock = vi.fn();
+const getDraftMock = vi.fn();
+const getDraftVersionsMock = vi.fn();
+const restoreDraftVersionMock = vi.fn();
+const computeInputHashMock = vi.fn();
 const clusterTicketsForTriageMock = vi.fn();
 const listRecentTriageClustersMock = vi.fn();
 const previewCollaborationDispatchMock = vi.fn();
@@ -18,6 +28,7 @@ let collaborationDispatchEnabled = false;
 
 let draftState: {
   drafts: SavedDraft[];
+  templates: Array<{ id: string; name: string; category: string | null; content: string; created_at: string; updated_at: string }>;
   loading: boolean;
   error: string | null;
 };
@@ -25,14 +36,25 @@ let draftState: {
 vi.mock('../../../hooks/useDrafts', () => ({
   useDrafts: () => ({
     drafts: draftState.drafts,
+    templates: draftState.templates,
     loading: draftState.loading,
     error: draftState.error,
     loadDrafts: loadDraftsMock,
+    searchDrafts: searchDraftsMock,
+    loadTemplates: loadTemplatesMock,
+    deleteDraft: deleteDraftMock,
+    saveTemplate: saveTemplateMock,
+    updateTemplate: updateTemplateMock,
+    deleteTemplate: deleteTemplateMock,
+    getDraft: getDraftMock,
+    getDraftVersions: getDraftVersionsMock,
+    restoreDraftVersion: restoreDraftVersionMock,
+    computeInputHash: computeInputHashMock,
   }),
 }));
 
-vi.mock('../../../hooks/useFeatureOps', () => ({
-  useFeatureOps: () => ({
+vi.mock('../../../hooks/useQueueOps', () => ({
+  useQueueOps: () => ({
     clusterTicketsForTriage: clusterTicketsForTriageMock,
     listRecentTriageClusters: listRecentTriageClustersMock,
     previewCollaborationDispatch: previewCollaborationDispatchMock,
@@ -101,10 +123,21 @@ describe('QueueCommandCenterPage', () => {
   beforeEach(() => {
     draftState = {
       drafts: [],
+      templates: [],
       loading: false,
       error: null,
     };
     loadDraftsMock.mockReset();
+    searchDraftsMock.mockReset();
+    loadTemplatesMock.mockReset();
+    deleteDraftMock.mockReset();
+    saveTemplateMock.mockReset();
+    updateTemplateMock.mockReset();
+    deleteTemplateMock.mockReset();
+    getDraftMock.mockReset();
+    getDraftVersionsMock.mockReset();
+    restoreDraftVersionMock.mockReset();
+    computeInputHashMock.mockReset();
     clusterTicketsForTriageMock.mockReset();
     listRecentTriageClustersMock.mockReset();
     previewCollaborationDispatchMock.mockReset();
@@ -115,6 +148,20 @@ describe('QueueCommandCenterPage', () => {
     showSuccessMock.mockReset();
     showErrorMock.mockReset();
     collaborationDispatchEnabled = false;
+    searchDraftsMock.mockImplementation(async (query: string) =>
+      draftState.drafts.filter((draft) =>
+        `${draft.ticket_id ?? ''} ${draft.summary_text ?? ''} ${draft.input_text}`.toLowerCase().includes(query.toLowerCase()),
+      ),
+    );
+    loadTemplatesMock.mockResolvedValue(undefined);
+    deleteDraftMock.mockResolvedValue(true);
+    saveTemplateMock.mockResolvedValue('template-1');
+    updateTemplateMock.mockResolvedValue('template-1');
+    deleteTemplateMock.mockResolvedValue(true);
+    getDraftMock.mockImplementation(async (draftId: string) => draftState.drafts.find((draft) => draft.id === draftId) ?? null);
+    getDraftVersionsMock.mockResolvedValue([]);
+    restoreDraftVersionMock.mockResolvedValue(true);
+    computeInputHashMock.mockResolvedValue('hash-1');
     listRecentTriageClustersMock.mockResolvedValue([]);
     listDispatchHistoryMock.mockResolvedValue([]);
     if (typeof localStorage !== 'undefined' && typeof localStorage.clear === 'function') {
@@ -143,6 +190,82 @@ describe('QueueCommandCenterPage', () => {
     expect(screen.getByText('Queue unavailable')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Retry Load' }));
     expect(loadDraftsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('switches between triage, history, and templates without leaving the queue surface', async () => {
+    draftState.drafts = [makeDraft()];
+    draftState.templates = [
+      {
+        id: 'template-1',
+        name: 'Escalation note',
+        category: 'VPN',
+        content: 'Share an update with {{customer_name}}',
+        created_at: '2026-03-10T10:00:00.000Z',
+        updated_at: '2026-03-10T10:00:00.000Z',
+      },
+    ];
+
+    render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
+
+    expect(screen.getByRole('heading', { name: 'Queue Command Center' })).toBeTruthy();
+    expect(screen.getByLabelText('Search queue')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    expect(await screen.findByPlaceholderText('Search drafts...')).toBeTruthy();
+    expect(screen.queryByLabelText('Search queue')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Templates' }));
+    expect(await screen.findByRole('button', { name: 'Create Template' })).toBeTruthy();
+    expect(screen.getByText('Escalation note')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Triage' }));
+    expect(await screen.findByLabelText('Search queue')).toBeTruthy();
+  });
+
+  it('opens a queue item into Workspace from the canonical triage surface', async () => {
+    draftState.drafts = [makeDraft()];
+    const onLoadDraft = vi.fn();
+
+    render(<QueueCommandCenterPage onLoadDraft={onLoadDraft} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Draft' }));
+
+    expect(onLoadDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'draft-1',
+        ticket_id: 'INC-1001',
+      }),
+    );
+  });
+
+  it('consumes one-shot queue views and returns history/templates users to triage when a queue deep link arrives', async () => {
+    draftState.drafts = [makeDraft()];
+    const onQueueViewConsumed = vi.fn();
+    const { rerender } = render(
+      <QueueCommandCenterPage
+        onLoadDraft={vi.fn()}
+        initialQueueView="at_risk"
+        onQueueViewConsumed={onQueueViewConsumed}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onQueueViewConsumed).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    expect(await screen.findByPlaceholderText('Search drafts...')).toBeTruthy();
+
+    rerender(
+      <QueueCommandCenterPage
+        onLoadDraft={vi.fn()}
+        initialQueueView="resolved"
+        onQueueViewConsumed={onQueueViewConsumed}
+      />,
+    );
+
+    expect(await screen.findByLabelText('Search queue')).toBeTruthy();
+    expect(onQueueViewConsumed).toHaveBeenCalledTimes(2);
   });
 
   it('filters missing-context work and runs batch triage from the visible queue', async () => {
