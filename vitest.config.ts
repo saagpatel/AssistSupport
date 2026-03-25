@@ -5,6 +5,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     environment: "node",
     reporters: ["default"],
+    setupFiles: ["./src/test/vitestSetup.ts"],
     coverage: {
       provider: "v8",
       reportsDirectory: "coverage/frontend",

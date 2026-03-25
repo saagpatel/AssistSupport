@@ -3,8 +3,17 @@
 
 .app-shell-revamp {
   color: var(--as-text-1);
-  background: radial-gradient(1200px 800px at 15% -10%, rgba(79, 209, 197, 0.16), transparent 55%),
-    radial-gradient(900px 600px at 85% 0%, rgba(96, 165, 250, 0.12), transparent 50%),
+  background:
+    radial-gradient(
+      1200px 800px at 15% -10%,
+      rgba(79, 209, 197, 0.16),
+      transparent 55%
+    ),
+    radial-gradient(
+      900px 600px at 85% 0%,
+      rgba(96, 165, 250, 0.12),
+      transparent 50%
+    ),
     linear-gradient(180deg, var(--as-surface-0), var(--as-surface-1));
   font-family: var(--as-font-sans);
   line-height: var(--as-line-default);
@@ -21,7 +30,7 @@
   --bg-tertiary: var(--as-surface-3);
   --bg-elevated: var(--as-surface-2);
   --bg-hover: rgba(255, 255, 255, 0.06);
-  --bg-active: rgba(255, 255, 255, 0.10);
+  --bg-active: rgba(255, 255, 255, 0.1);
   --bg-inverse: rgba(255, 255, 255, 0.92);
 
   --text-primary: var(--as-text-1);
@@ -41,7 +50,11 @@
   --accent-active: rgba(42, 161, 152, 0.95);
   --accent-light: rgba(79, 209, 197, 0.14);
   --accent-lighter: rgba(79, 209, 197, 0.08);
-  --accent-gradient: linear-gradient(135deg, var(--as-accent-1) 0%, var(--as-accent-2) 100%);
+  --accent-gradient: linear-gradient(
+    135deg,
+    var(--as-accent-1) 0%,
+    var(--as-accent-2) 100%
+  );
   --border-color-hover: rgba(255, 255, 255, 0.18);
 
   --success: var(--as-good);
@@ -78,13 +91,25 @@
   --backdrop-blur: 12px;
 
   --scrollbar-track: transparent;
-  --scrollbar-thumb: rgba(255, 255, 255, 0.10);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.18);
 
   /* Revamp shell surfaces: keep glassy treatment tokenized so the shell stays consistent
      without scattering ad-hoc rgba values across component CSS. */
   --as-shell-nav-bg: rgba(0, 0, 0, 0.22);
   --as-shell-topbar-bg: rgba(11, 13, 16, 0.72);
+  --as-shell-main-bg:
+    radial-gradient(
+      1200px 800px at 15% -10%,
+      rgba(79, 209, 197, 0.16),
+      transparent 55%
+    ),
+    radial-gradient(
+      900px 600px at 85% 0%,
+      rgba(96, 165, 250, 0.12),
+      transparent 50%
+    ),
+    linear-gradient(180deg, var(--as-surface-0), var(--as-surface-1));
 }
 
 .app-shell-revamp * {
@@ -123,6 +148,11 @@
     --backdrop-blur: 0px;
     --as-shell-nav-bg: var(--as-surface-2);
     --as-shell-topbar-bg: var(--as-surface-2);
+    --as-shell-main-bg: linear-gradient(
+      180deg,
+      var(--as-surface-1),
+      var(--as-surface-1)
+    );
     --as-glass-1: var(--as-surface-2);
     --as-glass-2: var(--as-surface-2);
     --as-glass-3: var(--as-surface-3);
