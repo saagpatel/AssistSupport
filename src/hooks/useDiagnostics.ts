@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type {
-  SystemHealth,
-  RepairResult,
   FailureMode,
   QuickHealthResult,
-} from '../types';
+  RepairResult,
+  SystemHealth,
+} from '../types/app';
 
 export interface DiagnosticsState {
   systemHealth: SystemHealth | null;

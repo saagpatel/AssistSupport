@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../components/shared/Icon';
-import type { Tab } from '../../../types';
 import type { RevampFlags } from '../flags';
 import { isTabEnabled } from '../../app-shell/tabPolicy';
+import type { TabId } from '../../app-shell/types';
 import { useAppStatus } from '../../../contexts/AppStatusContext';
 import { AsButton, Badge, Panel } from '../ui';
 import { WorkspaceQueueContext } from '../../workspace/WorkspaceQueueContext';
@@ -12,8 +12,8 @@ import '../../../styles/revamp/index.css';
 import './revampShell.css';
 
 export interface RevampShellProps {
-  activeTab: Tab;
-  onTabChange: (tab: Tab) => void;
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
   revampFlags: RevampFlags;
   onNavigateToQueue?: (queueView: QueueView) => void;
   onOpenCommandPalette: () => void;
@@ -22,48 +22,37 @@ export interface RevampShellProps {
 }
 
 interface NavItem {
-  id: Tab;
+  id: TabId;
   label: string;
   icon: Parameters<typeof Icon>[0]['name'];
-  section: 'Primary' | 'Knowledge' | 'Operations' | 'Advanced';
+  section: 'Core' | 'Admin';
 }
 
 const NAV: NavItem[] = [
-  { id: 'draft', label: 'Draft', icon: 'draft', section: 'Primary' },
-  { id: 'followups', label: 'Follow-ups', icon: 'followups', section: 'Primary' },
-  { id: 'sources', label: 'Sources', icon: 'sources', section: 'Knowledge' },
-  { id: 'knowledge', label: 'Knowledge', icon: 'knowledge', section: 'Knowledge' },
-  { id: 'ops', label: 'Ops', icon: 'terminal', section: 'Operations' },
-  { id: 'settings', label: 'Settings', icon: 'settings', section: 'Operations' },
-  // Advanced surfaces are policy gated and default off.
-  { id: 'ingest', label: 'Ingest', icon: 'ingest', section: 'Advanced' },
-  { id: 'analytics', label: 'Analytics', icon: 'sparkles', section: 'Advanced' },
-  { id: 'pilot', label: 'Pilot', icon: 'list', section: 'Advanced' },
-  { id: 'search', label: 'Search', icon: 'database', section: 'Advanced' },
+  { id: 'draft', label: 'Workspace', icon: 'draft', section: 'Core' },
+  { id: 'followups', label: 'Queue', icon: 'followups', section: 'Core' },
+  { id: 'knowledge', label: 'Knowledge', icon: 'sources', section: 'Core' },
+  { id: 'settings', label: 'Settings', icon: 'settings', section: 'Core' },
+  { id: 'analytics', label: 'Analytics', icon: 'sparkles', section: 'Admin' },
+  { id: 'ops', label: 'Operations', icon: 'terminal', section: 'Admin' },
 ];
 
-function tabTitle(tab: Tab): string {
+function tabTitle(tab: TabId): string {
   switch (tab) {
     case 'draft':
-      return 'Draft Workbench';
+      return 'Workspace';
     case 'followups':
-      return 'Queue / Follow-ups';
-    case 'sources':
-      return 'Sources';
+      return 'Queue';
     case 'knowledge':
       return 'Knowledge';
     case 'ops':
       return 'Operations';
     case 'settings':
       return 'Settings';
-    case 'ingest':
-      return 'Ingest';
     case 'analytics':
       return 'Analytics';
-    case 'pilot':
-      return 'Pilot';
-    case 'search':
-      return 'Search';
+    default:
+      return 'AssistSupport';
   }
 }
 
@@ -144,7 +133,7 @@ export function RevampShell({
           </div>
         </div>
 
-        {(['Primary', 'Knowledge', 'Operations', 'Advanced'] as const).map((section) => {
+        {(['Core', 'Admin'] as const).map((section) => {
           const items = grouped(section);
           if (items.length === 0) return null;
           return (
@@ -283,6 +272,21 @@ export function RevampShell({
             </div>
           )}
         </header>
+
+        <nav className="as-shell__mobileNav" aria-label="Compact navigation">
+          {enabledNav.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={['as-shell__mobileNavItem', activeTab === item.id ? 'is-active' : ''].filter(Boolean).join(' ')}
+              onClick={() => onTabChange(item.id)}
+              aria-current={activeTab === item.id ? 'page' : undefined}
+            >
+              <Icon name={item.icon} size={16} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
 
         <div className="as-shell__content">
           <main className="as-shell__workspace" aria-label="Workspace">

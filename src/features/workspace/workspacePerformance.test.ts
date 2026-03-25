@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
-import type { CaseIntake, ContextSource, SavedDraft } from '../../types';
+import type { ContextSource } from '../../types/knowledge';
+import type { CaseIntake, SavedDraft } from '../../types/workspace';
 import { buildNextActions, buildSimilarCases } from './workspaceAssistant';
 
 function percentile(values: number[], percentileRank: number): number {

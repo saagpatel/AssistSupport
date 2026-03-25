@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { MemoryKernelPreflightStatus, ModelInfo } from '../types';
+import type { ModelInfo } from '../types/llm';
+import type { MemoryKernelPreflightStatus } from '../types/settings';
 
 export interface AppStatusState {
   // LLM status

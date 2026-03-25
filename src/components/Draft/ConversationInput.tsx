@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, KeyboardEvent } from 'react';
 import { Button } from '../shared/Button';
-import type { ResponseLength } from '../../types';
+import type { ResponseLength } from '../../types/workspace';
 import './ConversationInput.css';
 
 interface ConversationInputProps {

@@ -5,7 +5,7 @@ import { Dialog } from '../shared/Dialog';
 import { Skeleton } from '../shared/Skeleton';
 import { useKb } from '../../hooks/useKb';
 import { useToastContext } from '../../contexts/ToastContext';
-import type { IndexedFile, SearchResult, Namespace } from '../../types';
+import type { IndexedFile, Namespace, SearchResult } from '../../types/knowledge';
 import './SourcesTab.css';
 
 type SearchMode = 'files' | 'content';

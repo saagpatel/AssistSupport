@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { Icon, IconName } from '../shared/Icon';
 import { useAppStatus } from '../../contexts/AppStatusContext';
-import type { Tab } from '../../types';
+import type { Tab } from '../../types/app';
 import './Header.css';
 
 interface HeaderProps {
@@ -23,48 +23,28 @@ interface TabInfo {
 
 const tabInfo: Record<Tab, TabInfo> = {
   draft: {
-    title: 'Draft',
+    title: 'Workspace',
     description: 'Compose AI-assisted responses',
     icon: 'draft'
   },
   followups: {
-    title: 'Follow-ups',
-    description: 'Saved drafts and history',
+    title: 'Queue',
+    description: 'Queue triage, history, and templates',
     icon: 'followups'
-  },
-  sources: {
-    title: 'Sources',
-    description: 'Knowledge base files',
-    icon: 'sources'
-  },
-  ingest: {
-    title: 'Ingest',
-    description: 'Add new content',
-    icon: 'ingest'
   },
   knowledge: {
     title: 'Knowledge',
-    description: 'Search and explore',
+    description: 'Documents, library inspection, and search diagnostics',
     icon: 'knowledge'
   },
   analytics: {
     title: 'Analytics',
-    description: 'Usage analytics and statistics',
+    description: 'Admin analytics and pilot diagnostics',
     icon: 'sparkles'
-  },
-  pilot: {
-    title: 'Pilot',
-    description: 'Feedback dashboard',
-    icon: 'list'
-  },
-  search: {
-    title: 'Hybrid Search',
-    description: 'PostgreSQL BM25 + HNSW search',
-    icon: 'database'
   },
   ops: {
     title: 'Operations',
-    description: 'Deployment, eval harness, triage, and runbooks',
+    description: 'Deployment and integration diagnostics',
     icon: 'terminal'
   },
   settings: {

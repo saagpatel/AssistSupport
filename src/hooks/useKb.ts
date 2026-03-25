@@ -9,8 +9,8 @@ import type {
   SearchResult,
   SearchOptions,
   IndexedFile,
-  VectorConsent,
-} from '../types';
+} from '../types/knowledge';
+import type { VectorConsent } from '../types/settings';
 
 export interface IndexingProgress {
   current: number;

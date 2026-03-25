@@ -14,58 +14,68 @@ interface ShortcutGroup {
   }>;
 }
 
-const shortcutGroups: ShortcutGroup[] = [
-  {
-    title: 'Navigation',
-    shortcuts: [
-      { keys: ['⌘', 'K'], description: 'Open command palette' },
-      { keys: ['⌘', '1'], description: 'Go to Draft' },
-      { keys: ['⌘', '2'], description: 'Go to Follow-ups' },
-      { keys: ['⌘', '3'], description: 'Go to Sources' },
-      { keys: ['⌘', '4'], description: 'Go to Ingest' },
-      { keys: ['⌘', '5'], description: 'Go to Knowledge' },
+function buildShortcutGroups(showAdminShortcuts: boolean): ShortcutGroup[] {
+  const navigationShortcuts = [
+    { keys: ['⌘', 'K'], description: 'Open command palette' },
+    { keys: ['⌘', '1'], description: 'Go to Workspace' },
+    { keys: ['⌘', '2'], description: 'Go to Queue' },
+    { keys: ['⌘', '3'], description: 'Go to Knowledge' },
+    { keys: ['⌘', '0'], description: 'Go to Settings' },
+  ];
+
+  if (showAdminShortcuts) {
+    navigationShortcuts.push(
       { keys: ['⌘', '6'], description: 'Go to Analytics' },
-      { keys: ['⌘', '7'], description: 'Go to Pilot' },
-      { keys: ['⌘', '8'], description: 'Go to Search' },
       { keys: ['⌘', '9'], description: 'Go to Operations' },
-      { keys: ['⌘', '0'], description: 'Go to Settings' },
-    ],
-  },
-  {
-    title: 'Draft Actions',
-    shortcuts: [
-      { keys: ['⌘', '↵'], description: 'Generate response' },
-      { keys: ['⌘', 'S'], description: 'Save draft' },
-      { keys: ['⌘', '⇧', 'C'], description: 'Copy response' },
-      { keys: ['⌘', 'E'], description: 'Export response' },
-      { keys: ['⌘', '.'], description: 'Cancel generation' },
-      { keys: ['Esc'], description: 'Cancel / Close' },
-    ],
-  },
-  {
-    title: 'Features',
-    shortcuts: [
-      { keys: ['⌘', 'K'], description: 'Templates (via command palette)' },
-      { keys: ['⌘', 'K'], description: 'Batch processing (via command palette)' },
-      { keys: ['⌘', 'K'], description: 'Voice input (via command palette)' },
-    ],
-  },
-  {
-    title: 'General',
-    shortcuts: [
-      { keys: ['⌘', '?'], description: 'Show keyboard shortcuts' },
-      { keys: ['↑', '↓'], description: 'Navigate lists' },
-      { keys: ['↵'], description: 'Select item' },
-    ],
-  },
-];
+    );
+  }
+
+  return [
+    {
+      title: 'Navigation',
+      shortcuts: navigationShortcuts,
+    },
+    {
+      title: 'Draft Actions',
+      shortcuts: [
+        { keys: ['⌘', '↵'], description: 'Generate response' },
+        { keys: ['⌘', 'S'], description: 'Save draft' },
+        { keys: ['⌘', '⇧', 'C'], description: 'Copy response' },
+        { keys: ['⌘', 'E'], description: 'Export response' },
+        { keys: ['⌘', '.'], description: 'Cancel generation' },
+        { keys: ['Esc'], description: 'Cancel / Close' },
+      ],
+    },
+    {
+      title: 'Features',
+      shortcuts: [
+        { keys: ['⌘', 'K'], description: 'Templates (via command palette)' },
+        { keys: ['⌘', 'K'], description: 'Batch processing (via command palette)' },
+        { keys: ['⌘', 'K'], description: 'Voice input (via command palette)' },
+      ],
+    },
+    {
+      title: 'General',
+      shortcuts: [
+        { keys: ['⌘', '?'], description: 'Show keyboard shortcuts' },
+        { keys: ['↑', '↓'], description: 'Navigate lists' },
+        { keys: ['↵'], description: 'Select item' },
+      ],
+    },
+  ];
+}
 
 interface KeyboardShortcutsProps {
   isOpen: boolean;
   onClose: () => void;
+  showAdminShortcuts?: boolean;
 }
 
-export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
+export function KeyboardShortcuts({
+  isOpen,
+  onClose,
+  showAdminShortcuts = false,
+}: KeyboardShortcutsProps) {
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -89,6 +99,8 @@ export function KeyboardShortcuts({ isOpen, onClose }: KeyboardShortcutsProps) {
   }, [onClose]);
 
   if (!isOpen) return null;
+
+  const shortcutGroups = buildShortcutGroups(showAdminShortcuts);
 
   return (
     <div className="shortcuts-overlay" onClick={handleBackdropClick}>

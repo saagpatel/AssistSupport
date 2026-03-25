@@ -12,7 +12,6 @@ if str(SEARCH_API_DIR) not in sys.path:
 
 
 ORIGINAL_EMBEDDING_SERVICE = sys.modules.get("embedding_service")
-ORIGINAL_RERANKER = sys.modules.get("reranker")
 ORIGINAL_INTENT_DETECTION = sys.modules.get("intent_detection")
 ORIGINAL_SCORE_FUSION = sys.modules.get("score_fusion")
 ORIGINAL_FEEDBACK_LOOP = sys.modules.get("feedback_loop")
@@ -32,20 +31,6 @@ class _EmbeddingService:
 
 embedding_service_stub.EmbeddingService = _EmbeddingService
 sys.modules["embedding_service"] = embedding_service_stub
-
-reranker_stub = types.ModuleType("reranker")
-
-
-class _Reranker:
-    def __init__(self):
-        self.model_name = "fake-reranker"
-
-    def rerank(self, _query, candidates, top_k=10):
-        return candidates[:top_k]
-
-
-reranker_stub.Reranker = _Reranker
-sys.modules["reranker"] = reranker_stub
 
 intent_detection_stub = types.ModuleType("intent_detection")
 
@@ -67,14 +52,6 @@ class _ScoreFusion:
     def adaptive_fusion(bm25_results, _vector_results, _intent):
         return bm25_results
 
-    @staticmethod
-    def reciprocal_rank_fusion(bm25_results, _vector_results):
-        return bm25_results
-
-    @staticmethod
-    def weighted_combination(bm25_results, _vector_results):
-        return bm25_results
-
 
 score_fusion_stub.ScoreFusion = _ScoreFusion
 sys.modules["score_fusion"] = score_fusion_stub
@@ -94,7 +71,6 @@ def _restore_module(name, original):
 
 
 _restore_module("embedding_service", ORIGINAL_EMBEDDING_SERVICE)
-_restore_module("reranker", ORIGINAL_RERANKER)
 _restore_module("intent_detection", ORIGINAL_INTENT_DETECTION)
 _restore_module("score_fusion", ORIGINAL_SCORE_FUSION)
 _restore_module("feedback_loop", ORIGINAL_FEEDBACK_LOOP)
@@ -240,3 +216,33 @@ def test_stats_uses_pooled_session(monkeypatch):
     assert stats["queries_total"] == 5
     assert stats["queries_24h"] == 2
     assert stats["intent_distribution"]["policy"] == 2
+
+
+def test_adaptive_fusion_executes_live_runtime_path(monkeypatch):
+    recorded_intents = []
+    sessions = []
+
+    @contextmanager
+    def fake_pooled_connection():
+        conn = FakeConnection()
+        sessions.append(conn)
+        yield conn
+
+    def fake_adaptive_fusion(bm25_results, _vector_results, intent):
+        recorded_intents.append(intent)
+        return bm25_results
+
+    monkeypatch.setattr(hybrid_search, "pooled_connection", fake_pooled_connection)
+    monkeypatch.setattr(
+        hybrid_search.ScoreFusion,
+        "adaptive_fusion",
+        staticmethod(fake_adaptive_fusion),
+    )
+
+    engine = hybrid_search.HybridSearchEngine()
+
+    result = engine.search("flash drives", limit=1)
+
+    assert result["metrics"]["fusion_time_ms"] >= 0
+    assert len(sessions) == 1
+    assert recorded_intents == ["policy"]

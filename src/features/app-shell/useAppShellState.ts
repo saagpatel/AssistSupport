@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { RefObject } from 'react';
-import type { SavedDraft } from '../../types';
+import type { SavedDraft } from '../../types/workspace';
 import type { DraftTabHandle } from '../../components/Draft/DraftTab';
 import type { TabId } from './types';
 import type { QueueView } from '../inbox/queueModel';
@@ -12,19 +12,16 @@ interface UseAppShellStateParams {
 }
 
 const ONBOARDING_COMPLETED_KEY = 'onboarding-completed';
-const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
-
 export function useAppShellState({ initIsFirstRun, draftRef, addToast }: UseAppShellStateParams) {
   const [activeTab, setActiveTab] = useState<TabId>('draft');
   const [pendingDraft, setPendingDraft] = useState<SavedDraft | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sourceSearchQuery, setSourceSearchQuery] = useState<string | null>(null);
   const [pendingQueueView, setPendingQueueView] = useState<QueueView | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const handleNavigateToSource = useCallback((searchQuery: string) => {
     setSourceSearchQuery(searchQuery);
-    setActiveTab('sources');
+    setActiveTab('knowledge');
   }, []);
 
   const consumeSourceSearchQuery = useCallback(() => {
@@ -80,25 +77,9 @@ export function useAppShellState({ initIsFirstRun, draftRef, addToast }: UseAppS
     addToast('You can configure settings anytime from the Settings tab.', 'info');
   }, [addToast]);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
-    if (saved !== null) {
-      setSidebarCollapsed(saved === 'true');
-    }
-  }, []);
-
-  const handleToggleSidebar = useCallback(() => {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
-      return next;
-    });
-  }, []);
-
   return {
     activeTab,
     setActiveTab,
-    sidebarCollapsed,
     sourceSearchQuery,
     pendingQueueView,
     showOnboarding,
@@ -109,6 +90,5 @@ export function useAppShellState({ initIsFirstRun, draftRef, addToast }: UseAppS
     handleLoadDraft,
     handleOnboardingComplete,
     handleOnboardingSkip,
-    handleToggleSidebar,
   };
 }

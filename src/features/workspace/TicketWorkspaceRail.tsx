@@ -15,7 +15,7 @@ import type {
   SimilarCase,
   WorkspaceFavorite,
   WorkspacePersonalization,
-} from '../../types';
+} from '../../types/workspace';
 import './TicketWorkspaceRail.css';
 
 const APP_BOOTSTRAP_START_MARK = 'assistsupport:perf:bootstrap-start';

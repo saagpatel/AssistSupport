@@ -5,12 +5,11 @@ import { RatingPanel } from './RatingPanel';
 import { JiraPostPanel } from './JiraPostPanel';
 import { useToastContext } from '../../contexts/ToastContext';
 import type {
-  ContextSource,
   ConfidenceAssessment,
-  DocumentChunk,
   GenerationMetrics,
   GroundedClaim,
-} from '../../types';
+} from '../../types/llm';
+import type { ContextSource, DocumentChunk } from '../../types/knowledge';
 import './ResponsePanel.css';
 
 type ExportFormat = 'Markdown' | 'PlainText' | 'Html';

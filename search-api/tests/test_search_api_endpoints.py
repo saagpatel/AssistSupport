@@ -53,9 +53,17 @@ else:
 class FakeEngine:
     def __init__(self):
         self.feedback_calls = []
+        self.search_calls = []
         self.mode = "ok"
 
-    def search(self, query, limit=10, use_deduplication=True, fusion_strategy="adaptive"):
+    def search(self, query, limit=10, use_deduplication=True):
+        self.search_calls.append(
+            {
+                "query": query,
+                "limit": limit,
+                "use_deduplication": use_deduplication,
+            }
+        )
         if self.mode == "error":
             raise RuntimeError("simulated backend failure")
         if self.mode == "partial":
@@ -83,7 +91,6 @@ class FakeEngine:
                 "total_time_ms": 16.2,
                 "embedding_time_ms": 2.1,
                 "search_time_ms": 6.7,
-                "rerank_time_ms": 0.0,
             },
         }
 
@@ -110,7 +117,6 @@ class FakeEngine:
     def get_component_status(self):
         return {
             "embedder": {"status": "ok", "model_name": "fake-embedder", "dimension": 2},
-            "reranker": {"status": "ok", "model_name": "fake-reranker"},
         }
 
 
@@ -150,7 +156,6 @@ def test_ready_endpoint_reports_ready(client, monkeypatch):
             "status": "ok",
             "details": {
                 "embedder": {"status": "ok"},
-                "reranker": {"status": "ok"},
             },
         },
     )
@@ -256,12 +261,6 @@ def test_search_rejects_invalid_or_malformed_input(client):
     assert bad_top_k.status_code == 400
     assert bad_top_k.get_json()["error"] == "top_k must be an integer"
 
-    bad_strategy = test_client.post(
-        "/search",
-        json={"query": "ok", "fusion_strategy": "drop table"},
-    )
-    assert bad_strategy.status_code == 400
-    assert "Invalid fusion_strategy" in bad_strategy.get_json()["error"]
 
 
 def test_search_engine_failures_are_handled(client):

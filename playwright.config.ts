@@ -8,18 +8,19 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://localhost:1420",
+    baseURL: "http://localhost:1421",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "pnpm dev",
+    command: "pnpm dev -- --port 1421",
     env: {
       ...process.env,
       VITE_E2E_MOCK_TAURI: "1",
+      VITE_DEV_PORT: "1421",
     },
-    url: "http://localhost:1420",
-    reuseExistingServer: !process.env.CI,
+    url: "http://localhost:1421",
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { JiraTransition } from '../types';
+import type { JiraTransition } from '../types/settings';
 
 export interface JiraConfig {
   base_url: string;

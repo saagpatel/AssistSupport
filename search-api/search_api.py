@@ -247,8 +247,7 @@ def search():
     {
         "query": "Can I use a flash drive?",
         "top_k": 10,
-        "include_scores": true,
-        "fusion_strategy": "adaptive"
+        "include_scores": true
     }
     """
     try:
@@ -273,13 +272,6 @@ def search():
         top_k = min(top_k_raw, 50)
 
         include_scores = bool(data.get("include_scores", False))
-        fusion_strategy_raw = data.get("fusion_strategy", "adaptive")
-        if not isinstance(fusion_strategy_raw, str):
-            return jsonify({"error": "fusion_strategy must be a string"}), 400
-        fusion_strategy = fusion_strategy_raw.strip().lower()
-        allowed_strategies = {"adaptive", "rrf", "weighted", "rerank"}
-        if fusion_strategy not in allowed_strategies:
-            return jsonify({"error": f"Invalid fusion_strategy: {fusion_strategy_raw}"}), 400
 
         engine = _get_engine()
 
@@ -288,7 +280,6 @@ def search():
             query,
             limit=top_k,
             use_deduplication=True,
-            fusion_strategy=fusion_strategy,
         )
 
         # Format response using the dict-based result structure
@@ -325,7 +316,6 @@ def search():
                 "latency_ms": round(result["metrics"]["total_time_ms"], 1),
                 "embedding_time_ms": round(result["metrics"]["embedding_time_ms"], 1),
                 "search_time_ms": round(result["metrics"]["search_time_ms"], 1),
-                "rerank_time_ms": round(result["metrics"].get("rerank_time_ms", 0), 1),
                 "result_count": len(formatted_results),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             },

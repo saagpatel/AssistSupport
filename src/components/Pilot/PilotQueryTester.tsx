@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { FeedbackForm } from './FeedbackForm';
 import { Button } from '../shared/Button';
-import type { SearchResult } from '../../types';
+import type { SearchResult } from '../../types/knowledge';
 import './Pilot.css';
 
 interface PilotQueryTesterProps {

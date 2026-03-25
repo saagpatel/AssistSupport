@@ -1,23 +1,25 @@
 import type {
   CaseIntake,
-  ContextSource,
   EvidencePack,
   GuidedRunbookSession,
   GuidedRunbookTemplate,
   HandoffPack,
-  JiraTicketContext,
   KbDraft,
   MissingQuestion,
   NextActionRecommendation,
   ResolutionKit,
-  RunbookSessionRecord,
-  RunbookStepEvidenceRecord,
-  RunbookTemplateRecord,
   SavedDraft,
   SearchExplanation,
   SimilarCase,
   WorkspaceFavorite,
-} from '../../types';
+} from '../../types/workspace';
+import type { ContextSource } from '../../types/knowledge';
+import type { JiraTicketContext } from '../../types/llm';
+import type {
+  RunbookSessionRecord,
+  RunbookStepEvidenceRecord,
+  RunbookTemplateRecord,
+} from '../../types/workspaceOps';
 
 export const DEFAULT_NOTE_AUDIENCE = 'internal-note' as const;
 

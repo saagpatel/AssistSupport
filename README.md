@@ -13,6 +13,11 @@ AssistSupport combines local LLM inference with an ML-powered hybrid search pipe
 
 Core workspace data is encrypted locally. Optional vector-search embeddings are stored locally as well, but they are not currently encrypted at rest when vector search is enabled.
 
+## Current Planning Docs
+
+- `CODEX_AUDIT_PLAN.md` records the active simplification audit.
+- `CODEX_IMPLEMENTATION_PLAN.md` records the execution sequence for the current refactor program.
+
 ```
 User asks:    "Can I use a flash drive?"
 ML Intent:    POLICY detected (86% confidence, ML classifier)

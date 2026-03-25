@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { InitResult, MemoryKernelPreflightStatus, VectorConsent, ModelStateResult } from '../types';
+import type {
+  InitResult,
+  MemoryKernelPreflightStatus,
+  ModelStateResult,
+  VectorConsent,
+} from '../types/app';
 
 export interface AppInitState {
   initialized: boolean;

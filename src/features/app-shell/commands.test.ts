@@ -24,10 +24,9 @@ function makeFlags(partial: Partial<RevampFlags> = {}): RevampFlags {
   };
 }
 
-function buildCommands(flags: Partial<RevampFlags> = {}, activeTab: 'draft' | 'sources' = 'draft') {
+function buildCommands(flags: Partial<RevampFlags> = {}, activeTab: 'draft' | 'knowledge' = 'draft') {
   return buildAppShellCommands({
     activeTab,
-    sidebarCollapsed: false,
     revampCommandPaletteV2Enabled: true,
     queueFirstInboxEnabled: true,
     revampFlags: makeFlags(flags),
@@ -38,13 +37,32 @@ function buildCommands(flags: Partial<RevampFlags> = {}, activeTab: 'draft' | 's
     handleCopyResponse: vi.fn(),
     handleExport: vi.fn(),
     handleCancelGeneration: vi.fn(),
-    handleToggleSidebar: vi.fn(),
     onOpenShortcuts: vi.fn(),
     clearDraft: vi.fn(),
   });
 }
 
 describe('buildAppShellCommands', () => {
+  it('keeps only the surviving navigation surfaces in the command palette by default', () => {
+    const commands = buildCommands();
+    const ids = commands.map((command) => command.id);
+
+    expect(ids).toContain('nav-draft');
+    expect(ids).toContain('nav-followups');
+    expect(ids).toContain('nav-knowledge');
+    expect(ids).toContain('nav-settings');
+    expect(ids).not.toContain('nav-analytics');
+    expect(ids).not.toContain('nav-ops');
+  });
+
+  it('exposes admin navigation commands only when admin mode is enabled', () => {
+    const commands = buildCommands({ ASSISTSUPPORT_ENABLE_ADMIN_TABS: true });
+    const ids = commands.map((command) => command.id);
+
+    expect(ids).toContain('nav-analytics');
+    expect(ids).toContain('nav-ops');
+  });
+
   it('adds workspace commands for the draft tab when the workspace palette is enabled', () => {
     const commands = buildCommands();
     const ids = commands.map((command) => command.id);
@@ -58,7 +76,7 @@ describe('buildAppShellCommands', () => {
   });
 
   it('disables workspace commands outside the draft tab and removes them when the feature is disabled', () => {
-    const outsideDraft = buildCommands({}, 'sources');
+    const outsideDraft = buildCommands({}, 'knowledge');
     const disabled = buildCommands({ ASSISTSUPPORT_WORKSPACE_COMMAND_PALETTE: false });
     const expectedWorkspaceIds = [
       'workspace-analyze-intake',
@@ -73,6 +91,12 @@ describe('buildAppShellCommands', () => {
       expect(outsideDraft.find((command) => command.id === id)?.disabled).toBe(true);
       expect(disabled.map((command) => command.id)).not.toContain(id);
     }
+  });
+
+  it('removes the legacy sidebar toggle command from the revamp shell palette', () => {
+    const commands = buildCommands();
+
+    expect(commands.map((command) => command.id)).not.toContain('settings-toggle-sidebar');
   });
 
   it('dispatches workspace events for the command palette actions', () => {

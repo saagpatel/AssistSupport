@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SavedDraft } from '../../types';
+import type { SavedDraft } from '../../types/workspace';
 import {
   applyResolutionKit,
   analyzeCaseIntake,

@@ -1,4 +1,4 @@
-import type { Tab } from '../../types';
+import type { Tab } from '../../types/app';
 import type { RevampFlags } from '../../features/revamp';
 import { isTabEnabled } from '../../features/app-shell/tabPolicy';
 import './TabBar.css';
@@ -10,15 +10,11 @@ interface TabBarProps {
 }
 
 const tabs: { id: Tab; label: string; shortcut?: string }[] = [
-  { id: 'draft', label: 'Draft', shortcut: '1' },
-  { id: 'followups', label: 'Follow-ups', shortcut: '2' },
-  { id: 'sources', label: 'Sources', shortcut: '3' },
-  { id: 'ingest', label: 'Ingest', shortcut: '4' },
-  { id: 'knowledge', label: 'Knowledge', shortcut: '5' },
+  { id: 'draft', label: 'Workspace', shortcut: '1' },
+  { id: 'followups', label: 'Queue', shortcut: '2' },
+  { id: 'knowledge', label: 'Knowledge', shortcut: '3' },
   { id: 'analytics', label: 'Analytics', shortcut: '6' },
-  { id: 'pilot', label: 'Pilot', shortcut: '7' },
-  { id: 'search', label: 'Search', shortcut: '8' },
-  { id: 'ops', label: 'Ops' },
+  { id: 'ops', label: 'Operations', shortcut: '9' },
   { id: 'settings', label: 'Settings', shortcut: '0' },
 ];
 

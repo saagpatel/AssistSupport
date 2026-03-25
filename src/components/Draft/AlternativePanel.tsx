@@ -1,5 +1,5 @@
 import { Button } from '../shared/Button';
-import type { ResponseAlternative } from '../../types';
+import type { ResponseAlternative } from '../../types/workspace';
 import './AlternativePanel.css';
 
 interface AlternativePanelProps {

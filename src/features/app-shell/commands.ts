@@ -15,7 +15,6 @@ import {
 
 interface BuildCommandsParams {
   activeTab: TabId;
-  sidebarCollapsed: boolean;
   revampCommandPaletteV2Enabled: boolean;
   queueFirstInboxEnabled: boolean;
   revampFlags: RevampFlags;
@@ -26,14 +25,12 @@ interface BuildCommandsParams {
   handleCopyResponse: () => void;
   handleExport: () => void;
   handleCancelGeneration: () => void;
-  handleToggleSidebar: () => void;
   onOpenShortcuts: () => void;
   clearDraft?: () => void;
 }
 
 export function buildAppShellCommands({
   activeTab,
-  sidebarCollapsed,
   revampCommandPaletteV2Enabled,
   queueFirstInboxEnabled,
   revampFlags,
@@ -44,7 +41,6 @@ export function buildAppShellCommands({
   handleCopyResponse,
   handleExport,
   handleCancelGeneration,
-  handleToggleSidebar,
   onOpenShortcuts,
   clearDraft,
 }: BuildCommandsParams): Command[] {
@@ -87,8 +83,8 @@ export function buildAppShellCommands({
   const commands: Array<Command | null> = [
     {
       id: 'nav-draft',
-      label: 'Go to Draft',
-      description: 'Create and edit support responses',
+      label: 'Go to Workspace',
+      description: 'Open the main support workspace',
       icon: 'draft',
       shortcut: 'Cmd+1',
       category: 'navigation',
@@ -96,72 +92,38 @@ export function buildAppShellCommands({
     },
     {
       id: 'nav-followups',
-      label: 'Go to Follow-ups',
-      description: 'View saved drafts and history',
+      label: 'Go to Queue',
+      description: 'Open queue triage and follow-up work',
       icon: 'followups',
       shortcut: 'Cmd+2',
       category: 'navigation',
       action: () => setActiveTab('followups'),
     },
     {
-      id: 'nav-sources',
-      label: 'Go to Sources',
-      description: 'Search knowledge base',
-      icon: 'sources',
-      shortcut: 'Cmd+3',
-      category: 'navigation',
-      action: () => setActiveTab('sources'),
-    },
-    makeNavCommand('ingest', {
-      id: 'nav-ingest',
-      label: 'Go to Ingest',
-      description: 'Add content to knowledge base (network ingest)',
-      icon: 'ingest',
-      shortcut: 'Cmd+4',
-      category: 'navigation',
-    }),
-    {
       id: 'nav-knowledge',
       label: 'Go to Knowledge',
-      description: 'Browse indexed documents',
-      icon: 'knowledge',
-      shortcut: 'Cmd+5',
+      description: 'Open the unified knowledge workspace',
+      icon: 'sources',
+      shortcut: 'Cmd+3',
       category: 'navigation',
       action: () => setActiveTab('knowledge'),
     },
     makeNavCommand('analytics', {
       id: 'nav-analytics',
       label: 'Go to Analytics',
-      description: 'View usage analytics and statistics',
+      description: 'View admin analytics and insights',
       icon: 'sparkles',
       shortcut: 'Cmd+6',
       category: 'navigation',
     }),
-    makeNavCommand('pilot', {
-      id: 'nav-pilot',
-      label: 'Go to Pilot',
-      description: 'View pilot feedback dashboard',
-      icon: 'sparkles',
-      shortcut: 'Cmd+7',
-      category: 'navigation',
-    }),
-    makeNavCommand('search', {
-      id: 'nav-search',
-      label: 'Go to Search',
-      description: 'Hybrid PostgreSQL search',
-      icon: 'database',
-      shortcut: 'Cmd+8',
-      category: 'navigation',
-    }),
-    {
+    makeNavCommand('ops', {
       id: 'nav-ops',
       label: 'Go to Operations',
-      description: 'Deployment, eval, triage, and runbooks',
+      description: 'Open admin operations tooling',
       icon: 'terminal',
       shortcut: 'Cmd+9',
       category: 'navigation',
-      action: () => setActiveTab('ops'),
-    },
+    }),
     {
       id: 'nav-settings',
       label: 'Go to Settings',
@@ -185,12 +147,12 @@ export function buildAppShellCommands({
     },
     {
       id: 'action-focus-search',
-      label: 'Focus Search',
-      description: 'Jump to knowledge base search',
+      label: 'Focus Knowledge Search',
+      description: 'Jump to the knowledge workspace',
       icon: 'search',
       shortcut: 'Cmd+/',
       category: 'action',
-      action: () => setActiveTab('sources'),
+      action: () => setActiveTab('knowledge'),
     },
     makeWorkspaceEventCommand(
       WORKSPACE_ANALYZE_INTAKE_EVENT,
@@ -307,14 +269,6 @@ export function buildAppShellCommands({
       category: 'draft',
       action: handleCancelGeneration,
       disabled: activeTab !== 'draft',
-    },
-    {
-      id: 'settings-toggle-sidebar',
-      label: sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar',
-      description: 'Toggle sidebar visibility',
-      icon: sidebarCollapsed ? 'panelLeftOpen' : 'panelLeftClose',
-      category: 'settings',
-      action: handleToggleSidebar,
     },
     {
       id: 'settings-shortcuts',

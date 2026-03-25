@@ -1,6 +1,9 @@
 use assistsupport_lib::backup::{ExportSummary, ImportPreview, ImportSummary};
-use assistsupport_lib::commands;
 use assistsupport_lib::commands::backup::ExportFormat;
+use assistsupport_lib::commands::model_commands::{
+    process_ocr_bytes, ConfidenceAssessment, ConfidenceMode, ContextSource,
+    GenerateWithContextResult, GenerationMetrics, GroundedClaim,
+};
 use assistsupport_lib::commands::search_api::{
     HybridSearchMetrics, HybridSearchResponse, HybridSearchResult, HybridSearchScores,
 };
@@ -9,12 +12,12 @@ use serde_json::{json, Value};
 
 #[test]
 fn generate_with_context_result_json_contract() {
-    let payload = commands::GenerateWithContextResult {
+    let payload = GenerateWithContextResult {
         text: "Use the approved VPN client and MFA.".to_string(),
         tokens_generated: 42,
         duration_ms: 1200,
         source_chunk_ids: vec!["chunk-1".to_string()],
-        sources: vec![commands::ContextSource {
+        sources: vec![ContextSource {
             chunk_id: "chunk-1".to_string(),
             document_id: "doc-1".to_string(),
             file_path: "/kb/policies/remote-work.md".to_string(),
@@ -24,7 +27,7 @@ fn generate_with_context_result_json_contract() {
             search_method: Some("hybrid".to_string()),
             source_type: Some("file".to_string()),
         }],
-        metrics: commands::GenerationMetrics {
+        metrics: GenerationMetrics {
             tokens_per_second: 35.0,
             sources_used: 1,
             word_count: 14,
@@ -32,12 +35,12 @@ fn generate_with_context_result_json_contract() {
             context_utilization: 0.31,
         },
         prompt_template_version: "v1.2.0".to_string(),
-        confidence: commands::ConfidenceAssessment {
-            mode: commands::ConfidenceMode::Answer,
+        confidence: ConfidenceAssessment {
+            mode: ConfidenceMode::Answer,
             score: 0.92,
             rationale: "Grounded in one high-confidence source".to_string(),
         },
-        grounding: vec![commands::GroundedClaim {
+        grounding: vec![GroundedClaim {
             claim: "Use the approved VPN client and MFA.".to_string(),
             source_indexes: vec![0],
             support_level: "supported".to_string(),
@@ -203,7 +206,7 @@ fn export_format_deserialization_contract() {
 
 #[tokio::test]
 async fn submit_search_feedback_rejects_invalid_rating_before_network() {
-    let err = commands::search_api::submit_search_feedback(
+    let err = assistsupport_lib::commands::search_api::submit_search_feedback(
         "query-1".to_string(),
         1,
         "bad_rating".to_string(),
@@ -219,7 +222,7 @@ async fn submit_search_feedback_rejects_invalid_rating_before_network() {
 fn process_ocr_bytes_rejects_oversized_payload() {
     // MAX_OCR_BASE64_BYTES is 10MB in command implementation.
     let oversized = "A".repeat(10 * 1024 * 1024 + 1);
-    match commands::process_ocr_bytes(oversized) {
+    match process_ocr_bytes(oversized) {
         Ok(_) => panic!("oversized payload should fail"),
         Err(err) => assert!(err.contains("Image too large")),
     }

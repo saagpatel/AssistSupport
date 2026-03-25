@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { SavedDraft, TriageClusterRecord } from '../../types';
+import type { TriageClusterRecord } from '../../types/queue';
+import type { SavedDraft } from '../../types/workspace';
 import type { QueueItem } from './queueModel';
 import {
   appendQueueDispatchHistory,

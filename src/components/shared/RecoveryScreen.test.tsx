@@ -3,7 +3,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { RecoveryScreen } from './RecoveryScreen';
-import type { StartupRecoveryIssue } from '../../types';
+import type { StartupRecoveryIssue } from '../../types/app';
 
 const invokeMock = vi.fn();
 

@@ -1,5 +1,15 @@
 # Search API
 
+AssistSupport uses this service as a local loopback sidecar for one live runtime path:
+
+- auth and rate limiting
+- readiness and health checks
+- adaptive hybrid search execution
+- feedback and stats for Knowledge diagnostics
+
+The desktop app does not actively switch among multiple fusion strategies anymore. The live
+request contract is now reduced to the adaptive search path only.
+
 ## Runtime Setup
 
 ```bash
@@ -53,7 +63,10 @@ python3 search_api.py
 The service exposes:
 
 - `GET /health` for cheap liveness only
-- `GET /ready` for dependency-backed readiness (DB, rate-limit backend when external, and model initialization)
+- `GET /ready` for dependency-backed readiness (runtime config, DB, rate-limit backend, and live model dependencies)
+- `POST /search` for adaptive hybrid KB search
+- `POST /feedback` for search-result feedback
+- `GET /stats` for Knowledge diagnostics
 
 ## Production WSGI Serving
 
@@ -91,3 +104,16 @@ Related operator docs:
 
 - `docs/runbooks/search-api-local-deployment.md`
 - `docs/runbooks/dependency-advisory-triage.md`
+
+## Offline maintenance scripts
+
+These scripts remain useful, but they are maintenance tooling rather than part of the live
+request-serving architecture:
+
+- `upgrade_embeddings.py`
+- `rebuild_indexes.py`
+- `clean_titles.py`
+- `train_intent_classifier.py`
+- `ingest_curated_kb.py`
+- `expand_articles.py`
+- `validate_runtime.py`

@@ -1,5 +1,5 @@
 import { Button } from '../../shared/Button';
-import type { MemoryKernelPreflightStatus } from '../../../types';
+import type { MemoryKernelPreflightStatus } from '../../../types/settings';
 
 interface SettingsHeroProps {
   loadedModel: string | null;

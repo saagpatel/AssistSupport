@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { DecisionTree, TreeStructure } from '../types';
+import type { DecisionTree, TreeStructure } from '../types/llm';
 
 export function useDecisionTrees() {
   const [trees, setTrees] = useState<DecisionTree[]>([]);

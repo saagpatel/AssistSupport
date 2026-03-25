@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { ImportSummary, RepairResult, StartupRecoveryIssue } from '../../types';
+import type { ImportSummary, RepairResult, StartupRecoveryIssue } from '../../types/app';
 import { Button } from './Button';
 import { Icon } from './Icon';
 import './RecoveryScreen.css';

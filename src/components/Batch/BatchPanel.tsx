@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useBatch } from '../../hooks/useBatch';
 import { Button } from '../shared/Button';
-import type { ResponseLength } from '../../types';
+import type { ResponseLength } from '../../types/workspace';
 import './BatchPanel.css';
 
 interface BatchPanelProps {

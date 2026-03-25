@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import type { DownloadProgress } from '../types';
+import type { DownloadProgress } from '../types/llm';
 
 export interface DownloadState {
   isDownloading: boolean;

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Button } from '../shared/Button';
 import { useToastContext } from '../../contexts/ToastContext';
-import type { JiraTransition } from '../../types';
+import type { JiraTransition } from '../../types/settings';
 import './JiraPostPanel.css';
 
 interface JiraPostPanelProps {

@@ -1,5 +1,6 @@
-import type { TriageClusterOutput, TriageTicketInput } from '../../hooks/useFeatureOps';
-import type { CollaborationDispatchPreview, SavedDraft, TriageClusterRecord } from '../../types';
+import type { TriageClusterOutput, TriageTicketInput } from '../../hooks/useQueueOps';
+import type { DispatchHistoryRecord, TriageClusterRecord } from '../../types/queue';
+import type { CollaborationDispatchPreview, SavedDraft } from '../../types/workspace';
 import { parseCaseIntake } from '../workspace/workspaceAssistant';
 import {
   buildQueueHandoffDelta,
@@ -35,15 +36,9 @@ export interface QueueCoachingSnapshot {
   signals: QueueCoachingSignal[];
 }
 
-export interface QueueDispatchHistoryEntry {
-  id: string;
-  integration_type: CollaborationDispatchPreview['integration_type'];
-  title: string;
-  destination_label: string;
+export interface QueueDispatchHistoryEntry extends Omit<DispatchHistoryRecord, 'draft_id' | 'metadata_json' | 'status' | 'updated_at'> {
   draft_id: string;
   ticket_label: string;
-  payload_preview: string;
-  created_at: string;
 }
 
 const POLICY_REGEX = /\b(policy|security|forbidden|allowed|compliance|governance|approval|approve|access request)\b/i;

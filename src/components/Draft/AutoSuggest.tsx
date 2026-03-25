@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { SearchResult } from '../../types';
+import type { SearchResult } from '../../types/knowledge';
 import './AutoSuggest.css';
 
 interface AutoSuggestProps {

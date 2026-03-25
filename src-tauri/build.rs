@@ -2,12 +2,12 @@ use std::collections::BTreeSet;
 use std::fs;
 
 fn parse_app_commands() -> Result<Vec<String>, String> {
-    let lib_rs = fs::read_to_string("src/lib.rs").map_err(|e| e.to_string())?;
+    let registry_rs = fs::read_to_string("src/commands/registry.rs").map_err(|e| e.to_string())?;
     let mut commands = BTreeSet::new();
     let mut in_handler = false;
 
-    for line in lib_rs.lines() {
-        if line.contains("invoke_handler(tauri::generate_handler![") {
+    for line in registry_rs.lines() {
+        if line.contains("tauri::generate_handler![") {
             in_handler = true;
             continue;
         }
@@ -35,7 +35,7 @@ fn parse_app_commands() -> Result<Vec<String>, String> {
     }
 
     if commands.is_empty() {
-        return Err("no app commands found in src/lib.rs".to_string());
+        return Err("no app commands found in src/commands/registry.rs".to_string());
     }
 
     Ok(commands.into_iter().collect())
@@ -43,6 +43,7 @@ fn parse_app_commands() -> Result<Vec<String>, String> {
 
 fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs");
+    println!("cargo:rerun-if-changed=src/commands/registry.rs");
 
     let commands = parse_app_commands().unwrap_or_else(|error| {
         eprintln!("Failed to parse Tauri command list: {}", error);

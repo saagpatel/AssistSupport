@@ -1,4 +1,4 @@
-import type { ToastType } from '../../types';
+import type { ToastType } from '../../types/app';
 import './Toast.css';
 
 export interface ToastProps {

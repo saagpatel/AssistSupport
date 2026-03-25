@@ -1,28 +1,58 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useDrafts } from '../../hooks/useDrafts';
-import { useCustomVariables } from '../../hooks/useCustomVariables';
-import { Button } from '../shared/Button';
-import { Skeleton } from '../shared/Skeleton';
-import { VersionTimeline } from './VersionTimeline';
-import { DiffViewer } from './DiffViewer';
-import type { SavedDraft, ResponseTemplate, TemplateContext } from '../../types';
+import { useDrafts } from '../../../hooks/useDrafts';
+import { useCustomVariables } from '../../../hooks/useCustomVariables';
+import { Button } from '../../../components/shared/Button';
+import { Skeleton } from '../../../components/shared/Skeleton';
+import { VersionTimeline } from '../../../components/FollowUps/VersionTimeline';
+import { DiffViewer } from '../../../components/FollowUps/DiffViewer';
+import type { ResponseTemplate, SavedDraft, TemplateContext } from '../../../types/workspace';
 import {
   applyTemplate,
   getBuiltinVariableNames,
   BUILTIN_VARIABLE_DESCRIPTIONS,
   formatVariable,
-} from '../../utils/templates';
-import './FollowUpsTab.css';
+} from '../../../utils/templates';
+import './QueueHistoryTemplatesPanel.css';
 
-interface FollowUpsTabProps {
+export type QueueHistoryTemplatesSection = 'history' | 'templates';
+
+export interface QueueHistoryTemplatesDataSource {
+  drafts: SavedDraft[];
+  templates: ResponseTemplate[];
+  loading: boolean;
+  loadDrafts: (limit?: number) => Promise<void>;
+  searchDrafts: (query: string, limit?: number) => Promise<SavedDraft[]>;
+  loadTemplates: () => Promise<void>;
+  deleteDraft: (draftId: string) => Promise<boolean>;
+  saveTemplate: (template: Omit<ResponseTemplate, 'id' | 'created_at' | 'updated_at'>) => Promise<string | null>;
+  updateTemplate: (template: ResponseTemplate) => Promise<string | null>;
+  deleteTemplate: (templateId: string) => Promise<boolean>;
+  getDraft: (draftId: string) => Promise<SavedDraft | null>;
+  getDraftVersions: (inputHash: string) => Promise<SavedDraft[]>;
+  restoreDraftVersion: (draftId: string, versionId: string) => Promise<boolean>;
+  computeInputHash: (inputText: string) => Promise<string>;
+}
+
+interface QueueHistoryTemplatesPanelProps {
   onLoadDraft?: (draft: SavedDraft) => void;
   onUseTemplate?: (content: string) => void;
   templateContext?: TemplateContext;
+  dataSource?: QueueHistoryTemplatesDataSource;
+  activeSection?: QueueHistoryTemplatesSection;
+  onActiveSectionChange?: (section: QueueHistoryTemplatesSection) => void;
+  hideSectionTabs?: boolean;
 }
 
-type Section = 'history' | 'templates';
-
-export function FollowUpsTab({ onLoadDraft, onUseTemplate, templateContext = {} }: FollowUpsTabProps) {
+export function QueueHistoryTemplatesPanel({
+  onLoadDraft,
+  onUseTemplate,
+  templateContext = {},
+  dataSource,
+  activeSection,
+  onActiveSectionChange,
+  hideSectionTabs = false,
+}: QueueHistoryTemplatesPanelProps) {
+  const draftStore = useDrafts();
   const {
     drafts,
     templates,
@@ -34,14 +64,15 @@ export function FollowUpsTab({ onLoadDraft, onUseTemplate, templateContext = {} 
     saveTemplate,
     updateTemplate,
     deleteTemplate,
+    getDraft,
     getDraftVersions,
     restoreDraftVersion,
     computeInputHash,
-  } = useDrafts();
+  } = dataSource ?? draftStore;
 
   const { variables: customVariables, loadVariables: loadCustomVariables } = useCustomVariables();
 
-  const [activeSection, setActiveSection] = useState<Section>('history');
+  const [internalActiveSection, setInternalActiveSection] = useState<QueueHistoryTemplatesSection>('history');
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ResponseTemplate | null>(null);
   const [templateFormData, setTemplateFormData] = useState({
@@ -67,6 +98,13 @@ export function FollowUpsTab({ onLoadDraft, onUseTemplate, templateContext = {} 
 
   // Diff comparison state
   const [diffState, setDiffState] = useState<{ a: SavedDraft; b: SavedDraft } | null>(null);
+
+  const resolvedActiveSection = activeSection ?? internalActiveSection;
+
+  const handleSectionChange = useCallback((section: QueueHistoryTemplatesSection) => {
+    setInternalActiveSection(section);
+    onActiveSectionChange?.(section);
+  }, [onActiveSectionChange]);
 
   useEffect(() => {
     loadDrafts();
@@ -200,9 +238,13 @@ export function FollowUpsTab({ onLoadDraft, onUseTemplate, templateContext = {} 
     if (!expandedVersions) return;
     const success = await restoreDraftVersion(expandedVersions, version.id);
     if (success) {
+      const restoredDraft = await getDraft(expandedVersions);
+      if (restoredDraft) {
+        onLoadDraft?.(restoredDraft);
+      }
       setExpandedVersions(null);
     }
-  }, [expandedVersions, restoreDraftVersion]);
+  }, [expandedVersions, getDraft, onLoadDraft, restoreDraftVersion]);
 
   // Compare two versions in the diff viewer
   const handleCompareVersions = useCallback((versionA: SavedDraft, versionB: SavedDraft) => {
@@ -533,23 +575,25 @@ export function FollowUpsTab({ onLoadDraft, onUseTemplate, templateContext = {} 
 
   return (
     <div className="followups-tab">
-      <div className="section-tabs">
-        <button
-          className={`section-tab ${activeSection === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveSection('history')}
-        >
-          History ({drafts.length})
-        </button>
-        <button
-          className={`section-tab ${activeSection === 'templates' ? 'active' : ''}`}
-          onClick={() => setActiveSection('templates')}
-        >
-          Templates ({templates.length})
-        </button>
-      </div>
+      {!hideSectionTabs && (
+        <div className="section-tabs">
+          <button
+            className={`section-tab ${resolvedActiveSection === 'history' ? 'active' : ''}`}
+            onClick={() => handleSectionChange('history')}
+          >
+            History ({drafts.length})
+          </button>
+          <button
+            className={`section-tab ${resolvedActiveSection === 'templates' ? 'active' : ''}`}
+            onClick={() => handleSectionChange('templates')}
+          >
+            Templates ({templates.length})
+          </button>
+        </div>
+      )}
 
       <div className="section-content">
-        {activeSection === 'history' ? renderHistorySection() : renderTemplatesSection()}
+        {resolvedActiveSection === 'history' ? renderHistorySection() : renderTemplatesSection()}
       </div>
 
       {/* Template Form Modal */}

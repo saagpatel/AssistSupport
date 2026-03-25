@@ -1,65 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '../shared/Button';
 import { useToastContext } from '../../contexts/ToastContext';
-import {
-  useFeatureOps,
-  type EvalHarnessCase,
-  type TriageTicketInput,
-} from '../../hooks/useFeatureOps';
+import { useSettingsOps } from '../../hooks/useSettingsOps';
 import type {
   DeploymentArtifactRecord,
   DeploymentHealthSummary,
-  EvalRunRecord,
   IntegrationConfigRecord,
-  RunbookSessionRecord,
   SignedArtifactVerificationResult,
-  TriageClusterRecord,
-} from '../../types';
+} from '../../types/settings';
 import './OpsTab.css';
 
-type OpsView = 'deployment' | 'eval' | 'triage' | 'runbook' | 'integrations';
+type OpsView = 'deployment' | 'integrations';
 
 const INTEGRATION_TYPES = ['servicenow', 'slack', 'teams'] as const;
-const OPS_RUNBOOK_SCOPE_KEY = 'ops:global';
-
-function parseEvalCases(input: string): EvalHarnessCase[] {
-  return input
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => {
-      const [query, expectedMode, minConfidenceRaw] = line.split('|').map(v => v?.trim());
-      const minConfidence = minConfidenceRaw ? Number(minConfidenceRaw) : undefined;
-      return {
-        query,
-        expected_mode: expectedMode || undefined,
-        min_confidence: Number.isFinite(minConfidence) ? minConfidence : undefined,
-      };
-    })
-    .filter(c => !!c.query);
-}
-
-function parseTriageTickets(input: string): TriageTicketInput[] {
-  return input
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map((line, idx) => {
-      const [id, summary] = line.split('|').map(v => v?.trim());
-      if (summary) {
-        return { id: id || `ticket-${idx + 1}`, summary };
-      }
-      return { id: `ticket-${idx + 1}`, summary: line };
-    });
-}
-
-function safeParseJson<T>(raw: string, fallback: T): T {
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
 
 function normalizeIntegrationConfigDraft(raw: string): string | undefined {
   const trimmed = raw.trim();
@@ -90,20 +43,12 @@ export function OpsTab() {
     recordDeploymentArtifact,
     verifySignedArtifact,
     rollbackDeploymentRun,
-    runEvalHarness,
-    listEvalRuns,
-    clusterTicketsForTriage,
-    listRecentTriageClusters,
-    startRunbookSession,
-    advanceRunbookSession,
-    listRunbookSessions,
     listIntegrations,
     configureIntegration,
-  } = useFeatureOps();
+  } = useSettingsOps();
 
   const [view, setView] = useState<OpsView>('deployment');
 
-  // Deployment state
   const [deploymentHealth, setDeploymentHealth] = useState<DeploymentHealthSummary | null>(null);
   const [preflightChecks, setPreflightChecks] = useState<string[]>([]);
   const [artifacts, setArtifacts] = useState<DeploymentArtifactRecord[]>([]);
@@ -119,29 +64,10 @@ export function OpsTab() {
   const [rollbackReason, setRollbackReason] = useState('Release validation failure');
   const [showRollbackConfirm, setShowRollbackConfirm] = useState(false);
 
-  // Eval state
-  const [evalSuiteName, setEvalSuiteName] = useState('ops-regression-suite');
-  const [evalInput, setEvalInput] = useState('Can I use a flash drive?|answer|0.6\nUrgent outage on VPN|clarify|0.5');
-  const [evalResult, setEvalResult] = useState<string>('');
-  const [evalRuns, setEvalRuns] = useState<EvalRunRecord[]>([]);
-  const [evalBusy, setEvalBusy] = useState(false);
-
-  // Triage state
-  const [triageInput, setTriageInput] = useState('INC-1001|VPN disconnects every morning\nINC-1002|VPN timeout when connecting');
-  const [triageOutput, setTriageOutput] = useState<string>('');
-  const [triageHistory, setTriageHistory] = useState<TriageClusterRecord[]>([]);
-  const [triageBusy, setTriageBusy] = useState(false);
-
-  // Runbook state
-  const [runbookScenario, setRunbookScenario] = useState('security-incident');
-  const [runbookStepsInput, setRunbookStepsInput] = useState('Acknowledge incident\nCollect impact details\nContain affected access\nNotify stakeholders');
-  const [runbookSessions, setRunbookSessions] = useState<RunbookSessionRecord[]>([]);
-  const [runbookBusy, setRunbookBusy] = useState(false);
-
-  // Integration state
   const [integrations, setIntegrations] = useState<IntegrationConfigRecord[]>([]);
   const [integrationConfigDraft, setIntegrationConfigDraft] = useState<Record<string, string>>({});
   const [integrationBusyType, setIntegrationBusyType] = useState<string | null>(null);
+  const [opsError, setOpsError] = useState<string | null>(null);
 
   const refreshDeployment = useCallback(async () => {
     const [health, deploymentArtifacts] = await Promise.all([
@@ -151,21 +77,6 @@ export function OpsTab() {
     setDeploymentHealth(health);
     setArtifacts(deploymentArtifacts);
   }, [getDeploymentHealthSummary, listDeploymentArtifacts]);
-
-  const refreshEval = useCallback(async () => {
-    const runs = await listEvalRuns(50).catch(() => []);
-    setEvalRuns(runs);
-  }, [listEvalRuns]);
-
-  const refreshTriage = useCallback(async () => {
-    const history = await listRecentTriageClusters(50).catch(() => []);
-    setTriageHistory(history);
-  }, [listRecentTriageClusters]);
-
-  const refreshRunbooks = useCallback(async () => {
-    const sessions = await listRunbookSessions(50, undefined, OPS_RUNBOOK_SCOPE_KEY).catch(() => []);
-    setRunbookSessions(sessions);
-  }, [listRunbookSessions]);
 
   const refreshIntegrations = useCallback(async () => {
     const next = await listIntegrations().catch(() => []);
@@ -178,14 +89,11 @@ export function OpsTab() {
   }, [listIntegrations]);
 
   useEffect(() => {
-    void Promise.all([
-      refreshDeployment(),
-      refreshEval(),
-      refreshTriage(),
-      refreshRunbooks(),
-      refreshIntegrations(),
-    ]);
-  }, [refreshDeployment, refreshEval, refreshTriage, refreshRunbooks, refreshIntegrations]);
+    setOpsError(null);
+    void Promise.all([refreshDeployment(), refreshIntegrations()]).catch((error) => {
+      setOpsError(typeof error === 'string' ? error : 'Failed to load operations diagnostics');
+    });
+  }, [refreshDeployment, refreshIntegrations]);
 
   const runDeploymentChecks = useCallback(async () => {
     setDeployBusy(true);
@@ -198,15 +106,17 @@ export function OpsTab() {
       } else {
         showError('Deployment preflight reported failures');
       }
-    } catch (e) {
-      showError(`Failed to run deployment preflight: ${e}`);
+    } catch (error) {
+      showError(`Failed to run deployment preflight: ${error}`);
     } finally {
       setDeployBusy(false);
     }
-  }, [runDeploymentPreflight, refreshDeployment, showSuccess, showError]);
+  }, [refreshDeployment, runDeploymentPreflight, showError, showSuccess]);
 
   const submitArtifact = useCallback(async () => {
-    if (!artifactForm.sha256.trim()) return;
+    if (!artifactForm.sha256.trim()) {
+      return;
+    }
     setDeployBusy(true);
     try {
       await recordDeploymentArtifact(
@@ -216,15 +126,15 @@ export function OpsTab() {
         artifactForm.sha256,
         artifactForm.isSigned,
       );
-      setArtifactForm(prev => ({ ...prev, sha256: '' }));
+      setArtifactForm((current) => ({ ...current, sha256: '' }));
       await refreshDeployment();
       showSuccess('Deployment artifact recorded');
-    } catch (e) {
-      showError(`Failed to record artifact: ${e}`);
+    } catch (error) {
+      showError(`Failed to record artifact: ${error}`);
     } finally {
       setDeployBusy(false);
     }
-  }, [artifactForm, recordDeploymentArtifact, refreshDeployment, showSuccess, showError]);
+  }, [artifactForm, recordDeploymentArtifact, refreshDeployment, showError, showSuccess]);
 
   const verifyArtifact = useCallback(async (artifactId: string) => {
     setDeployBusy(true);
@@ -236,102 +146,29 @@ export function OpsTab() {
       } else {
         showError(`Verification result: ${result.status}`);
       }
-    } catch (e) {
-      showError(`Failed to verify artifact: ${e}`);
+    } catch (error) {
+      showError(`Failed to verify artifact: ${error}`);
     } finally {
       setDeployBusy(false);
     }
-  }, [verifySignedArtifact, showSuccess, showError]);
+  }, [showError, showSuccess, verifySignedArtifact]);
 
   const runRollback = useCallback(async () => {
-    if (!deploymentHealth?.last_run?.id) return;
+    if (!deploymentHealth?.last_run?.id) {
+      return;
+    }
     setDeployBusy(true);
     try {
       await rollbackDeploymentRun(deploymentHealth.last_run.id, rollbackReason);
       await refreshDeployment();
       showSuccess('Rollback marked successfully');
-    } catch (e) {
-      showError(`Rollback failed: ${e}`);
+    } catch (error) {
+      showError(`Rollback failed: ${error}`);
     } finally {
       setDeployBusy(false);
       setShowRollbackConfirm(false);
     }
-  }, [deploymentHealth?.last_run?.id, rollbackReason, rollbackDeploymentRun, refreshDeployment, showSuccess, showError]);
-
-  const runEval = useCallback(async () => {
-    setEvalBusy(true);
-    try {
-      const parsedCases = parseEvalCases(evalInput);
-      if (parsedCases.length === 0) {
-        showError('Add at least one eval case');
-        return;
-      }
-      const result = await runEvalHarness(evalSuiteName, parsedCases);
-      setEvalResult(`Run ${result.run_id}: ${result.passed_cases}/${result.total_cases} passed, avg confidence ${(result.avg_confidence * 100).toFixed(1)}%`);
-      await refreshEval();
-      showSuccess('Eval harness run completed');
-    } catch (e) {
-      showError(`Eval run failed: ${e}`);
-    } finally {
-      setEvalBusy(false);
-    }
-  }, [evalInput, evalSuiteName, runEvalHarness, refreshEval, showSuccess, showError]);
-
-  const runTriage = useCallback(async () => {
-    setTriageBusy(true);
-    try {
-      const tickets = parseTriageTickets(triageInput);
-      if (tickets.length === 0) {
-        showError('Add at least one ticket for clustering');
-        return;
-      }
-      const clusters = await clusterTicketsForTriage(tickets);
-      setTriageOutput(JSON.stringify(clusters, null, 2));
-      await refreshTriage();
-      showSuccess('Ticket clustering complete');
-    } catch (e) {
-      showError(`Clustering failed: ${e}`);
-    } finally {
-      setTriageBusy(false);
-    }
-  }, [triageInput, clusterTicketsForTriage, refreshTriage, showSuccess, showError]);
-
-  const startRunbook = useCallback(async () => {
-    setRunbookBusy(true);
-    try {
-      const steps = runbookStepsInput
-        .split('\n')
-        .map(s => s.trim())
-        .filter(Boolean);
-      if (steps.length === 0) {
-        showError('Add at least one runbook step');
-        return;
-      }
-      await startRunbookSession(runbookScenario, steps, OPS_RUNBOOK_SCOPE_KEY);
-      await refreshRunbooks();
-      showSuccess('Runbook session started');
-    } catch (e) {
-      showError(`Failed to start runbook: ${e}`);
-    } finally {
-      setRunbookBusy(false);
-    }
-  }, [runbookStepsInput, runbookScenario, startRunbookSession, refreshRunbooks, showSuccess, showError]);
-
-  const advanceRunbook = useCallback(async (session: RunbookSessionRecord, finish = false) => {
-    const steps = safeParseJson<string[]>(session.steps_json, []);
-    const nextStep = finish ? session.current_step : session.current_step + 1;
-    const status = finish || nextStep >= steps.length ? 'completed' : undefined;
-    setRunbookBusy(true);
-    try {
-      await advanceRunbookSession(session.id, nextStep, status);
-      await refreshRunbooks();
-      showSuccess(status === 'completed' ? 'Runbook marked complete' : 'Runbook advanced');
-    } catch (e) {
-      showError(`Failed to update runbook: ${e}`);
-    } finally {
-      setRunbookBusy(false);
-    }
-  }, [advanceRunbookSession, refreshRunbooks, showSuccess, showError]);
+  }, [deploymentHealth?.last_run?.id, refreshDeployment, rollbackDeploymentRun, rollbackReason, showError, showSuccess]);
 
   const saveIntegration = useCallback(async (integrationType: string, enabled: boolean) => {
     setIntegrationBusyType(integrationType);
@@ -342,42 +179,58 @@ export function OpsTab() {
       await configureIntegration(integrationType, enabled, normalizedConfig);
       await refreshIntegrations();
       showSuccess(`${integrationType} integration updated`);
-    } catch (e) {
-      showError(`Failed to update integration: ${e}`);
+    } catch (error) {
+      showError(`Failed to update integration: ${error}`);
     } finally {
       setIntegrationBusyType(null);
     }
-  }, [configureIntegration, integrationConfigDraft, refreshIntegrations, showSuccess, showError]);
+  }, [configureIntegration, integrationConfigDraft, refreshIntegrations, showError, showSuccess]);
 
   const integrationMap = useMemo(() => {
     const map = new Map<string, IntegrationConfigRecord>();
-    for (const i of integrations) map.set(i.integration_type, i);
+    for (const item of integrations) {
+      map.set(item.integration_type, item);
+    }
     return map;
   }, [integrations]);
 
   return (
     <div className="ops-tab">
-      <div className="ops-nav">
+      <header className="ops-header">
+        <div>
+          <h2>Operations</h2>
+          <p className="ops-subtitle">
+            Internal deployment diagnostics and local integration controls. Eval, triage, and runbook tools stay out of the active UI in this wave.
+          </p>
+        </div>
+      </header>
+
+      <div className="ops-nav" role="tablist" aria-label="Operations sections">
         {([
           ['deployment', 'Deployment'],
-          ['eval', 'Eval Harness'],
-          ['triage', 'Triage'],
-          ['runbook', 'Runbook'],
           ['integrations', 'Integrations'],
         ] as [OpsView, string][]).map(([id, label]) => (
           <button
             key={id}
             className={`ops-nav-btn ${view === id ? 'active' : ''}`}
             onClick={() => setView(id)}
+            role="tab"
+            aria-selected={view === id}
           >
             {label}
           </button>
         ))}
       </div>
 
+      {opsError && <div className="ops-banner hash_mismatch">{opsError}</div>}
+
       {view === 'deployment' && (
-        <section className="ops-section">
-          <h3>Deployment Rollback & Signed Pack Verification</h3>
+        <section className="ops-section" aria-label="Deployment diagnostics">
+          <div className="ops-section-copy">
+            <h3>Deployment Diagnostics</h3>
+            <p>Run preflight checks, review recorded artifacts, verify signatures, and mark the last run for rollback when needed.</p>
+          </div>
+
           <div className="ops-row">
             <Button variant="secondary" size="small" onClick={runDeploymentChecks} loading={deployBusy}>Run Preflight</Button>
             <Button
@@ -397,18 +250,20 @@ export function OpsTab() {
             />
           </div>
 
-          {deploymentHealth && (
+          {deploymentHealth ? (
             <div className="ops-kpis">
               <div>Artifacts: {deploymentHealth.total_artifacts}</div>
               <div>Signed: {deploymentHealth.signed_artifacts}</div>
               <div>Unsigned: {deploymentHealth.unsigned_artifacts}</div>
               <div>Last status: {deploymentHealth.last_run?.status ?? 'none'}</div>
             </div>
+          ) : (
+            <div className="ops-empty">Deployment health is not available yet.</div>
           )}
 
           {preflightChecks.length > 0 && (
             <ul className="ops-list">
-              {preflightChecks.map((check, i) => <li key={`${check}-${i}`}>{check}</li>)}
+              {preflightChecks.map((check, index) => <li key={`${check}-${index}`}>{check}</li>)}
             </ul>
           )}
 
@@ -441,110 +296,48 @@ export function OpsTab() {
         </section>
       )}
 
-      {view === 'eval' && (
-        <section className="ops-section">
-          <h3>Eval Harness</h3>
-          <div className="ops-row">
-            <input className="ops-input" value={evalSuiteName} onChange={e => setEvalSuiteName(e.target.value)} placeholder="suite name" />
-            <Button size="small" onClick={runEval} loading={evalBusy}>Run Eval</Button>
-          </div>
-          <textarea className="ops-textarea" value={evalInput} onChange={e => setEvalInput(e.target.value)} />
-          {evalResult && <div className="ops-banner info">{evalResult}</div>}
-          <div className="ops-card-list">
-            {evalRuns.length === 0 && <div className="ops-empty">No eval runs yet.</div>}
-            {evalRuns.map(run => (
-              <div key={run.id} className="ops-card">
-                <div className="ops-card-title">{run.suite_name}</div>
-                <div className="ops-card-meta">{run.passed_cases}/{run.total_cases} • {(run.avg_confidence * 100).toFixed(1)}%</div>
-                <div className="ops-card-meta">{new Date(run.created_at).toLocaleString()}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {view === 'triage' && (
-        <section className="ops-section">
-          <h3>Ticket Triage Autopilot</h3>
-          <div className="ops-row">
-            <Button size="small" onClick={runTriage} loading={triageBusy}>Cluster Tickets</Button>
-          </div>
-          <textarea className="ops-textarea" value={triageInput} onChange={e => setTriageInput(e.target.value)} />
-          {triageOutput && <pre className="ops-pre">{triageOutput}</pre>}
-          <div className="ops-card-list">
-            {triageHistory.length === 0 && <div className="ops-empty">No triage clusters yet.</div>}
-            {triageHistory.map(item => (
-              <div key={item.id} className="ops-card">
-                <div className="ops-card-title">{item.summary}</div>
-                <div className="ops-card-meta">{item.cluster_key} • {item.ticket_count} tickets</div>
-                <div className="ops-card-meta">{new Date(item.created_at).toLocaleString()}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {view === 'runbook' && (
-        <section className="ops-section">
-          <h3>Runbook Mode</h3>
-          <div className="ops-row">
-            <input className="ops-input" value={runbookScenario} onChange={e => setRunbookScenario(e.target.value)} placeholder="scenario" />
-            <Button size="small" onClick={startRunbook} loading={runbookBusy}>Start Runbook</Button>
-          </div>
-          <textarea className="ops-textarea" value={runbookStepsInput} onChange={e => setRunbookStepsInput(e.target.value)} />
-          <div className="ops-card-list">
-            {runbookSessions.length === 0 && <div className="ops-empty">No runbook sessions yet.</div>}
-            {runbookSessions.map(session => {
-              const steps = safeParseJson<string[]>(session.steps_json, []);
-              return (
-                <div key={session.id} className="ops-card">
-                  <div className="ops-card-title">{session.scenario}</div>
-                  <div className="ops-card-meta">Step {session.current_step + 1}/{Math.max(steps.length, 1)} • {session.status}</div>
-                  {steps.length > 0 && (
-                    <div className="ops-card-meta">Current: {steps[Math.min(session.current_step, steps.length - 1)]}</div>
-                  )}
-                  <div className="ops-row">
-                    <Button size="small" variant="ghost" onClick={() => advanceRunbook(session)} loading={runbookBusy} disabled={session.status === 'completed'}>Next Step</Button>
-                    <Button size="small" variant="secondary" onClick={() => advanceRunbook(session, true)} loading={runbookBusy} disabled={session.status === 'completed'}>Mark Complete</Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       {view === 'integrations' && (
-        <section className="ops-section">
-          <h3>Integrations</h3>
+        <section className="ops-section" aria-label="Integration diagnostics">
+          <div className="ops-section-copy">
+            <h3>Integrations</h3>
+            <p>Review local integration enablement and adjust stored config objects for supported destinations.</p>
+          </div>
+
           <div className="ops-card-list">
-            {INTEGRATION_TYPES.map(type => {
-              const current = integrationMap.get(type);
-              const enabled = current?.enabled ?? false;
+            {INTEGRATION_TYPES.map((type) => {
+              const config = integrationMap.get(type);
+              const isBusy = integrationBusyType === type;
               return (
                 <div key={type} className="ops-card">
                   <div className="ops-card-title">{type}</div>
-                  <label className="ops-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={(e) => void saveIntegration(type, e.target.checked)}
-                    />
-                    Enabled
-                  </label>
+                  <div className="ops-card-meta">{config?.enabled ? 'Enabled' : 'Disabled'}</div>
                   <textarea
                     className="ops-textarea"
                     value={integrationConfigDraft[type] ?? ''}
-                    onChange={(e) => setIntegrationConfigDraft(prev => ({ ...prev, [type]: e.target.value }))}
-                    placeholder='{"endpoint":"..."}'
+                    onChange={(event) => setIntegrationConfigDraft((current) => ({
+                      ...current,
+                      [type]: event.target.value,
+                    }))}
+                    placeholder='{"webhook_url":"https://..."}'
                   />
-                  <Button
-                    size="small"
-                    onClick={() => void saveIntegration(type, enabled)}
-                    loading={integrationBusyType === type}
-                  >
-                    Save Config
-                  </Button>
+                  <div className="ops-row">
+                    <Button
+                      size="small"
+                      variant={config?.enabled ? 'secondary' : 'primary'}
+                      onClick={() => saveIntegration(type, !config?.enabled)}
+                      loading={isBusy}
+                    >
+                      {config?.enabled ? 'Disable' : 'Enable'}
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="ghost"
+                      onClick={() => saveIntegration(type, Boolean(config?.enabled))}
+                      loading={isBusy}
+                    >
+                      Save Config
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -554,12 +347,16 @@ export function OpsTab() {
 
       {showRollbackConfirm && (
         <div className="ops-modal-overlay" role="presentation">
-          <div className="ops-modal" role="dialog" aria-modal="true" aria-label="Confirm rollback">
-            <h4>Confirm rollback?</h4>
-            <p>This marks the latest deployment run as rolled back.</p>
+          <div className="ops-modal" role="dialog" aria-label="Confirm rollback">
+            <h4>Confirm Rollback</h4>
+            <p>This marks the latest deployment run as rolled back and keeps the reason in the local diagnostics log.</p>
             <div className="ops-row">
-              <Button size="small" variant="danger" onClick={runRollback} loading={deployBusy}>Confirm Rollback</Button>
-              <Button size="small" variant="secondary" onClick={() => setShowRollbackConfirm(false)} disabled={deployBusy}>Cancel</Button>
+              <Button variant="secondary" size="small" onClick={() => setShowRollbackConfirm(false)}>
+                Cancel
+              </Button>
+              <Button variant="danger" size="small" onClick={runRollback} loading={deployBusy}>
+                Confirm Rollback
+              </Button>
             </div>
           </div>
         </div>

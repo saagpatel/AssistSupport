@@ -1,4 +1,4 @@
-import type { SavedDraft } from '../../types';
+import type { SavedDraft } from '../../types/workspace';
 
 export type QueueState = 'open' | 'in_progress' | 'resolved';
 export type QueuePriority = 'low' | 'normal' | 'high' | 'urgent';

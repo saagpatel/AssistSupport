@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { CustomVariable } from '../types';
+import type { CustomVariable } from '../types/workspace';
 
 export function useCustomVariables() {
   const [variables, setVariables] = useState<CustomVariable[]>([]);

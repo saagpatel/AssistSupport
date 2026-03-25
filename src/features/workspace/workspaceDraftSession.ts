@@ -1,4 +1,4 @@
-import type { CaseIntake } from '../../types';
+import type { CaseIntake } from '../../types/workspace';
 
 export interface MeaningfulWorkspaceDraftArgs {
   inputText: string;

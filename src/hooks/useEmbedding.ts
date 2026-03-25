@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { EmbeddingModelInfo } from '../types';
+import type { EmbeddingModelInfo } from '../types/llm';
 
 export interface EmbeddingState {
   modelInfo: EmbeddingModelInfo | null;

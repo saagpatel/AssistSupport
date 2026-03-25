@@ -7,7 +7,7 @@ import { useDownload } from '../../hooks/useDownload';
 import { useJira } from '../../hooks/useJira';
 import { useEmbedding } from '../../hooks/useEmbedding';
 import { useCustomVariables } from '../../hooks/useCustomVariables';
-import { useFeatureOps } from '../../hooks/useFeatureOps';
+import { useSettingsOps } from '../../hooks/useSettingsOps';
 import {
   getResponseQualityThresholds,
   resetResponseQualityThresholds,
@@ -32,14 +32,14 @@ import {
 } from './sections/SettingsOpsSections';
 import appPackage from '../../../package.json';
 import { formatAppVersion } from './versionLabel';
+import type { ModelInfo } from '../../types/llm';
+import type { CustomVariable } from '../../types/workspace';
 import type {
   AuditEntry,
-  CustomVariable,
   DeploymentHealthSummary,
   IntegrationConfigRecord,
   MemoryKernelPreflightStatus,
-  ModelInfo,
-} from '../../types';
+} from '../../types/settings';
 import './SettingsTab.css';
 
 const RECOMMENDED_MODELS: ModelInfo[] = [
@@ -152,7 +152,7 @@ export function SettingsTab() {
     runDeploymentPreflight,
     listIntegrations,
     configureIntegration,
-  } = useFeatureOps();
+  } = useSettingsOps();
   const { theme, setTheme } = useTheme();
   const { success: showSuccess, error: showError } = useToastContext();
   const {
