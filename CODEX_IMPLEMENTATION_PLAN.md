@@ -1,6 +1,7 @@
 # AssistSupport Implementation Plan
 
 ## 1. Execution Strategy
+
 - Treat `CODEX_AUDIT_PLAN.md` as the source of truth by making its creation the first execution batch.
 - Optimize for subtraction first, then seam extraction, then rewrites.
 - Use runtime-boundary waves:
@@ -17,6 +18,7 @@
 - Preserve compatibility only where it reduces breakage in the next wave.
 
 ## 2. Recommended Order of Operations
+
 1. Materialize `CODEX_AUDIT_PLAN.md` and align docs and guardrails.
 2. Freeze the target product shape: one canonical shell, one queue surface, one workspace surface, one knowledge surface, one admin surface.
 3. Consolidate navigation and tab model before touching backend contracts.
@@ -30,6 +32,7 @@
 11. Remove dead routes, dead flags, legacy components, and rebaseline performance only after the replacements survive one merged wave.
 
 ## 3. Workstreams and Change Batches
+
 - Batch 0: Audit source-of-truth and planning guardrails
   - Reason: later waves need a stable decision record.
   - Depends on: approved audit conclusions.
@@ -121,11 +124,12 @@
   - Depends on: Batch 11.
   - Deliverables: thin `src-tauri/src/commands/model_commands.rs` into a command/controller surface with helper-owned runtime modules; move remaining public DB record types into dedicated `src-tauri/src/db/types_*.rs` modules and keep `db/mod.rs` as a narrower facade/re-export index; trim `src-tauri/src/commands/mod.rs` blanket re-exports; formalize the `perf:api` and `perf:db` loopback setup in the canonical runbook; update the ADR and roadmap with the final program-close state.
   - Validation method: full application pack, Rust structural guards, search-api contract validation, UI/browser regression checks, perf lanes, and a final whole-codebase review.
-  - Status: implementation substantially landed on 2026-03-25, but final closeout is still blocked in the current environment. `model_commands.rs` now delegates helper-heavy ownership into `model_runtime.rs`, `embedding_runtime.rs`, `download_runtime.rs`, `ocr_runtime.rs`, and `decision_tree_runtime.rs`; `src-tauri/src/db/mod.rs` now re-exports domain-owned type modules instead of defining the full record monolith inline; `src-tauri/src/commands/mod.rs` no longer blanket re-exports whole command modules; and the release-readiness harness is documented in `docs/runbooks/search-api-local-deployment.md`. The architectural decision is captured in `docs/adr/0010-final-module-right-sizing-and-release-readiness.md`.
-  - Actual validation completed on the current tree: `cd src-tauri && cargo test --test command_module_structure --test command_contracts --test db_facade_structure`, `cd src-tauri && cargo test --test permission_manifest`, `cd src-tauri && cargo test`, `cd /Users/d/AssistSupport && pnpm exec tsc --noEmit`, `cd /Users/d/AssistSupport && git diff --check`, `cd /Users/d/AssistSupport && pnpm test`, `cd /Users/d/AssistSupport && pnpm search-api:test`, `cd /Users/d/AssistSupport && pnpm search-api:openapi:check`, `cd /Users/d/AssistSupport && pnpm test:ci`, `cd /Users/d/AssistSupport && pnpm check:workstation-preflight`, `cd /Users/d/AssistSupport && pnpm check:workflow-drift`, `cd /Users/d/AssistSupport && pnpm test:security-regression`, `cd /Users/d/AssistSupport && pnpm ui:gate:static`, `cd /Users/d/AssistSupport && pnpm test:coverage`, `cd /Users/d/AssistSupport && pnpm exec playwright test tests/ui/app-shell.spec.ts tests/ui/app-shell-responsive.spec.ts tests/ui/workspace-performance.spec.ts`, `cd /Users/d/AssistSupport && VITE_ASSISTSUPPORT_ENABLE_ADMIN_TABS=1 pnpm exec playwright test tests/ui/admin-shell.spec.ts`, `cd /Users/d/AssistSupport && pnpm test:e2e:smoke`, `cd /Users/d/AssistSupport && pnpm ui:gate:regression`, `cd /Users/d/AssistSupport && pnpm perf:bundle`, `cd /Users/d/AssistSupport && pnpm perf:build`, `cd /Users/d/AssistSupport && pnpm perf:assets`, `cd /Users/d/AssistSupport && pnpm perf:workspace`, `cd /Users/d/AssistSupport && pnpm perf:memory`, `cd /Users/d/AssistSupport && pnpm perf:lhci`, and `cd /Users/d/AssistSupport && pnpm git:guard:all`.
-  - Blocker note: `pnpm perf:db` and a production-like `pnpm perf:api` rerun are currently blocked in this environment because no local Postgres instance is reachable on `127.0.0.1:5432`, no `DATABASE_URL` or `ASSISTSUPPORT_DB_*` runtime configuration is set, and Docker cannot be used to start the documented temporary database because the local daemon socket is unavailable (`/Users/d/.colima/default/docker.sock`). Until those two gates are run on the final tree, Batch 12 should be treated as implementation-complete but closeout-blocked rather than fully complete.
+  - Status: completed on 2026-03-25. `model_commands.rs` now delegates helper-heavy ownership into `model_runtime.rs`, `embedding_runtime.rs`, `download_runtime.rs`, `ocr_runtime.rs`, and `decision_tree_runtime.rs`; `src-tauri/src/db/mod.rs` now re-exports domain-owned type modules instead of defining the full record monolith inline; `src-tauri/src/commands/mod.rs` no longer blanket re-exports whole command modules; and the release-readiness harness is documented in `docs/runbooks/search-api-local-deployment.md`. The architectural decision is captured in `docs/adr/0010-final-module-right-sizing-and-release-readiness.md`.
+  - Actual validation completed on the final tree: `cd src-tauri && cargo test --test command_module_structure --test command_contracts --test db_facade_structure`, `cd src-tauri && cargo test --test permission_manifest`, `cd src-tauri && cargo test`, `cd /Users/d/AssistSupport && pnpm exec tsc --noEmit`, `cd /Users/d/AssistSupport && git diff --check`, `cd /Users/d/AssistSupport && pnpm test`, `cd /Users/d/AssistSupport && pnpm search-api:test`, `cd /Users/d/AssistSupport && pnpm search-api:openapi:check`, `cd /Users/d/AssistSupport && pnpm test:ci`, `cd /Users/d/AssistSupport && pnpm check:workstation-preflight`, `cd /Users/d/AssistSupport && pnpm check:workflow-drift`, `cd /Users/d/AssistSupport && pnpm test:security-regression`, `cd /Users/d/AssistSupport && pnpm ui:gate:static`, `cd /Users/d/AssistSupport && pnpm test:coverage`, `cd /Users/d/AssistSupport && pnpm exec playwright test tests/ui/app-shell.spec.ts tests/ui/app-shell-responsive.spec.ts tests/ui/workspace-performance.spec.ts`, `cd /Users/d/AssistSupport && VITE_ASSISTSUPPORT_ENABLE_ADMIN_TABS=1 pnpm exec playwright test tests/ui/admin-shell.spec.ts`, `cd /Users/d/AssistSupport && pnpm test:e2e:smoke`, `cd /Users/d/AssistSupport && pnpm ui:gate:regression`, `cd /Users/d/AssistSupport && pnpm perf:bundle`, `cd /Users/d/AssistSupport && pnpm perf:build`, `cd /Users/d/AssistSupport && pnpm perf:assets`, `cd /Users/d/AssistSupport && pnpm perf:workspace`, `cd /Users/d/AssistSupport && pnpm perf:memory`, `cd /Users/d/AssistSupport && pnpm perf:lhci`, `cd /Users/d/AssistSupport && pnpm git:guard:all`, `cd /Users/d/AssistSupport && ASSISTSUPPORT_DB_HOST=127.0.0.1 ASSISTSUPPORT_DB_PORT=5432 ASSISTSUPPORT_DB_USER=assistsupport_dev ASSISTSUPPORT_DB_NAME=assistsupport_dev pnpm perf:db`, and `cd /Users/d/AssistSupport && BASE_URL=http://127.0.0.1:3000 AUTH_TOKEN=local-smoke-key pnpm perf:api`.
+  - Closeout note: the final missing perf gates passed after bringing up temporary local PostgreSQL 16, Redis, and a loopback WSGI sidecar. `perf:db` passed via the BM25 `EXPLAIN` fallback with `execution_time_ms=2.776` and `planning_time_ms=44.086`, and `perf:api` passed with `p95=28.5ms`, `p99=100.9ms`, `failureRate=0`, and `checksRate=1`. The refactor program can now be treated as fully closed. The only carry-forward warning remains the existing non-blocking Lighthouse SEO score of `0.82` versus the `0.90` threshold, so no substantive Batch 13 implementation phase is required.
 
 ## 4. Validation and Test Plan by Batch
+
 - Batch 0
   - Run: `pnpm check:workstation-preflight`, `pnpm check:workflow-drift`, `pnpm ui:gate:static`, `pnpm test`, `pnpm test:coverage`, `cd src-tauri && cargo test`, `pnpm search-api:openapi:check`.
   - Pass condition: docs and commands match repo reality; no behavior regressions.
@@ -169,6 +173,7 @@
   - Pass condition: removal-only PRs are cleanly reversible and leave no broken references.
 
 ## 5. Benchmark Plan
+
 - Capture before and after every batch:
   - `pnpm perf:bundle`
   - `pnpm perf:build`
@@ -190,6 +195,7 @@
 - Do not update `.perf-baselines/*` until Batch 9 unless a benchmark harness itself changes and the reason is documented in the PR.
 
 ## 6. High-Risk Areas to Isolate
+
 - Workspace autosave, saved-draft identity, runbook scope migration, and reopen flows.
 - Shell and tab removal.
 - Tauri command splitting.
@@ -198,6 +204,7 @@
 - Admin-surface collapse.
 
 ## 7. Delete / Stabilize / Rewrite Decisions
+
 - Delete first only after replacements exist:
   - legacy shell path in `App.tsx`
   - unreachable `FollowUpsTab` routing path
@@ -221,6 +228,7 @@
   - search sidecar before earlier seams are stable
 
 ## 8. Parallelization via Sub-Agents / Skills
+
 - Use `pm-delivery-hub` to keep `CODEX_AUDIT_PLAN.md` and `CODEX_IMPLEMENTATION_PLAN.md` synchronized as the planning source.
 - Use `parallel-delivery-conductor` for every major batch after Batch 0.
 - Use `git-workflow` on every mutating branch for branch creation, commit chunking, and PR notes.
@@ -238,6 +246,7 @@
 - Parallelize only where write scopes do not overlap.
 
 ## 9. Branch Strategy
+
 - Never work on `master`. Use one branch per batch with `pnpm git:branch:create "<task>" <type>`.
 - Recommended branch sequence:
   - `codex/docs/audit-source-of-truth`
@@ -259,6 +268,7 @@
 - Rebase each branch on current `master` before merge. Do not start the next destructive wave until the prior wave’s post-merge smoke passes.
 
 ## 10. First Execution Sprint
+
 - Sprint goal: make the product shape real before any deep backend refactor.
 - Scope:
   - create `CODEX_AUDIT_PLAN.md` from the approved audit
