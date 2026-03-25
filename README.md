@@ -31,49 +31,57 @@ You copy:     Paste into Jira — done in under a minute
 
 ## Key Strengths
 
-| Strength | Details |
-|----------|---------|
-| **ML-Powered Search** | TF-IDF + Logistic Regression intent classifier (85.7% accuracy), cross-encoder reranker (ms-marco-MiniLM-L-6-v2), adaptive score fusion |
-| **Sub-25ms Latency** | p50: 8ms, p95: 82ms, avg: 21ms across 3,536 articles — 6x faster than target |
-| **Local-First Runtime** | The app, search sidecar, and model inference run on the local machine. No cloud dependency is required for the core workflow |
-| **Encrypted Core Data** | The main local database and stored secrets are protected locally with wrapped keys and encrypted-at-rest storage for the primary SQLite workspace |
-| **Security Review in Progress** | The repo includes hardening gates, dependency audits, and local-only guardrails, but formal compliance validation is not currently claimed |
-| **Trust-Gated Responses** | Confidence modes (answer/clarify/abstain), claim grounding map, citation-aware copy safety for low-confidence output |
-| **Self-Improving** | Feedback loop + KB gap detector surfaces repeated low-confidence/low-rating topics and tracks remediation |
-| **Ops-Ready** | Built-in Operations workspace for deployment preflight/rollback, eval harness runs, triage clustering, and runbook sessions |
-| **Quality Gates Enabled** | Frontend static checks, unit tests, visual/a11y regression, Rust tests, API smoke checks, and diff coverage gates |
-| **190+ API Commands** | Expanded Tauri command surface for trust signals, ops workflows, evaluations, integrations, and diagnostics |
+| Strength                        | Details                                                                                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ML-Powered Search**           | TF-IDF + Logistic Regression intent classifier (85.7% accuracy), cross-encoder reranker (ms-marco-MiniLM-L-6-v2), adaptive score fusion           |
+| **Sub-25ms Latency**            | p50: 8ms, p95: 82ms, avg: 21ms across 3,536 articles — 6x faster than target                                                                      |
+| **Local-First Runtime**         | The app, search sidecar, and model inference run on the local machine. No cloud dependency is required for the core workflow                      |
+| **Encrypted Core Data**         | The main local database and stored secrets are protected locally with wrapped keys and encrypted-at-rest storage for the primary SQLite workspace |
+| **Security Review in Progress** | The repo includes hardening gates, dependency audits, and local-only guardrails, but formal compliance validation is not currently claimed        |
+| **Trust-Gated Responses**       | Confidence modes (answer/clarify/abstain), claim grounding map, citation-aware copy safety for low-confidence output                              |
+| **Self-Improving**              | Feedback loop + KB gap detector surfaces repeated low-confidence/low-rating topics and tracks remediation                                         |
+| **Ops-Ready**                   | Built-in Operations workspace for deployment preflight/rollback, eval harness runs, triage clustering, and runbook sessions                       |
+| **Quality Gates Enabled**       | Frontend static checks, unit tests, visual/a11y regression, Rust tests, API smoke checks, and diff coverage gates                                 |
+| **190+ API Commands**           | Expanded Tauri command surface for trust signals, ops workflows, evaluations, integrations, and diagnostics                                       |
 
 ---
 
 ## What's New in v1.0.0
 
 ### ML Intent Classifier
+
 Replaced keyword heuristics with a trained ML model. TF-IDF vectorization + Logistic Regression trained on 182 examples achieves **85.7% cross-validation accuracy** classifying queries as POLICY, PROCEDURE, REFERENCE, or UNKNOWN — with average confidence jumping from 0.4 to 0.8+.
 
 ### Cross-Encoder Reranker
+
 A `ms-marco-MiniLM-L-6-v2` cross-encoder rescores search candidates after initial retrieval. Blended scoring (15% cross-encoder + 85% fusion) surfaces the most relevant results while filtering noisy content from attachments and related-article sections.
 
 ### Feedback Loop
+
 User ratings (helpful / not helpful / incorrect) feed back into search scoring. Per-article quality scores (0.5x-1.5x) activate after 3+ ratings, continuously tuning result ranking without manual intervention.
 
 ### Content Quality Pipeline
+
 Cleaned 2,912 article titles (avg length 76 -> 57 chars), merged 672 thin chunks into 50 consolidated articles, enriched 40 popular-topic articles, and regenerated 2,597 vector embeddings — raising search quality validation from 20% to 100% on core queries.
 
 ### Hybrid Semantic Search
+
 BM25 keyword + HNSW vector search across 3,536 articles via PostgreSQL 16 + pgvector, with intent-aware adaptive fusion, category boosting, and live monitoring dashboard.
 
-| Before (keyword search) | Now (ML-powered semantic search) |
-|---|---|
-| "USB policy" returns 50 docs | "Can I use a flash drive?" returns the right policy |
-| "password" returns noise | "How do I reset it?" returns step-by-step guide |
-| "VPN" returns networking docs | "Can I work from home?" returns remote work policy |
+| Before (keyword search)       | Now (ML-powered semantic search)                    |
+| ----------------------------- | --------------------------------------------------- |
+| "USB policy" returns 50 docs  | "Can I use a flash drive?" returns the right policy |
+| "password" returns noise      | "How do I reset it?" returns step-by-step guide     |
+| "VPN" returns networking docs | "Can I work from home?" returns remote work policy  |
 
 ### Confidence-Gated Answers + Source Grounding
+
 Generation now returns a confidence assessment (`answer` / `clarify` / `abstain`) and a per-claim grounding map that links claims to cited sources. This adds a trust layer before copy/paste and helps reduce unsupported responses.
 
 ### Operations Workspace (Ops Tab)
+
 A new Ops workspace consolidates deployment safety checks and operational tooling:
+
 - Deployment preflight checks and rollback marking
 - Signed artifact verification workflow
 - Eval harness run execution + history
@@ -81,9 +89,11 @@ A new Ops workspace consolidates deployment safety checks and operational toolin
 - Runbook session tracking and progression
 
 ### KB Gap Detector
+
 Low-confidence/unsupported generation events are logged and aggregated into ranked KB gap candidates in Analytics, with status actions (`accepted`, `resolved`, `ignored`) to close the quality loop.
 
 ### Integration and Control Foundations
+
 Support for ServiceNow/Slack/Teams configuration records and workspace role mappings has been added to support enterprise rollout patterns.
 
 ---
@@ -147,14 +157,14 @@ Key operator runbooks now live in `docs/runbooks/` for safe mode recovery, vecto
 
 ### Prerequisites
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| macOS | 13+ (Ventura) | Apple Silicon or Intel |
-| Node.js | 20+ | |
-| pnpm | 8+ | `npm install -g pnpm` |
-| Rust | 1.75+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
-| Xcode CLT | Latest | `xcode-select --install` |
-| System libs | | `brew install protobuf pkgconf cmake leptonica tesseract` |
+| Requirement | Version       | Notes                                                             |
+| ----------- | ------------- | ----------------------------------------------------------------- |
+| macOS       | 13+ (Ventura) | Apple Silicon or Intel                                            |
+| Node.js     | 20+           |                                                                   |
+| pnpm        | 8+            | `npm install -g pnpm`                                             |
+| Rust        | 1.75+         | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| Xcode CLT   | Latest        | `xcode-select --install`                                          |
+| System libs |               | `brew install protobuf pkgconf cmake leptonica tesseract`         |
 
 ### Install & Run
 
@@ -188,7 +198,7 @@ createdb -U assistsupport_dev assistsupport_dev
 
 # Start the search API
 cd search-api
-python3 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python3 search_api.py
@@ -215,7 +225,7 @@ cp .env.example .env.production
 set -a
 source .env.production
 set +a
-python3 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python3 validate_runtime.py --check-backends
@@ -243,6 +253,7 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 ## Features
 
 ### ML-Powered Hybrid Search (Cmd+8)
+
 - **ML intent classifier** — TF-IDF + Logistic Regression trained on 182 examples (85.7% accuracy), classifies POLICY / PROCEDURE / REFERENCE / UNKNOWN
 - **Cross-encoder reranker** — ms-marco-MiniLM-L-6-v2 rescores candidates with blended scoring (15% CE + 85% fusion)
 - **BM25 + HNSW vector search** across 3,536 knowledge base articles via PostgreSQL 16 + pgvector
@@ -254,6 +265,7 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 - **Monitoring dashboard** — live metrics: query volume, p50/p95/p99 latency, accuracy, intent distribution
 
 ### Response Generation
+
 - Generate professional IT support responses with local LLM inference (llama.cpp)
 - Responses automatically cite relevant KB articles
 - Confidence-gated output modes: answer / clarify / abstain
@@ -265,6 +277,7 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 - Two-section format: OUTPUT (copy-paste ready) + IT SUPPORT INSTRUCTIONS (engineer guidance)
 
 ### Knowledge Base
+
 - Index markdown, PDF, DOCX, XLSX, code files, and images
 - Hybrid search: FTS5 full-text + LanceDB vector/semantic search
 - Policy-first search ranking for permission/restriction queries
@@ -276,12 +289,14 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 - Content quality pipeline: title cleaning (2,912 cleaned), article expansion (672 chunks merged), embedding regeneration (2,597 vectors)
 
 ### Jira Integration
+
 - Fetch ticket context (title, description, assignee, status)
 - Post responses directly to Jira tickets
 - Transition tickets to new status after responding
 - Template variables (`{{ticket_id}}`, `{{reporter}}`, `{{company_name}}`)
 
 ### Analytics & Monitoring
+
 - Response quality tracking (ratings, trends)
 - KB usage metrics (search frequency, top queries, article citations)
 - KB Gap Detector panel with actionable candidate queue
@@ -289,6 +304,7 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 - Search monitoring dashboard (latency percentiles, accuracy, intent distribution)
 
 ### Operations Workspace
+
 - Deployment preflight checks with persisted run history
 - Artifact metadata tracking and signed-pack verification
 - Rollback workflow markers with audit-ready reason capture
@@ -298,6 +314,7 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 - Integration control panel for ServiceNow, Slack, and Teams
 
 ### Security & Privacy
+
 - **Fully local** — all processing on your machine, zero cloud dependencies, no telemetry
 - **Encrypted core database** via SQLCipher with 0600 file permissions
 - **Encrypted stored tokens** for local credentials (Jira, HuggingFace, GitHub)
@@ -313,6 +330,7 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 - **Compliance posture** — the project is security-minded and local-first, but it does not currently claim formal HIPAA, GDPR, FISMA, SOC2, ISO 27001, or PCI DSS validation
 
 ### Productivity
+
 - Command palette (Cmd+K) and full keyboard-first workflow (30+ shortcuts)
 - Session tokens — 24h auto-unlock, no password friction on every launch
 - Fast startup — background model loading with cached state (2-3 seconds)
@@ -324,18 +342,18 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 
 ## Why Not Just Use ChatGPT?
 
-| Feature | AssistSupport | ChatGPT / Claude API | Zendesk / Freshdesk |
-|---------|---------------|----------------------|---------------------|
-| **Works Offline** | Yes | No | No |
-| **Data Stays Local** | Yes — on your machine | Sent to cloud | Sent to cloud |
-| **Searches Your KB** | Yes — ML-powered | No — manual prompt | Partial |
-| **Intent Detection** | ML classifier (85.7%) | No | No |
-| **Reranking** | Cross-encoder | No | No |
-| **Self-Improving** | Feedback loop | No | No |
-| **Formal compliance validation** | Not currently claimed | No | Depends on plan |
-| **IT-Specific** | Yes — built for support | Generic | Generic AI add-on |
-| **Encryption** | AES-256 + Argon2id | Provider-managed | Provider-managed |
-| **Cost** | Free (MIT) | $0.001-0.003/token | $50-500+/month |
+| Feature                          | AssistSupport           | ChatGPT / Claude API | Zendesk / Freshdesk |
+| -------------------------------- | ----------------------- | -------------------- | ------------------- |
+| **Works Offline**                | Yes                     | No                   | No                  |
+| **Data Stays Local**             | Yes — on your machine   | Sent to cloud        | Sent to cloud       |
+| **Searches Your KB**             | Yes — ML-powered        | No — manual prompt   | Partial             |
+| **Intent Detection**             | ML classifier (85.7%)   | No                   | No                  |
+| **Reranking**                    | Cross-encoder           | No                   | No                  |
+| **Self-Improving**               | Feedback loop           | No                   | No                  |
+| **Formal compliance validation** | Not currently claimed   | No                   | Depends on plan     |
+| **IT-Specific**                  | Yes — built for support | Generic              | Generic AI add-on   |
+| **Encryption**                   | AES-256 + Argon2id      | Provider-managed     | Provider-managed    |
+| **Cost**                         | Free (MIT)              | $0.001-0.003/token   | $50-500+/month      |
 
 ---
 
@@ -343,46 +361,46 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 
 ### Search Latency
 
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| p50 latency | <50ms | 8ms | 6x faster than target |
-| p95 latency | <100ms | 82ms | Meets target |
-| Avg latency | <50ms | 21ms | 2.4x faster than target |
-| Embedding coverage | 100% | 3,536/3,536 | Complete |
-| ML intent accuracy | >80% | 85.7% | Exceeds target |
-| Search quality | >90% | 92-100% | Production ready |
+| Metric             | Target | Actual      | Status                  |
+| ------------------ | ------ | ----------- | ----------------------- |
+| p50 latency        | <50ms  | 8ms         | 6x faster than target   |
+| p95 latency        | <100ms | 82ms        | Meets target            |
+| Avg latency        | <50ms  | 21ms        | 2.4x faster than target |
+| Embedding coverage | 100%   | 3,536/3,536 | Complete                |
+| ML intent accuracy | >80%   | 85.7%       | Exceeds target          |
+| Search quality     | >90%   | 92-100%     | Production ready        |
 
 ### Encryption Throughput
 
-| Operation | 1 KB | 64 KB | 1 MB |
-|-----------|------|-------|------|
-| Encrypt | ~15 us | ~200 us | ~2.5 ms |
-| Decrypt | ~12 us | ~180 us | ~2.2 ms |
-| **Throughput** | — | — | **~400 MB/s** |
+| Operation      | 1 KB   | 64 KB   | 1 MB          |
+| -------------- | ------ | ------- | ------------- |
+| Encrypt        | ~15 us | ~200 us | ~2.5 ms       |
+| Decrypt        | ~12 us | ~180 us | ~2.2 ms       |
+| **Throughput** | —      | —       | **~400 MB/s** |
 
 ### Key Derivation (Argon2id — intentionally slow)
 
-| Operation | Latency |
-|-----------|---------|
-| Key wrap | ~500 ms |
+| Operation  | Latency |
+| ---------- | ------- |
+| Key wrap   | ~500 ms |
 | Key unwrap | ~500 ms |
 
 ### Database Operations
 
-| Operation | Latency |
-|-----------|---------|
-| Open + Initialize | ~50 ms |
-| Integrity Check | ~1 ms |
-| Read Setting | ~0.1 ms |
-| Write Setting | ~0.5 ms |
+| Operation         | Latency |
+| ----------------- | ------- |
+| Open + Initialize | ~50 ms  |
+| Integrity Check   | ~1 ms   |
+| Read Setting      | ~0.1 ms |
+| Write Setting     | ~0.5 ms |
 
 ### FTS Search Scaling
 
 | Query Type | 100 docs | 1,000 docs | 10,000 docs |
-|-----------|----------|-----------|-----------|
-| Simple | ~1 ms | ~5 ms | ~20 ms |
-| Multi-word | ~2 ms | ~8 ms | ~30 ms |
-| Phrase | ~2 ms | ~10 ms | ~40 ms |
+| ---------- | -------- | ---------- | ----------- |
+| Simple     | ~1 ms    | ~5 ms      | ~20 ms      |
+| Multi-word | ~2 ms    | ~8 ms      | ~30 ms      |
+| Phrase     | ~2 ms    | ~10 ms     | ~40 ms      |
 
 ---
 
@@ -390,18 +408,18 @@ ENVIRONMENT=production ASSISTSUPPORT_API_KEY=test-key ASSISTSUPPORT_RATE_LIMIT_S
 
 ### Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19 + TypeScript (strict) + Vite |
-| Backend | Rust + Tauri 2.x |
-| Database | SQLite + SQLCipher (AES-256) + FTS5 |
-| Search Backend | PostgreSQL 16 + pgvector 0.8 (BM25 + HNSW) |
-| ML Pipeline | scikit-learn (TF-IDF + LogReg), sentence-transformers (cross-encoder) |
-| Search API | Python Flask on localhost:3000 |
-| Vector Store | LanceDB (local), pgvector (PostgreSQL) |
-| LLM Runtime | llama.cpp via llama-cpp-2 (GGUF models) |
-| PDF | PDFium (bundled) |
-| OCR | macOS Vision framework |
+| Layer          | Technology                                                            |
+| -------------- | --------------------------------------------------------------------- |
+| Frontend       | React 19 + TypeScript (strict) + Vite                                 |
+| Backend        | Rust + Tauri 2.x                                                      |
+| Database       | SQLite + SQLCipher (AES-256) + FTS5                                   |
+| Search Backend | PostgreSQL 16 + pgvector 0.8 (BM25 + HNSW)                            |
+| ML Pipeline    | scikit-learn (TF-IDF + LogReg), sentence-transformers (cross-encoder) |
+| Search API     | Python Flask on localhost:3000                                        |
+| Vector Store   | LanceDB (local), pgvector (PostgreSQL)                                |
+| LLM Runtime    | llama.cpp via llama-cpp-2 (GGUF models)                               |
+| PDF            | PDFium (bundled)                                                      |
+| OCR            | macOS Vision framework                                                |
 
 ### Data Flow
 
@@ -485,9 +503,11 @@ Architecture and governance deep-dive docs were removed in this trimmed reposito
 ## For IT Support Teams
 
 ### Individual Setup
+
 Each engineer clones, installs, and runs. Point the KB to a local docs folder or shared drive.
 
 ### Team Shared KB (Recommended)
+
 Set up a shared documentation folder and have each engineer point AssistSupport at it:
 
 ```
@@ -532,35 +552,36 @@ Security-focused backend tests cover encryption, key management, path traversal,
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd+K` | Command palette |
-| `Cmd+Enter` | Generate response |
-| `Cmd+S` | Save draft |
-| `Cmd+Shift+C` | Copy response |
-| `Cmd+E` | Export response |
-| `Cmd+N` | New draft |
-| `Cmd+/` | Focus search |
-| `Cmd+1-9` | Switch primary tabs |
-| `Cmd+8` | Open Hybrid Search |
+| Shortcut       | Action                                        |
+| -------------- | --------------------------------------------- |
+| `Cmd+K`        | Command palette                               |
+| `Cmd+Enter`    | Generate response                             |
+| `Cmd+S`        | Save draft                                    |
+| `Cmd+Shift+C`  | Copy response                                 |
+| `Cmd+E`        | Export response                               |
+| `Cmd+N`        | New draft                                     |
+| `Cmd+/`        | Focus search                                  |
+| `Cmd+1-9`      | Switch primary tabs                           |
+| `Cmd+8`        | Open Hybrid Search                            |
 | Sidebar: `Ops` | Open deployment/eval/triage/runbook workspace |
 
 ---
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| `README.md` | Consolidated setup, architecture summary, and runtime behavior |
-| `SECURITY.md` | Security scope and disclosure entry point |
-| `docs/SECURITY.md` | Security architecture and verification controls |
-| [Changelog](CHANGELOG.md) | Release history |
+| Document                  | Description                                                    |
+| ------------------------- | -------------------------------------------------------------- |
+| `README.md`               | Consolidated setup, architecture summary, and runtime behavior |
+| `SECURITY.md`             | Security scope and disclosure entry point                      |
+| `docs/SECURITY.md`        | Security architecture and verification controls                |
+| [Changelog](CHANGELOG.md) | Release history                                                |
 
 ---
 
 ## Changelog
 
 ### v1.0.0 (Current) — Production Release
+
 - **ML intent classifier** — TF-IDF + Logistic Regression (85.7% accuracy, 182 training examples)
 - **Cross-encoder reranker** — ms-marco-MiniLM-L-6-v2 with blended scoring (15% CE + 85% fusion)
 - **Feedback loop** — per-article quality scores (0.5-1.5x) from user ratings
@@ -577,6 +598,7 @@ Security-focused backend tests cover encryption, key management, path traversal,
 - p50: 8ms, p95: 82ms, avg: 21ms — search quality 92-100%
 
 ### Unreleased (main branch)
+
 - New **Ops** workspace tab for deployment checks, rollback marking, eval harness, triage clusters, runbook sessions, and integrations controls
 - Confidence-gated response modes (`answer` / `clarify` / `abstain`) exposed in generation results
 - Claim-level source grounding map surfaced in the response UI
@@ -585,12 +607,14 @@ Security-focused backend tests cover encryption, key management, path traversal,
 - New Playwright coverage for Ops workflows (`e2e/ops.spec.ts`)
 
 ### v0.6.0
+
 - Pilot feedback system (query tester, star ratings, dashboard, CSV export)
 - Disk ingestion pipeline with source/run tracking
 - Incremental re-indexing via SHA-256 hash comparison
 - Policy-first search ranking with confidence scoring
 
 ### v0.5.x
+
 - ChatGPT-inspired UI redesign (dark-first, green accent)
 - Fast startup with background model loading (2-3 seconds)
 - Analytics dashboard with ratings and article drill-down
@@ -599,6 +623,7 @@ Security-focused backend tests cover encryption, key management, path traversal,
 - KB health and staleness monitoring
 
 ### Next
+
 - [ ] Draft management improvements (save, resume, history)
 - [ ] KB management UI (create/edit articles in-app)
 - [ ] Advanced analytics (ROI metrics, team benchmarking)
@@ -612,12 +637,14 @@ Roadmap and execution planning artifacts were removed in this trimmed repository
 ## Troubleshooting
 
 **Rust build fails with missing system libraries**
+
 ```bash
 brew install protobuf pkgconf cmake leptonica tesseract
 xcode-select --install
 ```
 
 **`pnpm tauri dev` fails to start**
+
 ```bash
 rm -rf src-tauri/target node_modules
 pnpm install
@@ -625,16 +652,19 @@ pnpm tauri dev
 ```
 
 **LLM model fails to load**
+
 - Ensure model is a valid `.gguf` file
 - Check available RAM (models need 2-8GB depending on size)
 - Try a smaller model first (Llama 3.2 1B)
 
 **Search tab shows "API Offline"**
+
 - Ensure PostgreSQL is running: `brew services start postgresql@16`
 - Ensure Flask API is running: `cd search-api && python3 search_api.py`
 - Check API health: `curl http://localhost:3000/health`
 
 **Database encryption error on first launch**
+
 - The app creates its database at `~/Library/Application Support/AssistSupport/`
 - If migrating from a previous version, check the migration log in the app
 

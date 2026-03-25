@@ -12,9 +12,11 @@ request contract is now reduced to the adaptive search path only.
 
 ## Runtime Setup
 
+Use Python 3.11 for the local search-api virtual environment so the pinned scientific stack resolves cleanly.
+
 ```bash
 cd search-api
-python3 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -85,7 +87,7 @@ gunicorn --bind 127.0.0.1:${ASSISTSUPPORT_API_PORT:-3000} wsgi:app
 
 ```bash
 cd search-api
-python3 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt -r requirements-test.txt
 pytest -q
