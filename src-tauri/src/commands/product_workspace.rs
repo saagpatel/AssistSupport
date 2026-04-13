@@ -4,14 +4,20 @@ fn with_db<T>(
     state: State<'_, AppState>,
     f: impl FnOnce(&crate::db::Database) -> Result<T, crate::db::DbError>,
 ) -> Result<T, String> {
-    let db_guard = state.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
+    let db_guard = state
+        .db
+        .lock()
+        .map_err(|e| format!("DB lock error: {}", e))?;
     let db = db_guard.as_ref().ok_or("Database not initialized")?;
     f(db).map_err(|e| e.to_string())
 }
 
 fn validate_integration_type(integration_type: &str) -> Result<String, String> {
     let normalized = integration_type.trim().to_ascii_lowercase();
-    if matches!(normalized.as_str(), "jira" | "servicenow" | "slack" | "teams") {
+    if matches!(
+        normalized.as_str(),
+        "jira" | "servicenow" | "slack" | "teams"
+    ) {
         Ok(normalized)
     } else {
         Err(format!(
@@ -59,7 +65,9 @@ pub async fn list_resolution_kits(
     state: State<'_, AppState>,
     limit: Option<usize>,
 ) -> Result<Vec<crate::db::ResolutionKitRecord>, String> {
-    with_db(state, |db| db.list_resolution_kits(limit.unwrap_or(50).min(200)))
+    with_db(state, |db| {
+        db.list_resolution_kits(limit.unwrap_or(50).min(200))
+    })
 }
 
 #[tauri::command]
@@ -98,7 +106,9 @@ pub async fn list_runbook_templates(
     state: State<'_, AppState>,
     limit: Option<usize>,
 ) -> Result<Vec<crate::db::RunbookTemplateRecord>, String> {
-    with_db(state, |db| db.list_runbook_templates(limit.unwrap_or(50).min(200)))
+    with_db(state, |db| {
+        db.list_runbook_templates(limit.unwrap_or(50).min(200))
+    })
 }
 
 #[tauri::command]
@@ -191,7 +201,9 @@ pub async fn cancel_collaboration_dispatch(
     state: State<'_, AppState>,
     dispatch_id: String,
 ) -> Result<crate::db::DispatchHistoryRecord, String> {
-    with_db(state, |db| db.update_dispatch_history_status(&dispatch_id, "cancelled"))
+    with_db(state, |db| {
+        db.update_dispatch_history_status(&dispatch_id, "cancelled")
+    })
 }
 
 #[tauri::command]
@@ -200,7 +212,9 @@ pub async fn list_dispatch_history(
     limit: Option<usize>,
     status: Option<String>,
 ) -> Result<Vec<crate::db::DispatchHistoryRecord>, String> {
-    with_db(state, |db| db.list_dispatch_history(limit.unwrap_or(50).min(200), status.as_deref()))
+    with_db(state, |db| {
+        db.list_dispatch_history(limit.unwrap_or(50).min(200), status.as_deref())
+    })
 }
 
 #[tauri::command]
@@ -216,5 +230,7 @@ pub async fn list_case_outcomes(
     state: State<'_, AppState>,
     limit: Option<usize>,
 ) -> Result<Vec<crate::db::CaseOutcomeRecord>, String> {
-    with_db(state, |db| db.list_case_outcomes(limit.unwrap_or(50).min(200)))
+    with_db(state, |db| {
+        db.list_case_outcomes(limit.unwrap_or(50).min(200))
+    })
 }

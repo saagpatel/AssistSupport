@@ -518,7 +518,9 @@ fn archived_database_paths(db_path: &Path) -> Vec<PathBuf> {
     paths
 }
 
-fn archive_existing_database_files(db_path: &Path) -> Result<Vec<ArchivedDatabaseFile>, BackupError> {
+fn archive_existing_database_files(
+    db_path: &Path,
+) -> Result<Vec<ArchivedDatabaseFile>, BackupError> {
     let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S").to_string();
     let mut archived = Vec::new();
 
@@ -574,7 +576,8 @@ pub fn restore_backup_into_fresh_database(
     let archived = archive_existing_database_files(db_path)?;
 
     let restore_result = (|| {
-        let db = Database::open(db_path, master_key).map_err(|e| BackupError::Database(e.to_string()))?;
+        let db = Database::open(db_path, master_key)
+            .map_err(|e| BackupError::Database(e.to_string()))?;
         db.initialize()
             .map_err(|e| BackupError::Database(e.to_string()))?;
         import_backup(&db, backup_path, password)

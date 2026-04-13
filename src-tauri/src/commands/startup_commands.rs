@@ -3,9 +3,7 @@ use crate::audit::{self, AuditLogger};
 use crate::db::{get_app_data_dir, get_db_path, get_vectors_dir, Database};
 use crate::kb::vectors::{VectorStore, VectorStoreConfig};
 use crate::security::{FileKeyStore, KeyStorageMode};
-use crate::{
-    AppState, PendingRecoveryContext, StartupRecoveryConflict, StartupRecoveryIssue,
-};
+use crate::{AppState, PendingRecoveryContext, StartupRecoveryConflict, StartupRecoveryIssue};
 use std::path::PathBuf;
 use tauri::State;
 
@@ -37,10 +35,7 @@ fn init_result(
     }
 }
 
-fn set_pending_recovery(
-    state: &AppState,
-    context: PendingRecoveryContext,
-) -> Result<(), String> {
+fn set_pending_recovery(state: &AppState, context: PendingRecoveryContext) -> Result<(), String> {
     let mut recovery_lock = state.recovery.lock().map_err(|e| e.to_string())?;
     *recovery_lock = Some(context);
     Ok(())
@@ -361,8 +356,8 @@ pub async fn unlock_with_passphrase(
 ) -> Result<InitResult, String> {
     let init_start = std::time::Instant::now();
     clear_pending_recovery(state.inner())?;
-    let master_key = FileKeyStore::get_master_key_with_passphrase(&passphrase)
-        .map_err(|e| e.to_string())?;
+    let master_key =
+        FileKeyStore::get_master_key_with_passphrase(&passphrase).map_err(|e| e.to_string())?;
 
     let db_path = get_db_path();
     let db = match Database::open(&db_path, &master_key) {

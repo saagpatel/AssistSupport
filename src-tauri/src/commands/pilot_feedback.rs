@@ -1,6 +1,4 @@
-use crate::validation::{
-    validate_output_file_within_home, ValidationError,
-};
+use crate::validation::{validate_output_file_within_home, ValidationError};
 use crate::AppState;
 use std::path::Path;
 use tauri::State;

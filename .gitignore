@@ -14,9 +14,13 @@ src-tauri/target/
 
 # Test & coverage
 coverage/
+.coverage
+.coverage.*
+htmlcov/
 .pytest_cache/
 test-results/
 playwright-report/
+blob-report/
 .lighthouseci/
 .perf-results/
 .husky/_/
@@ -66,6 +70,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .hypothesis/
+.tox/
+.nox/
 .venv/
 venv/
 
@@ -73,5 +79,6 @@ venv/
 .cache/
 tmp/
 .next/
+*.tsbuildinfo
 dump.rdb
 artifacts/

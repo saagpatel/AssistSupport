@@ -46,7 +46,9 @@ pub(crate) async fn quarantine_vector_store(state: &AppState) -> Result<(), Stri
 
     {
         let mut vectors_lock = state.vectors.write().await;
-        let store = vectors_lock.as_mut().ok_or("Vector store not initialized")?;
+        let store = vectors_lock
+            .as_mut()
+            .ok_or("Vector store not initialized")?;
         store.reset_table().await.map_err(|e| e.to_string())?;
         store.disable();
     }
@@ -70,7 +72,9 @@ pub(crate) async fn purge_vectors_for_document(
 
     let requires_rebuild = {
         let vectors_lock = state.vectors.read().await;
-        let vectors = vectors_lock.as_ref().ok_or("Vector store not initialized")?;
+        let vectors = vectors_lock
+            .as_ref()
+            .ok_or("Vector store not initialized")?;
         vector_store_requires_rebuild(tracked_version, vectors).await?
     };
 
@@ -80,7 +84,9 @@ pub(crate) async fn purge_vectors_for_document(
     }
 
     let vectors_lock = state.vectors.read().await;
-    let vectors = vectors_lock.as_ref().ok_or("Vector store not initialized")?;
+    let vectors = vectors_lock
+        .as_ref()
+        .ok_or("Vector store not initialized")?;
     vectors
         .delete_by_document(document_id)
         .await
@@ -101,7 +107,9 @@ pub(crate) async fn purge_vectors_for_namespace(
 
     let requires_rebuild = {
         let vectors_lock = state.vectors.read().await;
-        let vectors = vectors_lock.as_ref().ok_or("Vector store not initialized")?;
+        let vectors = vectors_lock
+            .as_ref()
+            .ok_or("Vector store not initialized")?;
         vector_store_requires_rebuild(tracked_version, vectors).await?
     };
 
@@ -111,7 +119,9 @@ pub(crate) async fn purge_vectors_for_namespace(
     }
 
     let vectors_lock = state.vectors.read().await;
-    let vectors = vectors_lock.as_ref().ok_or("Vector store not initialized")?;
+    let vectors = vectors_lock
+        .as_ref()
+        .ok_or("Vector store not initialized")?;
     vectors
         .delete_by_namespace(namespace_id)
         .await
