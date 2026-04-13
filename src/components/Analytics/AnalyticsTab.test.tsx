@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
-import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AnalyticsTab } from './AnalyticsTab';
+import React from "react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AnalyticsTab } from "./AnalyticsTab";
 
 const getSummary = vi.fn();
 const getKbUsage = vi.fn();
@@ -13,7 +19,7 @@ const getKbGapCandidates = vi.fn();
 const updateKbGapStatus = vi.fn();
 const invokeMock = vi.fn();
 
-vi.mock('../../hooks/useAnalytics', () => ({
+vi.mock("../../hooks/useAnalytics", () => ({
   useAnalytics: () => ({
     getSummary,
     getKbUsage,
@@ -23,14 +29,14 @@ vi.mock('../../hooks/useAnalytics', () => ({
   }),
 }));
 
-vi.mock('../../hooks/useInsightsOps', () => ({
+vi.mock("../../hooks/useInsightsOps", () => ({
   useInsightsOps: () => ({
     getKbGapCandidates,
     updateKbGapStatus,
   }),
 }));
 
-vi.mock('../shared/Button', () => ({
+vi.mock("../shared/Button", () => ({
   Button: ({
     children,
     onClick,
@@ -44,23 +50,23 @@ vi.mock('../shared/Button', () => ({
   ),
 }));
 
-vi.mock('@tauri-apps/api/core', () => ({
+vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }));
 
-vi.mock('../../features/inbox/queueModel', () => ({
+vi.mock("../../features/inbox/queueModel", () => ({
   loadQueueHandoffSnapshot: () => null,
 }));
 
-vi.mock('../../features/analytics/qualityCoaching', () => ({
+vi.mock("../../features/analytics/qualityCoaching", () => ({
   buildResponseQualityCoaching: () => null,
 }));
 
-vi.mock('../../features/analytics/operatorScorecard', () => ({
+vi.mock("../../features/analytics/operatorScorecard", () => ({
   buildOperatorScorecard: () => null,
 }));
 
-vi.mock('./ArticleDetailPanel', () => ({
+vi.mock("./ArticleDetailPanel", () => ({
   ArticleDetailPanel: () => <div>Article detail panel</div>,
 }));
 
@@ -70,7 +76,7 @@ function mockOverviewData() {
     responses_generated: 4,
     searches_performed: 3,
     drafts_saved: 2,
-    daily_counts: [{ date: '2026-03-20', count: 4 }],
+    daily_counts: [{ date: "2026-03-20", count: 4 }],
     average_rating: 4.2,
     total_ratings: 2,
     rating_distribution: [0, 0, 0, 1, 1],
@@ -109,13 +115,13 @@ function mockPilotInvoke({
 }) {
   invokeMock.mockImplementation((command: string) => {
     switch (command) {
-      case 'get_pilot_logging_policy':
+      case "get_pilot_logging_policy":
         return Promise.resolve({
           enabled: policyEnabled,
           retention_days: 14,
           max_rows: 500,
         });
-      case 'get_pilot_stats':
+      case "get_pilot_stats":
         return Promise.resolve({
           total_queries: totalQueries,
           total_feedback: totalQueries,
@@ -124,7 +130,7 @@ function mockPilotInvoke({
           helpfulness_avg: totalQueries > 0 ? 4.7 : 0,
           by_category: [],
         });
-      case 'get_pilot_query_logs':
+      case "get_pilot_query_logs":
         return Promise.resolve(logs);
       default:
         return Promise.reject(new Error(`Unexpected invoke: ${command}`));
@@ -150,80 +156,94 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe('AnalyticsTab', () => {
-  it('defaults to the Overview section and keeps pilot-only actions hidden there', async () => {
+describe("AnalyticsTab", () => {
+  it("defaults to the Overview section and keeps pilot-only actions hidden there", async () => {
     render(<AnalyticsTab />);
 
-    expect(await screen.findByText('Total Responses')).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.queryByText('Export CSV')).toBeNull();
-    expect(screen.queryByText('Test a Query')).toBeNull();
+    expect(await screen.findByText("Total Responses")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("tab", { name: "Overview" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(screen.queryByText("Export CSV")).toBeNull();
+    expect(screen.queryByText("Test a Query")).toBeNull();
   });
 
-  it('renders pilot diagnostics when requested and shows the query tester', async () => {
+  it("renders pilot diagnostics when requested and shows the query tester", async () => {
     render(<AnalyticsTab initialSection="pilot" />);
 
-    expect(await screen.findByText('Test a Query')).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Pilot Diagnostics' }).getAttribute('aria-selected')).toBe('true');
-    expect(await screen.findByRole('heading', { name: 'Pilot Progress' })).toBeTruthy();
+    expect(await screen.findByText("Test a Query")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("tab", { name: "Pilot Diagnostics" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(
+      await screen.findByRole("heading", { name: "Pilot Progress" }),
+    ).toBeTruthy();
   });
 
-  it('shows the disabled pilot logging state in diagnostics when policy is off', async () => {
+  it("shows the disabled pilot logging state in diagnostics when policy is off", async () => {
     mockOverviewData();
     mockPilotInvoke({ policyEnabled: false });
 
     render(<AnalyticsTab initialSection="pilot" />);
 
-    expect(await screen.findAllByText(/Pilot logging is disabled by policy/i)).toHaveLength(2);
+    expect(
+      await screen.findAllByText(/Pilot logging is disabled by policy/i),
+    ).toHaveLength(2);
   });
 
-  it('shows the pilot empty state when logging is enabled but no stats exist yet', async () => {
+  it("shows the pilot empty state when logging is enabled but no stats exist yet", async () => {
     render(<AnalyticsTab initialSection="pilot" />);
 
     expect(await screen.findByText(/No pilot data yet/i)).toBeTruthy();
-    expect(screen.queryByText('Export CSV')).toBeNull();
+    expect(screen.queryByText("Export CSV")).toBeNull();
   });
 
-  it('keeps raw logs hidden by default and reveals them only after an explicit action', async () => {
+  it("keeps raw logs hidden by default and reveals them only after an explicit action", async () => {
     mockOverviewData();
     mockPilotInvoke({
       totalQueries: 1,
-      logs: [{
-        id: 'log-1',
-        query: 'Can I use a flash drive?',
-        response: 'Follow policy guidance.',
-        category: 'policy',
-        user_id: 'op-123',
-        created_at: '2026-03-20T10:00:00.000Z',
-      }],
+      logs: [
+        {
+          id: "log-1",
+          query: "Can I use a flash drive?",
+          response: "Follow policy guidance.",
+          category: "policy",
+          user_id: "op-123",
+          created_at: "2026-03-20T10:00:00.000Z",
+        },
+      ],
     });
 
     render(<AnalyticsTab initialSection="pilot" />);
 
-    expect(await screen.findByText('Show Query Log (1)')).toBeTruthy();
-    expect(screen.queryByText('Can I use a flash drive?')).toBeNull();
+    expect(await screen.findByText("Show Query Log (1)")).toBeTruthy();
+    expect(screen.queryByText("Can I use a flash drive?")).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show Query Log (1)' }));
+    fireEvent.click(screen.getByRole("button", { name: "Show Query Log (1)" }));
 
-    expect(await screen.findByText('Can I use a flash drive?')).toBeTruthy();
+    expect(await screen.findByText("Can I use a flash drive?")).toBeTruthy();
   });
 
-  it('shows export controls only inside pilot diagnostics when pilot data exists', async () => {
+  it("shows export controls only inside pilot diagnostics when pilot data exists", async () => {
     mockOverviewData();
     mockPilotInvoke({ totalQueries: 1 });
 
     render(<AnalyticsTab />);
-    expect(await screen.findByText('Total Responses')).toBeTruthy();
-    expect(screen.queryByText('Export CSV')).toBeNull();
+    expect(await screen.findByText("Total Responses")).toBeTruthy();
+    expect(screen.queryByText("Export CSV")).toBeNull();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Pilot Diagnostics' }));
+    fireEvent.click(screen.getByRole("tab", { name: "Pilot Diagnostics" }));
 
     await waitFor(() => {
-      expect(screen.getByText('Export CSV')).toBeTruthy();
+      expect(screen.getByText("Export CSV")).toBeTruthy();
     });
   });
 
-  it('stays on the overview surface when live analytics payloads omit optional arrays', async () => {
+  it("stays on the overview surface when live analytics payloads omit optional arrays", async () => {
     getSummary.mockResolvedValue({
       total_events: 12,
       responses_generated: 4,
@@ -261,7 +281,7 @@ describe('AnalyticsTab', () => {
 
     render(<AnalyticsTab />);
 
-    expect(await screen.findByText('Total Responses')).toBeTruthy();
-    expect(screen.getByText('Quality Alert')).toBeTruthy();
+    expect(await screen.findByText("Total Responses")).toBeTruthy();
+    expect(screen.getByText("Quality Alert")).toBeTruthy();
   });
 });

@@ -1,5 +1,5 @@
-import type { ContextSource, SearchResult } from './knowledge';
-import type { ResponseLength } from './workspace';
+import type { ContextSource, SearchResult } from "./knowledge";
+import type { ResponseLength } from "./workspace";
 
 export interface ModelInfo {
   id: string;
@@ -81,7 +81,7 @@ export interface GenerationMetrics {
   context_utilization: number;
 }
 
-export type ConfidenceMode = 'answer' | 'clarify' | 'abstain';
+export type ConfidenceMode = "answer" | "clarify" | "abstain";
 
 export interface ConfidenceAssessment {
   mode: ConfidenceMode;
@@ -107,7 +107,7 @@ export interface GenerateWithContextResult {
   grounding: GroundedClaim[];
 }
 
-export type FirstResponseTone = 'slack' | 'jira';
+export type FirstResponseTone = "slack" | "jira";
 
 export interface FirstResponseParams {
   user_input: string;
@@ -184,7 +184,7 @@ export interface DecisionTree {
   name: string;
   category: string | null;
   tree_json: string;
-  source: 'builtin' | 'custom';
+  source: "builtin" | "custom";
   created_at: string;
   updated_at: string;
 }
@@ -196,7 +196,7 @@ export interface TreeStructure {
 
 export interface TreeNode {
   id: string;
-  type: 'question' | 'action' | 'terminal';
+  type: "question" | "action" | "terminal";
   title: string;
   content: string | null;
   options?: TreeOption[];

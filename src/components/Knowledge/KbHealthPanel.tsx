@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import type { DocumentReviewInfo } from '../../types/knowledge';
-import './KbHealthPanel.css';
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { DocumentReviewInfo } from "../../types/knowledge";
+import "./KbHealthPanel.css";
 
 interface KbHealthStats {
   total_documents: number;
@@ -30,8 +30,8 @@ export function KbHealthPanel({ onRefresh }: KbHealthPanelProps) {
     setError(null);
     try {
       const [data, reviewDocs] = await Promise.all([
-        invoke<KbHealthStats>('get_kb_health_stats'),
-        invoke<DocumentReviewInfo[]>('get_documents_needing_review', {
+        invoke<KbHealthStats>("get_kb_health_stats"),
+        invoke<DocumentReviewInfo[]>("get_documents_needing_review", {
           staleDays: 30,
           limit: 3,
         }).catch(() => [] as DocumentReviewInfo[]),
@@ -51,10 +51,10 @@ export function KbHealthPanel({ onRefresh }: KbHealthPanelProps) {
 
   const handleMarkReviewed = useCallback(async (documentId: string) => {
     try {
-      await invoke('mark_document_reviewed', { documentId, reviewedBy: null });
-      setNeedsReview(prev => prev.filter(d => d.id !== documentId));
+      await invoke("mark_document_reviewed", { documentId, reviewedBy: null });
+      setNeedsReview((prev) => prev.filter((d) => d.id !== documentId));
     } catch (err) {
-      console.error('Failed to mark as reviewed:', err);
+      console.error("Failed to mark as reviewed:", err);
     }
   }, []);
 
@@ -63,7 +63,11 @@ export function KbHealthPanel({ onRefresh }: KbHealthPanelProps) {
   }
 
   if (error) {
-    return <div className="kb-health-panel error">Failed to load KB health: {error}</div>;
+    return (
+      <div className="kb-health-panel error">
+        Failed to load KB health: {error}
+      </div>
+    );
   }
 
   if (!stats) return null;
@@ -79,7 +83,9 @@ export function KbHealthPanel({ onRefresh }: KbHealthPanelProps) {
           <span className="kb-health-value">{stats.total_chunks}</span>
           <span className="kb-health-label">Chunks</span>
         </div>
-        <div className={`kb-health-card ${stats.stale_documents > 0 ? 'warning' : ''}`}>
+        <div
+          className={`kb-health-card ${stats.stale_documents > 0 ? "warning" : ""}`}
+        >
           <span className="kb-health-value">{stats.stale_documents}</span>
           <span className="kb-health-label">Stale</span>
         </div>
@@ -90,13 +96,16 @@ export function KbHealthPanel({ onRefresh }: KbHealthPanelProps) {
           </div>
         )}
         <div className="kb-health-card">
-          <span className="kb-health-value">{stats.namespace_distribution.length}</span>
+          <span className="kb-health-value">
+            {stats.namespace_distribution.length}
+          </span>
           <span className="kb-health-label">Namespaces</span>
         </div>
       </div>
       {stats.stale_documents > 0 && (
         <div className="kb-health-warning">
-          {stats.stale_documents} document{stats.stale_documents !== 1 ? 's' : ''} may need re-indexing.
+          {stats.stale_documents} document
+          {stats.stale_documents !== 1 ? "s" : ""} may need re-indexing.
           {onRefresh && (
             <button className="kb-health-refresh" onClick={onRefresh}>
               Re-index
@@ -109,7 +118,9 @@ export function KbHealthPanel({ onRefresh }: KbHealthPanelProps) {
           <div className="kb-health-review-title">Top stale articles:</div>
           {needsReview.map((doc) => (
             <div key={doc.id} className="kb-health-review-item">
-              <span className="kb-health-review-name">{doc.title || doc.file_path}</span>
+              <span className="kb-health-review-name">
+                {doc.title || doc.file_path}
+              </span>
               <button
                 className="kb-health-review-btn"
                 onClick={() => handleMarkReviewed(doc.id)}

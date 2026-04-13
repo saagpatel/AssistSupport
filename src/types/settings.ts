@@ -68,12 +68,12 @@ export interface MemoryKernelEnrichmentResult {
   preflight: MemoryKernelPreflightStatus;
 }
 
-export type Theme = 'light' | 'dark' | 'system';
+export type Theme = "light" | "dark" | "system";
 
 export interface AuditEntry {
   timestamp: string;
   event: string | Record<string, string>;
-  severity: 'info' | 'warning' | 'error' | 'critical';
+  severity: "info" | "warning" | "error" | "critical";
   message: string;
   context?: Record<string, unknown> | null;
 }

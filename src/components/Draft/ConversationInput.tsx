@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback, KeyboardEvent } from 'react';
-import { Button } from '../shared/Button';
-import type { ResponseLength } from '../../types/workspace';
-import './ConversationInput.css';
+import { useState, useRef, useCallback, KeyboardEvent } from "react";
+import { Button } from "../shared/Button";
+import type { ResponseLength } from "../../types/workspace";
+import "./ConversationInput.css";
 
 interface ConversationInputProps {
   onSubmit: (text: string) => void;
@@ -20,32 +20,36 @@ export function ConversationInput({
   onResponseLengthChange,
   onCancel,
 }: ConversationInputProps) {
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = useCallback(() => {
     if (!text.trim() || generating || !modelLoaded) return;
     onSubmit(text.trim());
-    setText('');
+    setText("");
     // Reset textarea height
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
     }
   }, [text, generating, modelLoaded, onSubmit]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  }, [handleSubmit]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    },
+    [handleSubmit],
+  );
 
   // Auto-resize textarea
   const handleChange = useCallback((value: string) => {
     setText(value);
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height =
+        Math.min(textareaRef.current.scrollHeight, 120) + "px";
     }
   }, []);
 
@@ -55,7 +59,9 @@ export function ConversationInput({
         <select
           className="conversation-length-select"
           value={responseLength}
-          onChange={e => onResponseLengthChange(e.target.value as ResponseLength)}
+          onChange={(e) =>
+            onResponseLengthChange(e.target.value as ResponseLength)
+          }
         >
           <option value="Short">Short</option>
           <option value="Medium">Medium</option>
@@ -66,9 +72,11 @@ export function ConversationInput({
         <textarea
           ref={textareaRef}
           className="conversation-textarea"
-          placeholder={modelLoaded ? 'Type your support query...' : 'Load a model first...'}
+          placeholder={
+            modelLoaded ? "Type your support query..." : "Load a model first..."
+          }
           value={text}
-          onChange={e => handleChange(e.target.value)}
+          onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={!modelLoaded}
           rows={1}

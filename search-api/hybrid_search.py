@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AssistSupport Hybrid Search Engine
-Combines BM25 (keyword) + HNSW (vector) + intent detection + logging.
+Combines BM25 (keyword) + HNSW (vector) + intent detection + logging
 """
 
 import sys
@@ -18,6 +18,7 @@ from db_config import pooled_connection
 from embedding_service import EmbeddingService
 from score_fusion import ScoreFusion
 from intent_detection import IntentDetector
+from reranker import Reranker
 from feedback_loop import get_quality_scores
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,9 @@ class HybridSearchEngine:
         self.store_raw_query_text = store_raw_query_text
         self._connection_provider = connection_provider or pooled_connection
         self._embed_lock = threading.Lock()
+        self._rerank_lock = threading.Lock()
         self.embedder = EmbeddingService()
+        self.reranker = None
         logger.info("Hybrid search engine initialized")
 
     @contextmanager
@@ -66,6 +69,12 @@ class HybridSearchEngine:
                 "status": "ok",
                 "model_name": getattr(self.embedder, "model_name", self.embedder.__class__.__name__),
                 "dimension": getattr(self.embedder, "dimension", None),
+                "local_path": getattr(self.embedder, "model_path", None),
+            },
+            "reranker": {
+                "status": "optional",
+                "model_name": getattr(self.reranker, "model_name", "cross-encoder/ms-marco-MiniLM-L-6-v2"),
+                "message": "Loads on demand with local_files_only when rerank fusion is requested",
             },
         }
 
@@ -74,6 +83,7 @@ class HybridSearchEngine:
         status = self.get_component_status()
         return {
             "embedder_ready": status["embedder"]["status"] == "ok",
+            "reranker_ready": status["reranker"]["status"] == "ok",
         }
 
     def search(
@@ -81,6 +91,7 @@ class HybridSearchEngine:
         query: str,
         limit: int = 10,
         use_deduplication: bool = True,
+        fusion_strategy: str = "adaptive",
     ) -> Dict:
         """
         Execute hybrid search
@@ -112,9 +123,14 @@ class HybridSearchEngine:
             )
             search_time = (time.time() - start_search) * 1000
 
-            # Step 4: Fuse scores using the single supported runtime path.
+            # Step 4: Fuse scores
             start_fusion = time.time()
-            fused = ScoreFusion.adaptive_fusion(bm25_results, vector_results, intent)
+            if fusion_strategy == "rrf":
+                fused = ScoreFusion.reciprocal_rank_fusion(bm25_results, vector_results)
+            elif fusion_strategy == "weighted":
+                fused = ScoreFusion.weighted_combination(bm25_results, vector_results)
+            else:  # adaptive
+                fused = ScoreFusion.adaptive_fusion(bm25_results, vector_results, intent)
             fusion_time = (time.time() - start_fusion) * 1000
 
             # Step 5: Category boost for intent-matching results
@@ -133,6 +149,22 @@ class HybridSearchEngine:
                 cur, fused, bm25_results, vector_results, limit
             )
 
+            # Step 8: Cross-encoder re-ranking (optional, disabled by default)
+            rerank_time = 0
+            if fusion_strategy == "rerank":
+                rerank_pool_results = self._fetch_and_format_results(
+                    cur, fused, bm25_results, vector_results, min(limit * 2, 20)
+                )
+                start_rerank = time.time()
+                try:
+                    with self._rerank_lock:
+                        if self.reranker is None:
+                            self.reranker = Reranker()
+                        results = self.reranker.rerank(query, rerank_pool_results, top_k=limit)
+                    rerank_time = (time.time() - start_rerank) * 1000
+                except Exception:
+                    logger.exception("Reranker unavailable, returning fused results without rerank")
+
             # Step 9: Log query
             total_time = (time.time() - start_total) * 1000
             query_id = self._log_query(
@@ -144,6 +176,7 @@ class HybridSearchEngine:
                 len(vector_results),
                 len(results),
                 total_time,
+                fusion_strategy,
             )
 
         return {
@@ -158,6 +191,7 @@ class HybridSearchEngine:
                 "embedding_time_ms": embed_time,
                 "search_time_ms": search_time,
                 "fusion_time_ms": fusion_time,
+                "rerank_time_ms": rerank_time,
             },
         }
 
@@ -351,6 +385,7 @@ class HybridSearchEngine:
         vector_count: int,
         results_count: int,
         time_ms: float,
+        fusion_strategy: str,
     ):
         """Log search query to query_performance table"""
         try:
@@ -364,8 +399,8 @@ class HybridSearchEngine:
                 INSERT INTO query_performance
                     (query_text, ef_search_used, bm25_results_count,
                      vector_results_count, results_returned, response_time_ms,
-                     recall_estimate, category_filter, intent_confidence)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     recall_estimate, category_filter, intent_confidence, fusion_strategy)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -378,6 +413,7 @@ class HybridSearchEngine:
                     confidence,
                     intent,
                     confidence,
+                    fusion_strategy,
                 ),
             )
             row = cur.fetchone()

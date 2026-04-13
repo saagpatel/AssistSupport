@@ -1,9 +1,9 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 interface WorkspaceModeShellProps {
   isConversation: boolean;
   revampModeEnabled: boolean;
-  panelDensityMode: 'balanced' | 'focus-intake' | 'focus-response';
+  panelDensityMode: "balanced" | "focus-intake" | "focus-response";
   diagnosisCollapsed: boolean;
   workspaceRailEnabled: boolean;
   viewToggle: ReactNode;
@@ -31,7 +31,15 @@ export function WorkspaceModeShell({
 }: WorkspaceModeShellProps) {
   if (isConversation) {
     return (
-      <div className={['draft-tab', 'conversation-mode', revampModeEnabled ? 'draft-tab--revamp' : ''].filter(Boolean).join(' ')}>
+      <div
+        className={[
+          "draft-tab",
+          "conversation-mode",
+          revampModeEnabled ? "draft-tab--revamp" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {viewToggle}
         {readinessBanner}
         {conversationThread}
@@ -43,14 +51,14 @@ export function WorkspaceModeShell({
   return (
     <div
       className={[
-        'draft-tab',
+        "draft-tab",
         `panel-density-${panelDensityMode}`,
-        diagnosisCollapsed ? 'diagnosis-collapsed' : '',
-        revampModeEnabled ? 'draft-tab--revamp' : '',
-        workspaceRailEnabled ? 'has-workspace-rail' : '',
+        diagnosisCollapsed ? "diagnosis-collapsed" : "",
+        revampModeEnabled ? "draft-tab--revamp" : "",
+        workspaceRailEnabled ? "has-workspace-rail" : "",
       ]
         .filter(Boolean)
-        .join(' ')}
+        .join(" ")}
     >
       {viewToggle}
       {readinessBanner}

@@ -1,4 +1,4 @@
-import { Button } from '../shared/Button';
+import { Button } from "../shared/Button";
 
 interface WorkspaceWorkflowStripProps {
   inputWordCount: number;
@@ -11,14 +11,16 @@ interface WorkspaceWorkflowStripProps {
   responseEditRatio: number;
   hasResponseReady: boolean;
   handoffTouched: boolean;
-  panelDensityMode: 'balanced' | 'focus-intake' | 'focus-response';
+  panelDensityMode: "balanced" | "focus-intake" | "focus-response";
   modelLoaded: boolean;
   firstResponseGenerating: boolean;
   checklistGenerating: boolean;
   generating: boolean;
   hasInput: boolean;
   hasChecklistInput: boolean;
-  onPanelDensityModeChange: (mode: 'balanced' | 'focus-intake' | 'focus-response') => void;
+  onPanelDensityModeChange: (
+    mode: "balanced" | "focus-intake" | "focus-response",
+  ) => void;
   onGenerateFirstResponse: () => void;
   onChecklistGenerate: () => void;
   onGenerate: () => void;
@@ -50,16 +52,22 @@ export function WorkspaceWorkflowStrip({
   onSaveDraft,
 }: WorkspaceWorkflowStripProps) {
   return (
-    <section className="draft-workflow-strip" aria-label="Draft workflow overview">
+    <section
+      className="draft-workflow-strip"
+      aria-label="Draft workflow overview"
+    >
       <div className="draft-workflow-step">
         <h4>1. Intake</h4>
-        <p>{inputWordCount} words captured {currentTicketId ? '· ticket linked' : '· no ticket linked'}</p>
+        <p>
+          {inputWordCount} words captured{" "}
+          {currentTicketId ? "· ticket linked" : "· no ticket linked"}
+        </p>
       </div>
       <div className="draft-workflow-step">
         <h4>2. Diagnose</h4>
         <p>
-          {treeCompleted ? 'Tree completed' : 'Tree not run'}
-          {' · '}
+          {treeCompleted ? "Tree completed" : "Tree not run"}
+          {" · "}
           checklist {checklistCompletedCount}/{checklistItemCount}
         </p>
       </div>
@@ -67,7 +75,9 @@ export function WorkspaceWorkflowStrip({
         <h4>3. Draft</h4>
         <p>
           {responseWordCount} words
-          {isResponseEdited ? ` · edited (${Math.round(responseEditRatio * 100)}%)` : ' · unedited'}
+          {isResponseEdited
+            ? ` · edited (${Math.round(responseEditRatio * 100)}%)`
+            : " · unedited"}
         </p>
       </div>
       <div className="draft-workflow-step">
@@ -75,31 +85,35 @@ export function WorkspaceWorkflowStrip({
         <p>
           {hasResponseReady
             ? handoffTouched
-              ? 'Copied/exported'
-              : 'Ready to copy/export'
-            : 'No response yet'}
+              ? "Copied/exported"
+              : "Ready to copy/export"
+            : "No response yet"}
         </p>
       </div>
       <div className="draft-workflow-actions">
-        <div className="draft-layout-mode-toggle" role="group" aria-label="Draft panel layout">
+        <div
+          className="draft-layout-mode-toggle"
+          role="group"
+          aria-label="Draft panel layout"
+        >
           <button
             type="button"
-            className={`draft-layout-mode-btn ${panelDensityMode === 'balanced' ? 'active' : ''}`}
-            onClick={() => onPanelDensityModeChange('balanced')}
+            className={`draft-layout-mode-btn ${panelDensityMode === "balanced" ? "active" : ""}`}
+            onClick={() => onPanelDensityModeChange("balanced")}
           >
             Balanced
           </button>
           <button
             type="button"
-            className={`draft-layout-mode-btn ${panelDensityMode === 'focus-intake' ? 'active' : ''}`}
-            onClick={() => onPanelDensityModeChange('focus-intake')}
+            className={`draft-layout-mode-btn ${panelDensityMode === "focus-intake" ? "active" : ""}`}
+            onClick={() => onPanelDensityModeChange("focus-intake")}
           >
             Intake Focus
           </button>
           <button
             type="button"
-            className={`draft-layout-mode-btn ${panelDensityMode === 'focus-response' ? 'active' : ''}`}
-            onClick={() => onPanelDensityModeChange('focus-response')}
+            className={`draft-layout-mode-btn ${panelDensityMode === "focus-response" ? "active" : ""}`}
+            onClick={() => onPanelDensityModeChange("focus-response")}
           >
             Response Focus
           </button>
@@ -138,10 +152,19 @@ export function WorkspaceWorkflowStrip({
         >
           Save
         </Button>
-        <div className="draft-workflow-shortcuts" aria-label="Keyboard shortcuts">
-          <span><kbd>Cmd</kbd>+<kbd>G</kbd> Generate</span>
-          <span><kbd>Cmd</kbd>+<kbd>N</kbd> Clear</span>
-          <span><kbd>Cmd</kbd>+<kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> Layout</span>
+        <div
+          className="draft-workflow-shortcuts"
+          aria-label="Keyboard shortcuts"
+        >
+          <span>
+            <kbd>Cmd</kbd>+<kbd>G</kbd> Generate
+          </span>
+          <span>
+            <kbd>Cmd</kbd>+<kbd>N</kbd> Clear
+          </span>
+          <span>
+            <kbd>Cmd</kbd>+<kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> Layout
+          </span>
         </div>
       </div>
     </section>

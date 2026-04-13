@@ -1,7 +1,7 @@
-import { forwardRef } from 'react';
-import { type DraftTabHandle } from '../../components/Draft/DraftTab';
-import { WorkspaceRevampPage } from './WorkspaceRevampPage';
-import type { QueueView } from '../inbox/queueModel';
+import { forwardRef } from "react";
+import { type DraftTabHandle } from "../../components/Draft/DraftTab";
+import { WorkspaceRevampPage } from "./WorkspaceRevampPage";
+import type { QueueView } from "../inbox/queueModel";
 
 interface WorkspacePageProps {
   onNavigateToSource: (searchQuery: string) => void;
@@ -12,7 +12,7 @@ interface WorkspacePageProps {
 export const WorkspacePage = forwardRef<DraftTabHandle, WorkspacePageProps>(
   function WorkspacePage(
     { onNavigateToSource, onNavigateToQueue, appShellRevampEnabled = false },
-    ref
+    ref,
   ) {
     return (
       <WorkspaceRevampPage
@@ -22,5 +22,5 @@ export const WorkspacePage = forwardRef<DraftTabHandle, WorkspacePageProps>(
         appShellRevampEnabled={appShellRevampEnabled}
       />
     );
-  }
+  },
 );

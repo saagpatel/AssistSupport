@@ -86,7 +86,7 @@ describe("Draft panel accessibility labels", () => {
         onCopyFirstResponse={vi.fn()}
         onClearFirstResponse={vi.fn()}
         firstResponseGenerating={false}
-      />
+      />,
     );
 
     expect(screen.getByLabelText("Ticket task preset")).toBeTruthy();
@@ -129,7 +129,7 @@ describe("Draft panel accessibility labels", () => {
         hasTicket={false}
         collapsed={false}
         onToggleCollapse={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByLabelText("Troubleshooting tree")).toBeTruthy();

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 import {
   WORKSPACE_ANALYZE_INTAKE_EVENT,
   WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT,
@@ -6,7 +6,7 @@ import {
   WORKSPACE_COPY_HANDOFF_EVENT,
   WORKSPACE_COPY_KB_DRAFT_EVENT,
   WORKSPACE_REFRESH_SIMILAR_CASES_EVENT,
-} from './workspaceEvents';
+} from "./workspaceEvents";
 
 interface UseWorkspaceCommandBridgeParams {
   enabled: boolean;
@@ -42,17 +42,41 @@ export function useWorkspaceCommandBridge({
     window.addEventListener(WORKSPACE_ANALYZE_INTAKE_EVENT, handleAnalyze);
     window.addEventListener(WORKSPACE_COPY_HANDOFF_EVENT, handleCopyHandoff);
     window.addEventListener(WORKSPACE_COPY_EVIDENCE_EVENT, handleCopyEvidence);
-    window.addEventListener(WORKSPACE_COPY_KB_DRAFT_EVENT, handleCopyKbDraftFromEvent);
-    window.addEventListener(WORKSPACE_REFRESH_SIMILAR_CASES_EVENT, handleRefreshCases);
-    window.addEventListener(WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT, handleCompareLast);
+    window.addEventListener(
+      WORKSPACE_COPY_KB_DRAFT_EVENT,
+      handleCopyKbDraftFromEvent,
+    );
+    window.addEventListener(
+      WORKSPACE_REFRESH_SIMILAR_CASES_EVENT,
+      handleRefreshCases,
+    );
+    window.addEventListener(
+      WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT,
+      handleCompareLast,
+    );
 
     return () => {
       window.removeEventListener(WORKSPACE_ANALYZE_INTAKE_EVENT, handleAnalyze);
-      window.removeEventListener(WORKSPACE_COPY_HANDOFF_EVENT, handleCopyHandoff);
-      window.removeEventListener(WORKSPACE_COPY_EVIDENCE_EVENT, handleCopyEvidence);
-      window.removeEventListener(WORKSPACE_COPY_KB_DRAFT_EVENT, handleCopyKbDraftFromEvent);
-      window.removeEventListener(WORKSPACE_REFRESH_SIMILAR_CASES_EVENT, handleRefreshCases);
-      window.removeEventListener(WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT, handleCompareLast);
+      window.removeEventListener(
+        WORKSPACE_COPY_HANDOFF_EVENT,
+        handleCopyHandoff,
+      );
+      window.removeEventListener(
+        WORKSPACE_COPY_EVIDENCE_EVENT,
+        handleCopyEvidence,
+      );
+      window.removeEventListener(
+        WORKSPACE_COPY_KB_DRAFT_EVENT,
+        handleCopyKbDraftFromEvent,
+      );
+      window.removeEventListener(
+        WORKSPACE_REFRESH_SIMILAR_CASES_EVENT,
+        handleRefreshCases,
+      );
+      window.removeEventListener(
+        WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT,
+        handleCompareLast,
+      );
     };
   }, [
     enabled,

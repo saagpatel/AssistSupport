@@ -1,6 +1,6 @@
-import type { SavedDraft } from '../../types/workspace';
-import type { QueueView } from './queueModel';
-import { QueueCommandCenterPage } from '../revamp';
+import type { SavedDraft } from "../../types/workspace";
+import type { QueueView } from "./queueModel";
+import { QueueCommandCenterPage } from "../revamp";
 
 interface InboxPageProps {
   onLoadDraft: (draft: SavedDraft) => void;

@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { FeedbackForm } from './FeedbackForm';
-import { Button } from '../shared/Button';
-import type { SearchResult } from '../../types/knowledge';
-import './Pilot.css';
+import { useState, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { FeedbackForm } from "./FeedbackForm";
+import { Button } from "../shared/Button";
+import type { SearchResult } from "../../types/knowledge";
+import "./Pilot.css";
 
 interface PilotQueryTesterProps {
   pilotLoggingEnabled: boolean;
@@ -11,8 +11,8 @@ interface PilotQueryTesterProps {
   onQueryLogged?: () => void;
 }
 
-const OPERATOR_ID_STORAGE_KEY = 'pilot-operator-id';
-const LEGACY_USER_ID_STORAGE_KEY = 'pilot-user-id';
+const OPERATOR_ID_STORAGE_KEY = "pilot-operator-id";
+const LEGACY_USER_ID_STORAGE_KEY = "pilot-user-id";
 
 function generateOperatorId(): string {
   const uuid = globalThis.crypto?.randomUUID?.();
@@ -25,8 +25,8 @@ function isValidOperatorId(value: string): boolean {
   // no '.' or '@' to avoid emails.
   if (!value) return false;
   if (value.length > 64) return false;
-  if (value.includes('@') || value.includes('.')) return false;
-  if (value.startsWith('-') || value.endsWith('-')) return false;
+  if (value.includes("@") || value.includes(".")) return false;
+  if (value.startsWith("-") || value.endsWith("-")) return false;
   return /^[a-z0-9-]+$/.test(value);
 }
 
@@ -36,7 +36,9 @@ function getOrInitOperatorId(): string {
     localStorage.removeItem(LEGACY_USER_ID_STORAGE_KEY);
   }
 
-  const existing = (localStorage.getItem(OPERATOR_ID_STORAGE_KEY) || '').trim().toLowerCase();
+  const existing = (localStorage.getItem(OPERATOR_ID_STORAGE_KEY) || "")
+    .trim()
+    .toLowerCase();
   if (isValidOperatorId(existing)) return existing;
 
   const fresh = generateOperatorId();
@@ -44,8 +46,12 @@ function getOrInitOperatorId(): string {
   return fresh;
 }
 
-export function PilotQueryTester({ pilotLoggingEnabled, policy, onQueryLogged }: PilotQueryTesterProps) {
-  const [query, setQuery] = useState('');
+export function PilotQueryTester({
+  pilotLoggingEnabled,
+  policy,
+  onQueryLogged,
+}: PilotQueryTesterProps) {
+  const [query, setQuery] = useState("");
   const [operatorId, setOperatorId] = useState(() => getOrInitOperatorId());
   const [searching, setSearching] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
@@ -61,24 +67,28 @@ export function PilotQueryTester({ pilotLoggingEnabled, policy, onQueryLogged }:
 
     try {
       // Run KB search
-      const results = await invoke<SearchResult[]>('search_kb', {
+      const results = await invoke<SearchResult[]>("search_kb", {
         query: query.trim(),
         limit: 5,
         namespaceId: null,
       });
 
       // Format response from search results
-      const responseText = results.length > 0
-        ? results.map((r, i) =>
-            `[${i + 1}] ${r.title || 'Untitled'} (${r.source || 'unknown'}, score: ${r.score.toFixed(2)})\n${r.snippet || r.content.substring(0, 200)}`
-          ).join('\n\n')
-        : 'No results found for this query.';
+      const responseText =
+        results.length > 0
+          ? results
+              .map(
+                (r, i) =>
+                  `[${i + 1}] ${r.title || "Untitled"} (${r.source || "unknown"}, score: ${r.score.toFixed(2)})\n${r.snippet || r.content.substring(0, 200)}`,
+              )
+              .join("\n\n")
+          : "No results found for this query.";
 
       setResponse(responseText);
 
       if (pilotLoggingEnabled) {
         // Log the query for pilot tracking (default-off by policy).
-        const id = await invoke<string>('log_pilot_query', {
+        const id = await invoke<string>("log_pilot_query", {
           query: query.trim(),
           response: responseText,
           operatorId,
@@ -86,8 +96,8 @@ export function PilotQueryTester({ pilotLoggingEnabled, policy, onQueryLogged }:
         setLogId(id);
       }
     } catch (err) {
-      console.error('Pilot query failed:', err);
-      setError(typeof err === 'string' ? err : 'Search failed');
+      console.error("Pilot query failed:", err);
+      setError(typeof err === "string" ? err : "Search failed");
     } finally {
       setSearching(false);
     }
@@ -97,7 +107,7 @@ export function PilotQueryTester({ pilotLoggingEnabled, policy, onQueryLogged }:
     onQueryLogged?.();
     // Reset for next query
     setTimeout(() => {
-      setQuery('');
+      setQuery("");
       setResponse(null);
       setLogId(null);
     }, 1500);
@@ -109,9 +119,15 @@ export function PilotQueryTester({ pilotLoggingEnabled, policy, onQueryLogged }:
 
       {!pilotLoggingEnabled && (
         <div className="pilot-feedback-error">
-          Pilot logging is disabled by policy. Set <code>ASSISTSUPPORT_ENABLE_PILOT_LOGGING=1</code> and restart to enable.
+          Pilot logging is disabled by policy. Set{" "}
+          <code>ASSISTSUPPORT_ENABLE_PILOT_LOGGING=1</code> and restart to
+          enable.
           {policy && (
-            <> Current defaults: retention {policy.retention_days} days, max {policy.max_rows} rows.</>
+            <>
+              {" "}
+              Current defaults: retention {policy.retention_days} days, max{" "}
+              {policy.max_rows} rows.
+            </>
           )}
         </div>
       )}
@@ -140,8 +156,8 @@ export function PilotQueryTester({ pilotLoggingEnabled, policy, onQueryLogged }:
           <input
             type="text"
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             placeholder="e.g., Can I use a flash drive?"
             className="pilot-query-input"
             disabled={searching}
@@ -151,7 +167,7 @@ export function PilotQueryTester({ pilotLoggingEnabled, policy, onQueryLogged }:
             onClick={handleSearch}
             disabled={searching || !query.trim()}
           >
-            {searching ? 'Searching...' : 'Search'}
+            {searching ? "Searching..." : "Search"}
           </Button>
         </div>
       </div>

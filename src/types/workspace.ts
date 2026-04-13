@@ -1,17 +1,20 @@
-import type { RunbookStepEvidenceRecord } from './workspaceOps';
+import type { RunbookStepEvidenceRecord } from "./workspaceOps";
 
-export type DraftStatus = 'draft' | 'finalized' | 'archived';
-export type NoteAudience = 'internal-note' | 'customer-safe' | 'escalation-note';
-export type IntakeUrgency = 'low' | 'normal' | 'high' | 'critical';
+export type DraftStatus = "draft" | "finalized" | "archived";
+export type NoteAudience =
+  | "internal-note"
+  | "customer-safe"
+  | "escalation-note";
+export type IntakeUrgency = "low" | "normal" | "high" | "critical";
 export type NextActionKind =
-  | 'answer'
-  | 'clarify'
-  | 'runbook'
-  | 'escalate'
-  | 'approval'
-  | 'promote_kb';
+  | "answer"
+  | "clarify"
+  | "runbook"
+  | "escalate"
+  | "approval"
+  | "promote_kb";
 
-export type ResponseLength = 'Short' | 'Medium' | 'Long';
+export type ResponseLength = "Short" | "Medium" | "Long";
 
 export interface CaseIntake {
   issue?: string | null;
@@ -69,7 +72,7 @@ export interface MissingQuestion {
   id: string;
   question: string;
   reason: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
 }
 
 export interface NextActionRecommendation {
@@ -119,7 +122,7 @@ export interface ResolutionKit {
 
 export interface WorkspaceFavorite {
   id: string;
-  kind: 'runbook' | 'policy' | 'kb' | 'kit';
+  kind: "runbook" | "policy" | "kb" | "kit";
   label: string;
   resource_id: string;
   metadata?: Record<string, string> | null;
@@ -151,7 +154,7 @@ export interface ApprovalGuidance {
 }
 
 export interface CollaborationDispatchPreview {
-  integration_type: 'jira' | 'servicenow' | 'slack' | 'teams';
+  integration_type: "jira" | "servicenow" | "slack" | "teams";
   title: string;
   destination_label: string;
   payload_preview: string;
@@ -193,8 +196,13 @@ export interface TicketWorkspaceSnapshot {
 export interface WorkspacePersonalization {
   preferred_note_audience: NoteAudience;
   preferred_output_length: ResponseLength;
-  favorite_queue_view: 'all' | 'unassigned' | 'at_risk' | 'in_progress' | 'resolved';
-  default_evidence_format: 'clipboard' | 'markdown';
+  favorite_queue_view:
+    | "all"
+    | "unassigned"
+    | "at_risk"
+    | "in_progress"
+    | "resolved";
+  default_evidence_format: "clipboard" | "markdown";
 }
 
 export interface ResponseTemplate {
@@ -240,6 +248,6 @@ export interface ResponseAlternative {
   sources_json: string | null;
   metrics_json: string | null;
   generation_params_json: string | null;
-  chosen: 'original' | 'alternative' | null;
+  chosen: "original" | "alternative" | null;
   created_at: string;
 }

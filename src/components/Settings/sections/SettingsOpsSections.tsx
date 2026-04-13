@@ -1,12 +1,12 @@
-import { Button } from '../../shared/Button';
+import { Button } from "../../shared/Button";
 import type {
   AuditEntry,
   DeploymentHealthSummary,
   IntegrationConfigRecord,
-} from '../../../types/settings';
-import type { ResponseQualityThresholds } from '../../../features/analytics/qualityThresholds';
+} from "../../../types/settings";
+import type { ResponseQualityThresholds } from "../../../features/analytics/qualityThresholds";
 
-type AuditSeverityFilter = 'all' | 'info' | 'warning' | 'error' | 'critical';
+type AuditSeverityFilter = "all" | "info" | "warning" | "error" | "critical";
 
 interface DeploymentSectionProps {
   deploymentHealth: DeploymentHealthSummary | null;
@@ -29,7 +29,8 @@ export function DeploymentSection({
     <section className="settings-section">
       <h2>Deployment &amp; Integrations</h2>
       <p className="settings-description">
-        Deployment health, preflight validation, and integration toggles for ServiceNow/Slack/Teams.
+        Deployment health, preflight validation, and integration toggles for
+        ServiceNow/Slack/Teams.
       </p>
       <div className="settings-row">
         <Button
@@ -38,17 +39,21 @@ export function DeploymentSection({
           onClick={onRunDeploymentPreflight}
           disabled={deployPreflightRunning}
         >
-          {deployPreflightRunning ? 'Running preflight...' : 'Run Deployment Preflight'}
+          {deployPreflightRunning
+            ? "Running preflight..."
+            : "Run Deployment Preflight"}
         </Button>
       </div>
       {deploymentHealth && (
         <div className="startup-metrics">
           <p className="text-sm text-secondary">
-            Signed artifacts: {deploymentHealth.signed_artifacts}/{deploymentHealth.total_artifacts}
+            Signed artifacts: {deploymentHealth.signed_artifacts}/
+            {deploymentHealth.total_artifacts}
           </p>
           {deploymentHealth.last_run && (
             <p className="text-sm text-secondary">
-              Last run: {deploymentHealth.last_run.status} ({deploymentHealth.last_run.target_channel})
+              Last run: {deploymentHealth.last_run.status} (
+              {deploymentHealth.last_run.target_channel})
             </p>
           )}
         </div>
@@ -56,13 +61,15 @@ export function DeploymentSection({
       {deployPreflightChecks.length > 0 && (
         <ul className="audit-list">
           {deployPreflightChecks.map((check, idx) => (
-            <li key={`${check}-${idx}`} className="audit-row">{check}</li>
+            <li key={`${check}-${idx}`} className="audit-row">
+              {check}
+            </li>
           ))}
         </ul>
       )}
       <div className="settings-row">
-        {['servicenow', 'slack', 'teams'].map(type => {
-          const current = integrations.find(i => i.integration_type === type);
+        {["servicenow", "slack", "teams"].map((type) => {
+          const current = integrations.find((i) => i.integration_type === type);
           const enabled = current?.enabled ?? false;
           return (
             <label key={type} className="toggle-option">
@@ -81,7 +88,7 @@ export function DeploymentSection({
 }
 
 interface BackupSectionProps {
-  backupLoading: 'export' | 'import' | null;
+  backupLoading: "export" | "import" | null;
   onExportBackup: () => void;
   onImportBackup: () => void;
 }
@@ -101,29 +108,35 @@ export function BackupSection({
         <div className="backup-row">
           <div className="backup-info">
             <strong>Export</strong>
-            <span>Save drafts, templates, variables, trees, settings, and KB folder configuration to a ZIP backup.</span>
+            <span>
+              Save drafts, templates, variables, trees, settings, and KB folder
+              configuration to a ZIP backup.
+            </span>
           </div>
           <Button
             variant="secondary"
             size="small"
             onClick={onExportBackup}
-            disabled={backupLoading === 'export'}
+            disabled={backupLoading === "export"}
           >
-            {backupLoading === 'export' ? 'Exporting...' : 'Export Data'}
+            {backupLoading === "export" ? "Exporting..." : "Export Data"}
           </Button>
         </div>
         <div className="backup-row">
           <div className="backup-info">
             <strong>Import</strong>
-            <span>Restore drafts, templates, variables, trees, settings, and KB folder configuration from a backup ZIP file.</span>
+            <span>
+              Restore drafts, templates, variables, trees, settings, and KB
+              folder configuration from a backup ZIP file.
+            </span>
           </div>
           <Button
             variant="secondary"
             size="small"
             onClick={onImportBackup}
-            disabled={backupLoading === 'import'}
+            disabled={backupLoading === "import"}
           >
-            {backupLoading === 'import' ? 'Importing...' : 'Import Data'}
+            {backupLoading === "import" ? "Importing..." : "Import Data"}
           </Button>
         </div>
       </div>
@@ -134,7 +147,10 @@ export function BackupSection({
 interface QualityThresholdSectionProps {
   qualityThresholds: ResponseQualityThresholds;
   qualityThresholdError: string | null;
-  onThresholdChange: (field: keyof ResponseQualityThresholds, value: number) => void;
+  onThresholdChange: (
+    field: keyof ResponseQualityThresholds,
+    value: number,
+  ) => void;
   onSave: () => void;
   onReset: () => void;
 }
@@ -150,7 +166,8 @@ export function QualityThresholdSection({
     <section className="settings-section">
       <h2>Response Quality Coaching</h2>
       <p className="settings-description">
-        Tune coaching severity bands used in Analytics. These thresholds are local to this workspace and can be calibrated for your support team.
+        Tune coaching severity bands used in Analytics. These thresholds are
+        local to this workspace and can be calibrated for your support team.
       </p>
       <div className="quality-threshold-grid">
         <div className="quality-threshold-card">
@@ -164,7 +181,12 @@ export function QualityThresholdSection({
                 max={100}
                 step={1}
                 value={(qualityThresholds.editRatioWatch * 100).toFixed(0)}
-                onChange={(e) => onThresholdChange('editRatioWatch', Number(e.target.value || 0) / 100)}
+                onChange={(e) =>
+                  onThresholdChange(
+                    "editRatioWatch",
+                    Number(e.target.value || 0) / 100,
+                  )
+                }
               />
             </label>
             <label>
@@ -175,7 +197,12 @@ export function QualityThresholdSection({
                 max={100}
                 step={1}
                 value={(qualityThresholds.editRatioAction * 100).toFixed(0)}
-                onChange={(e) => onThresholdChange('editRatioAction', Number(e.target.value || 0) / 100)}
+                onChange={(e) =>
+                  onThresholdChange(
+                    "editRatioAction",
+                    Number(e.target.value || 0) / 100,
+                  )
+                }
               />
             </label>
           </div>
@@ -190,7 +217,12 @@ export function QualityThresholdSection({
                 min={1}
                 step={5}
                 value={Math.round(qualityThresholds.timeToDraftWatchMs / 1000)}
-                onChange={(e) => onThresholdChange('timeToDraftWatchMs', Math.max(1, Number(e.target.value || 1)) * 1000)}
+                onChange={(e) =>
+                  onThresholdChange(
+                    "timeToDraftWatchMs",
+                    Math.max(1, Number(e.target.value || 1)) * 1000,
+                  )
+                }
               />
             </label>
             <label>
@@ -200,7 +232,12 @@ export function QualityThresholdSection({
                 min={1}
                 step={5}
                 value={Math.round(qualityThresholds.timeToDraftActionMs / 1000)}
-                onChange={(e) => onThresholdChange('timeToDraftActionMs', Math.max(1, Number(e.target.value || 1)) * 1000)}
+                onChange={(e) =>
+                  onThresholdChange(
+                    "timeToDraftActionMs",
+                    Math.max(1, Number(e.target.value || 1)) * 1000,
+                  )
+                }
               />
             </label>
           </div>
@@ -216,7 +253,12 @@ export function QualityThresholdSection({
                 max={100}
                 step={1}
                 value={(qualityThresholds.copyPerSaveWatch * 100).toFixed(0)}
-                onChange={(e) => onThresholdChange('copyPerSaveWatch', Number(e.target.value || 0) / 100)}
+                onChange={(e) =>
+                  onThresholdChange(
+                    "copyPerSaveWatch",
+                    Number(e.target.value || 0) / 100,
+                  )
+                }
               />
             </label>
             <label>
@@ -227,7 +269,12 @@ export function QualityThresholdSection({
                 max={100}
                 step={1}
                 value={(qualityThresholds.copyPerSaveAction * 100).toFixed(0)}
-                onChange={(e) => onThresholdChange('copyPerSaveAction', Number(e.target.value || 0) / 100)}
+                onChange={(e) =>
+                  onThresholdChange(
+                    "copyPerSaveAction",
+                    Number(e.target.value || 0) / 100,
+                  )
+                }
               />
             </label>
           </div>
@@ -243,7 +290,12 @@ export function QualityThresholdSection({
                 max={100}
                 step={1}
                 value={(qualityThresholds.editedSaveRateWatch * 100).toFixed(0)}
-                onChange={(e) => onThresholdChange('editedSaveRateWatch', Number(e.target.value || 0) / 100)}
+                onChange={(e) =>
+                  onThresholdChange(
+                    "editedSaveRateWatch",
+                    Number(e.target.value || 0) / 100,
+                  )
+                }
               />
             </label>
             <label>
@@ -253,8 +305,15 @@ export function QualityThresholdSection({
                 min={0}
                 max={100}
                 step={1}
-                value={(qualityThresholds.editedSaveRateAction * 100).toFixed(0)}
-                onChange={(e) => onThresholdChange('editedSaveRateAction', Number(e.target.value || 0) / 100)}
+                value={(qualityThresholds.editedSaveRateAction * 100).toFixed(
+                  0,
+                )}
+                onChange={(e) =>
+                  onThresholdChange(
+                    "editedSaveRateAction",
+                    Number(e.target.value || 0) / 100,
+                  )
+                }
               />
             </label>
           </div>
@@ -314,7 +373,8 @@ export function AuditLogsSection({
     <section className="settings-section">
       <h2>Audit Logs</h2>
       <p className="settings-description">
-        Security and system events recorded locally. Export for review or compliance.
+        Security and system events recorded locally. Export for review or
+        compliance.
       </p>
       <div className="audit-actions">
         <Button
@@ -323,7 +383,7 @@ export function AuditLogsSection({
           onClick={onRefresh}
           disabled={auditLoading}
         >
-          {auditLoading ? 'Refreshing...' : 'Refresh'}
+          {auditLoading ? "Refreshing..." : "Refresh"}
         </Button>
         <Button
           variant="secondary"
@@ -331,7 +391,7 @@ export function AuditLogsSection({
           onClick={onExport}
           disabled={auditExporting}
         >
-          {auditExporting ? 'Exporting...' : 'Export JSON'}
+          {auditExporting ? "Exporting..." : "Export JSON"}
         </Button>
       </div>
       <div className="audit-filters">
@@ -340,7 +400,9 @@ export function AuditLogsSection({
           <select
             aria-label="Audit severity filter"
             value={auditSeverityFilter}
-            onChange={(e) => onSeverityChange(e.target.value as AuditSeverityFilter)}
+            onChange={(e) =>
+              onSeverityChange(e.target.value as AuditSeverityFilter)
+            }
           >
             <option value="all">All</option>
             <option value="info">Info</option>
@@ -362,17 +424,24 @@ export function AuditLogsSection({
         ) : (
           pagedAuditEntries.map((entry, index) => (
             <div className="audit-row" key={`${entry.timestamp}-${index}`}>
-              <span className={`audit-severity ${entry.severity}`}>{entry.severity}</span>
-              <span className="audit-event">{formatAuditEvent(entry.event)}</span>
+              <span className={`audit-severity ${entry.severity}`}>
+                {entry.severity}
+              </span>
+              <span className="audit-event">
+                {formatAuditEvent(entry.event)}
+              </span>
               <span className="audit-message">{entry.message}</span>
-              <span className="audit-time">{new Date(entry.timestamp).toLocaleString()}</span>
+              <span className="audit-time">
+                {new Date(entry.timestamp).toLocaleString()}
+              </span>
             </div>
           ))
         )}
       </div>
       <div className="audit-pagination">
         <span className="text-sm text-secondary">
-          {filteredAuditEntriesCount} entries • Page {auditPage} of {auditTotalPages}
+          {filteredAuditEntriesCount} entries • Page {auditPage} of{" "}
+          {auditTotalPages}
         </span>
         <div className="audit-pagination-actions">
           <Button

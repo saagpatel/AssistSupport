@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { buildAppShellCommands } from './commands';
-import type { TabId } from './types';
-import type { QueueView } from '../inbox/queueModel';
-import type { RevampFlags } from '../revamp';
+import { useMemo } from "react";
+import { buildAppShellCommands } from "./commands";
+import type { TabId } from "./types";
+import type { QueueView } from "../inbox/queueModel";
+import type { RevampFlags } from "../revamp";
 
 interface UseAppShellCommandsParams {
   activeTab: TabId;
@@ -35,33 +35,37 @@ export function useAppShellCommands({
   onOpenShortcuts,
   clearDraft,
 }: UseAppShellCommandsParams) {
-  return useMemo(() => buildAppShellCommands({
-    activeTab,
-    revampCommandPaletteV2Enabled,
-    queueFirstInboxEnabled,
-    revampFlags,
-    setActiveTab,
-    openQueueView,
-    handleGenerate,
-    handleSaveDraft,
-    handleCopyResponse,
-    handleExport,
-    handleCancelGeneration,
-    onOpenShortcuts,
-    clearDraft,
-  }), [
-    activeTab,
-    revampCommandPaletteV2Enabled,
-    queueFirstInboxEnabled,
-    revampFlags,
-    setActiveTab,
-    openQueueView,
-    handleGenerate,
-    handleSaveDraft,
-    handleCopyResponse,
-    handleExport,
-    handleCancelGeneration,
-    onOpenShortcuts,
-    clearDraft,
-  ]);
+  return useMemo(
+    () =>
+      buildAppShellCommands({
+        activeTab,
+        revampCommandPaletteV2Enabled,
+        queueFirstInboxEnabled,
+        revampFlags,
+        setActiveTab,
+        openQueueView,
+        handleGenerate,
+        handleSaveDraft,
+        handleCopyResponse,
+        handleExport,
+        handleCancelGeneration,
+        onOpenShortcuts,
+        clearDraft,
+      }),
+    [
+      activeTab,
+      revampCommandPaletteV2Enabled,
+      queueFirstInboxEnabled,
+      revampFlags,
+      setActiveTab,
+      openQueueView,
+      handleGenerate,
+      handleSaveDraft,
+      handleCopyResponse,
+      handleExport,
+      handleCancelGeneration,
+      onOpenShortcuts,
+      clearDraft,
+    ],
+  );
 }

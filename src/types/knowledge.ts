@@ -98,7 +98,7 @@ export interface SearchResult {
   content: string;
   snippet: string;
   score: number;
-  source: 'Fts5' | 'Vector' | 'Hybrid';
+  source: "Fts5" | "Vector" | "Hybrid";
   namespace_id: string | null;
   source_type: string | null;
 }
@@ -145,7 +145,7 @@ export interface SourceHealth {
   source_type: string;
   source_uri: string;
   title: string | null;
-  status: 'pending' | 'active' | 'stale' | 'error' | 'removed';
+  status: "pending" | "active" | "stale" | "error" | "removed";
   error_message: string | null;
   last_ingested_at: string | null;
   document_count: number;

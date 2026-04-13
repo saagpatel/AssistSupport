@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import type { CustomVariable } from '../types/workspace';
+import { useState, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { CustomVariable } from "../types/workspace";
 
 export function useCustomVariables() {
   const [variables, setVariables] = useState<CustomVariable[]>([]);
@@ -11,7 +11,7 @@ export function useCustomVariables() {
     setLoading(true);
     setError(null);
     try {
-      const result = await invoke<CustomVariable[]>('list_custom_variables');
+      const result = await invoke<CustomVariable[]>("list_custom_variables");
       setVariables(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -20,47 +20,58 @@ export function useCustomVariables() {
     }
   }, []);
 
-  const getVariable = useCallback(async (variableId: string): Promise<CustomVariable | null> => {
-    try {
-      return await invoke<CustomVariable>('get_custom_variable', { variableId });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return null;
-    }
-  }, []);
+  const getVariable = useCallback(
+    async (variableId: string): Promise<CustomVariable | null> => {
+      try {
+        return await invoke<CustomVariable>("get_custom_variable", {
+          variableId,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        return null;
+      }
+    },
+    [],
+  );
 
-  const saveVariable = useCallback(async (
-    name: string,
-    value: string,
-    existingId?: string
-  ): Promise<boolean> => {
-    try {
-      const now = new Date().toISOString();
-      const variable: CustomVariable = {
-        id: existingId || crypto.randomUUID(),
-        name,
-        value,
-        created_at: now,
-      };
-      await invoke('save_custom_variable', { variable });
-      await loadVariables();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return false;
-    }
-  }, [loadVariables]);
+  const saveVariable = useCallback(
+    async (
+      name: string,
+      value: string,
+      existingId?: string,
+    ): Promise<boolean> => {
+      try {
+        const now = new Date().toISOString();
+        const variable: CustomVariable = {
+          id: existingId || crypto.randomUUID(),
+          name,
+          value,
+          created_at: now,
+        };
+        await invoke("save_custom_variable", { variable });
+        await loadVariables();
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        return false;
+      }
+    },
+    [loadVariables],
+  );
 
-  const deleteVariable = useCallback(async (variableId: string): Promise<boolean> => {
-    try {
-      await invoke('delete_custom_variable', { variableId });
-      await loadVariables();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return false;
-    }
-  }, [loadVariables]);
+  const deleteVariable = useCallback(
+    async (variableId: string): Promise<boolean> => {
+      try {
+        await invoke("delete_custom_variable", { variableId });
+        await loadVariables();
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        return false;
+      }
+    },
+    [loadVariables],
+  );
 
   return {
     variables,

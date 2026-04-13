@@ -89,7 +89,7 @@ export interface MemoryKernelEnrichmentResult {
   preflight: MemoryKernelPreflightStatus;
 }
 
-export type HealthStatus = 'healthy' | 'warning' | 'error' | 'unavailable';
+export type HealthStatus = "healthy" | "warning" | "error" | "unavailable";
 
 export interface ComponentHealth {
   name: string;
@@ -131,11 +131,17 @@ export interface QuickHealthResult {
   issues: string[];
 }
 
-export type Tab = 'draft' | 'followups' | 'knowledge' | 'analytics' | 'ops' | 'settings';
+export type Tab =
+  | "draft"
+  | "followups"
+  | "knowledge"
+  | "analytics"
+  | "ops"
+  | "settings";
 
-export type Theme = 'light' | 'dark' | 'system';
+export type Theme = "light" | "dark" | "system";
 
-export type ToastType = 'success' | 'error' | 'info' | 'warning';
+export type ToastType = "success" | "error" | "info" | "warning";
 
 export interface Toast {
   id: string;

@@ -1,20 +1,24 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useDrafts } from '../../../hooks/useDrafts';
-import { useCustomVariables } from '../../../hooks/useCustomVariables';
-import { Button } from '../../../components/shared/Button';
-import { Skeleton } from '../../../components/shared/Skeleton';
-import { VersionTimeline } from '../../../components/FollowUps/VersionTimeline';
-import { DiffViewer } from '../../../components/FollowUps/DiffViewer';
-import type { ResponseTemplate, SavedDraft, TemplateContext } from '../../../types/workspace';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useDrafts } from "../../../hooks/useDrafts";
+import { useCustomVariables } from "../../../hooks/useCustomVariables";
+import { Button } from "../../../components/shared/Button";
+import { Skeleton } from "../../../components/shared/Skeleton";
+import { VersionTimeline } from "../../../components/FollowUps/VersionTimeline";
+import { DiffViewer } from "../../../components/FollowUps/DiffViewer";
+import type {
+  ResponseTemplate,
+  SavedDraft,
+  TemplateContext,
+} from "../../../types/workspace";
 import {
   applyTemplate,
   getBuiltinVariableNames,
   BUILTIN_VARIABLE_DESCRIPTIONS,
   formatVariable,
-} from '../../../utils/templates';
-import './QueueHistoryTemplatesPanel.css';
+} from "../../../utils/templates";
+import "./QueueHistoryTemplatesPanel.css";
 
-export type QueueHistoryTemplatesSection = 'history' | 'templates';
+export type QueueHistoryTemplatesSection = "history" | "templates";
 
 export interface QueueHistoryTemplatesDataSource {
   drafts: SavedDraft[];
@@ -24,7 +28,9 @@ export interface QueueHistoryTemplatesDataSource {
   searchDrafts: (query: string, limit?: number) => Promise<SavedDraft[]>;
   loadTemplates: () => Promise<void>;
   deleteDraft: (draftId: string) => Promise<boolean>;
-  saveTemplate: (template: Omit<ResponseTemplate, 'id' | 'created_at' | 'updated_at'>) => Promise<string | null>;
+  saveTemplate: (
+    template: Omit<ResponseTemplate, "id" | "created_at" | "updated_at">,
+  ) => Promise<string | null>;
   updateTemplate: (template: ResponseTemplate) => Promise<string | null>;
   deleteTemplate: (templateId: string) => Promise<boolean>;
   getDraft: (draftId: string) => Promise<SavedDraft | null>;
@@ -70,41 +76,55 @@ export function QueueHistoryTemplatesPanel({
     computeInputHash,
   } = dataSource ?? draftStore;
 
-  const { variables: customVariables, loadVariables: loadCustomVariables } = useCustomVariables();
+  const { variables: customVariables, loadVariables: loadCustomVariables } =
+    useCustomVariables();
 
-  const [internalActiveSection, setInternalActiveSection] = useState<QueueHistoryTemplatesSection>('history');
+  const [internalActiveSection, setInternalActiveSection] =
+    useState<QueueHistoryTemplatesSection>("history");
   const [showTemplateForm, setShowTemplateForm] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<ResponseTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] =
+    useState<ResponseTemplate | null>(null);
   const [templateFormData, setTemplateFormData] = useState({
-    name: '',
-    category: '',
-    content: '',
+    name: "",
+    category: "",
+    content: "",
   });
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'draft' | 'template'; id: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: "draft" | "template";
+    id: string;
+  } | null>(null);
   const [showVariablePicker, setShowVariablePicker] = useState(false);
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Draft search state
-  const [draftSearchQuery, setDraftSearchQuery] = useState('');
-  const [ticketFilter, setTicketFilter] = useState('');
+  const [draftSearchQuery, setDraftSearchQuery] = useState("");
+  const [ticketFilter, setTicketFilter] = useState("");
   const [filteredDrafts, setFilteredDrafts] = useState<SavedDraft[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Version history state
   const [expandedVersions, setExpandedVersions] = useState<string | null>(null);
-  const [versionData, setVersionData] = useState<Record<string, SavedDraft[]>>({});
+  const [versionData, setVersionData] = useState<Record<string, SavedDraft[]>>(
+    {},
+  );
   const [loadingVersions, setLoadingVersions] = useState<string | null>(null);
 
   // Diff comparison state
-  const [diffState, setDiffState] = useState<{ a: SavedDraft; b: SavedDraft } | null>(null);
+  const [diffState, setDiffState] = useState<{
+    a: SavedDraft;
+    b: SavedDraft;
+  } | null>(null);
 
   const resolvedActiveSection = activeSection ?? internalActiveSection;
 
-  const handleSectionChange = useCallback((section: QueueHistoryTemplatesSection) => {
-    setInternalActiveSection(section);
-    onActiveSectionChange?.(section);
-  }, [onActiveSectionChange]);
+  const handleSectionChange = useCallback(
+    (section: QueueHistoryTemplatesSection) => {
+      setInternalActiveSection(section);
+      onActiveSectionChange?.(section);
+    },
+    [onActiveSectionChange],
+  );
 
   useEffect(() => {
     loadDrafts();
@@ -118,8 +138,8 @@ export function QueueHistoryTemplatesPanel({
 
     // Apply ticket filter if set
     if (ticketFilter.trim()) {
-      result = result.filter(
-        (d) => d.ticket_id?.toLowerCase().includes(ticketFilter.toLowerCase())
+      result = result.filter((d) =>
+        d.ticket_id?.toLowerCase().includes(ticketFilter.toLowerCase()),
       );
     }
 
@@ -130,172 +150,211 @@ export function QueueHistoryTemplatesPanel({
   }, [drafts, draftSearchQuery, ticketFilter]);
 
   // Debounced search
-  const handleDraftSearch = useCallback((query: string) => {
-    setDraftSearchQuery(query);
+  const handleDraftSearch = useCallback(
+    (query: string) => {
+      setDraftSearchQuery(query);
 
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
-
-    if (!query.trim()) {
-      // Apply ticket filter even when no text search
-      let result = drafts;
-      if (ticketFilter.trim()) {
-        result = result.filter(
-          (d) => d.ticket_id?.toLowerCase().includes(ticketFilter.toLowerCase())
-        );
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
       }
-      setFilteredDrafts(result);
-      setIsSearching(false);
-      return;
-    }
 
-    setIsSearching(true);
-    searchDebounceRef.current = setTimeout(async () => {
-      let results = await searchDrafts(query);
-      // Apply ticket filter on top of text search
-      if (ticketFilter.trim()) {
-        results = results.filter(
-          (d) => d.ticket_id?.toLowerCase().includes(ticketFilter.toLowerCase())
-        );
-      }
-      setFilteredDrafts(results);
-      setIsSearching(false);
-    }, 300);
-  }, [drafts, searchDrafts, ticketFilter]);
-
-  // Handle ticket filter changes
-  const handleTicketFilter = useCallback((filter: string) => {
-    const upperFilter = filter.toUpperCase();
-    setTicketFilter(upperFilter);
-
-    // Re-apply filters
-    let result = drafts;
-
-    // Apply ticket filter
-    if (upperFilter.trim()) {
-      result = result.filter(
-        (d) => d.ticket_id?.toLowerCase().includes(upperFilter.toLowerCase())
-      );
-    }
-
-    // If there's also a text search, re-run it with the ticket filter
-    if (draftSearchQuery.trim()) {
-      setIsSearching(true);
-      searchDrafts(draftSearchQuery).then((searchResults) => {
-        if (upperFilter.trim()) {
-          searchResults = searchResults.filter(
-            (d) => d.ticket_id?.toLowerCase().includes(upperFilter.toLowerCase())
+      if (!query.trim()) {
+        // Apply ticket filter even when no text search
+        let result = drafts;
+        if (ticketFilter.trim()) {
+          result = result.filter((d) =>
+            d.ticket_id?.toLowerCase().includes(ticketFilter.toLowerCase()),
           );
         }
-        setFilteredDrafts(searchResults);
+        setFilteredDrafts(result);
         setIsSearching(false);
-      });
-    } else {
-      setFilteredDrafts(result);
-    }
-  }, [drafts, searchDrafts, draftSearchQuery]);
+        return;
+      }
+
+      setIsSearching(true);
+      searchDebounceRef.current = setTimeout(async () => {
+        let results = await searchDrafts(query);
+        // Apply ticket filter on top of text search
+        if (ticketFilter.trim()) {
+          results = results.filter((d) =>
+            d.ticket_id?.toLowerCase().includes(ticketFilter.toLowerCase()),
+          );
+        }
+        setFilteredDrafts(results);
+        setIsSearching(false);
+      }, 300);
+    },
+    [drafts, searchDrafts, ticketFilter],
+  );
+
+  // Handle ticket filter changes
+  const handleTicketFilter = useCallback(
+    (filter: string) => {
+      const upperFilter = filter.toUpperCase();
+      setTicketFilter(upperFilter);
+
+      // Re-apply filters
+      let result = drafts;
+
+      // Apply ticket filter
+      if (upperFilter.trim()) {
+        result = result.filter((d) =>
+          d.ticket_id?.toLowerCase().includes(upperFilter.toLowerCase()),
+        );
+      }
+
+      // If there's also a text search, re-run it with the ticket filter
+      if (draftSearchQuery.trim()) {
+        setIsSearching(true);
+        searchDrafts(draftSearchQuery).then((searchResults) => {
+          if (upperFilter.trim()) {
+            searchResults = searchResults.filter((d) =>
+              d.ticket_id?.toLowerCase().includes(upperFilter.toLowerCase()),
+            );
+          }
+          setFilteredDrafts(searchResults);
+          setIsSearching(false);
+        });
+      } else {
+        setFilteredDrafts(result);
+      }
+    },
+    [drafts, searchDrafts, draftSearchQuery],
+  );
 
   // Handle clicking on a ticket badge to filter
-  const handleTicketBadgeClick = useCallback((ticketId: string) => {
-    handleTicketFilter(ticketId);
-  }, [handleTicketFilter]);
+  const handleTicketBadgeClick = useCallback(
+    (ticketId: string) => {
+      handleTicketFilter(ticketId);
+    },
+    [handleTicketFilter],
+  );
 
-  const handleLoadDraft = useCallback((draft: SavedDraft) => {
-    onLoadDraft?.(draft);
-  }, [onLoadDraft]);
+  const handleLoadDraft = useCallback(
+    (draft: SavedDraft) => {
+      onLoadDraft?.(draft);
+    },
+    [onLoadDraft],
+  );
 
-  const handleDeleteDraft = useCallback(async (draftId: string) => {
-    await deleteDraft(draftId);
-    setDeleteConfirm(null);
-  }, [deleteDraft]);
+  const handleDeleteDraft = useCallback(
+    async (draftId: string) => {
+      await deleteDraft(draftId);
+      setDeleteConfirm(null);
+    },
+    [deleteDraft],
+  );
 
   // Toggle version history for a draft
-  const handleToggleVersions = useCallback(async (draft: SavedDraft) => {
-    if (expandedVersions === draft.id) {
-      setExpandedVersions(null);
-      return;
-    }
+  const handleToggleVersions = useCallback(
+    async (draft: SavedDraft) => {
+      if (expandedVersions === draft.id) {
+        setExpandedVersions(null);
+        return;
+      }
 
-    setExpandedVersions(draft.id);
-    setLoadingVersions(draft.id);
+      setExpandedVersions(draft.id);
+      setLoadingVersions(draft.id);
 
-    try {
-      const inputHash = await computeInputHash(draft.input_text);
-      const versions = await getDraftVersions(inputHash);
-      // Filter out the current draft from versions
-      const filteredVersions = versions.filter(v => v.id !== draft.id);
-      setVersionData(prev => ({ ...prev, [draft.id]: filteredVersions }));
-    } catch (err) {
-      console.error('Failed to load versions:', err);
-    } finally {
-      setLoadingVersions(null);
-    }
-  }, [expandedVersions, computeInputHash, getDraftVersions]);
+      try {
+        const inputHash = await computeInputHash(draft.input_text);
+        const versions = await getDraftVersions(inputHash);
+        // Filter out the current draft from versions
+        const filteredVersions = versions.filter((v) => v.id !== draft.id);
+        setVersionData((prev) => ({ ...prev, [draft.id]: filteredVersions }));
+      } catch (err) {
+        console.error("Failed to load versions:", err);
+      } finally {
+        setLoadingVersions(null);
+      }
+    },
+    [expandedVersions, computeInputHash, getDraftVersions],
+  );
 
   // Restore a version using the backend command
-  const handleRestoreVersion = useCallback(async (version: SavedDraft) => {
-    if (!expandedVersions) return;
-    const success = await restoreDraftVersion(expandedVersions, version.id);
-    if (success) {
-      const restoredDraft = await getDraft(expandedVersions);
-      if (restoredDraft) {
-        onLoadDraft?.(restoredDraft);
+  const handleRestoreVersion = useCallback(
+    async (version: SavedDraft) => {
+      if (!expandedVersions) return;
+      const success = await restoreDraftVersion(expandedVersions, version.id);
+      if (success) {
+        const restoredDraft = await getDraft(expandedVersions);
+        if (restoredDraft) {
+          onLoadDraft?.(restoredDraft);
+        }
+        setExpandedVersions(null);
       }
-      setExpandedVersions(null);
-    }
-  }, [expandedVersions, getDraft, onLoadDraft, restoreDraftVersion]);
+    },
+    [expandedVersions, getDraft, onLoadDraft, restoreDraftVersion],
+  );
 
   // Compare two versions in the diff viewer
-  const handleCompareVersions = useCallback((versionA: SavedDraft, versionB: SavedDraft) => {
-    setDiffState({ a: versionA, b: versionB });
-  }, []);
+  const handleCompareVersions = useCallback(
+    (versionA: SavedDraft, versionB: SavedDraft) => {
+      setDiffState({ a: versionA, b: versionB });
+    },
+    [],
+  );
 
-  const handleUseTemplate = useCallback((template: ResponseTemplate) => {
-    // Apply template variable replacement
-    const processedContent = applyTemplate(template.content, templateContext, customVariables);
-    navigator.clipboard.writeText(processedContent);
-    onUseTemplate?.(processedContent);
-  }, [onUseTemplate, templateContext, customVariables]);
+  const handleUseTemplate = useCallback(
+    (template: ResponseTemplate) => {
+      // Apply template variable replacement
+      const processedContent = applyTemplate(
+        template.content,
+        templateContext,
+        customVariables,
+      );
+      navigator.clipboard.writeText(processedContent);
+      onUseTemplate?.(processedContent);
+    },
+    [onUseTemplate, templateContext, customVariables],
+  );
 
-  const handleInsertVariable = useCallback((varName: string) => {
-    const textarea = contentTextareaRef.current;
-    if (!textarea) return;
+  const handleInsertVariable = useCallback(
+    (varName: string) => {
+      const textarea = contentTextareaRef.current;
+      if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = templateFormData.content;
-    const varText = formatVariable(varName);
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = templateFormData.content;
+      const varText = formatVariable(varName);
 
-    const newContent = text.substring(0, start) + varText + text.substring(end);
-    setTemplateFormData({ ...templateFormData, content: newContent });
-    setShowVariablePicker(false);
+      const newContent =
+        text.substring(0, start) + varText + text.substring(end);
+      setTemplateFormData({ ...templateFormData, content: newContent });
+      setShowVariablePicker(false);
 
-    // Restore focus and position cursor after the inserted variable
-    setTimeout(() => {
-      textarea.focus();
-      const newPos = start + varText.length;
-      textarea.setSelectionRange(newPos, newPos);
-    }, 0);
-  }, [templateFormData]);
+      // Restore focus and position cursor after the inserted variable
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = start + varText.length;
+        textarea.setSelectionRange(newPos, newPos);
+      }, 0);
+    },
+    [templateFormData],
+  );
 
   const handleEditTemplate = useCallback((template: ResponseTemplate) => {
     setEditingTemplate(template);
     setTemplateFormData({
       name: template.name,
-      category: template.category || '',
+      category: template.category || "",
       content: template.content,
     });
     setShowTemplateForm(true);
   }, []);
 
-  const handleDeleteTemplate = useCallback(async (templateId: string) => {
-    await deleteTemplate(templateId);
-    setDeleteConfirm(null);
-  }, [deleteTemplate]);
+  const handleDeleteTemplate = useCallback(
+    async (templateId: string) => {
+      await deleteTemplate(templateId);
+      setDeleteConfirm(null);
+    },
+    [deleteTemplate],
+  );
 
   const handleSaveTemplate = useCallback(async () => {
-    if (!templateFormData.name.trim() || !templateFormData.content.trim()) return;
+    if (!templateFormData.name.trim() || !templateFormData.content.trim())
+      return;
 
     if (editingTemplate) {
       await updateTemplate({
@@ -314,32 +373,35 @@ export function QueueHistoryTemplatesPanel({
 
     setShowTemplateForm(false);
     setEditingTemplate(null);
-    setTemplateFormData({ name: '', category: '', content: '' });
+    setTemplateFormData({ name: "", category: "", content: "" });
   }, [templateFormData, editingTemplate, saveTemplate, updateTemplate]);
 
   const handleCancelTemplateForm = useCallback(() => {
     setShowTemplateForm(false);
     setEditingTemplate(null);
-    setTemplateFormData({ name: '', category: '', content: '' });
+    setTemplateFormData({ name: "", category: "", content: "" });
   }, []);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+    return text.substring(0, maxLength) + "...";
   };
 
   const renderHistorySection = () => {
-    const displayDrafts = filteredDrafts.length > 0 || draftSearchQuery || ticketFilter ? filteredDrafts : drafts;
+    const displayDrafts =
+      filteredDrafts.length > 0 || draftSearchQuery || ticketFilter
+        ? filteredDrafts
+        : drafts;
 
     return (
       <>
@@ -356,7 +418,7 @@ export function QueueHistoryTemplatesPanel({
             {draftSearchQuery && (
               <button
                 className="search-clear"
-                onClick={() => handleDraftSearch('')}
+                onClick={() => handleDraftSearch("")}
                 aria-label="Clear search"
               >
                 &times;
@@ -374,7 +436,7 @@ export function QueueHistoryTemplatesPanel({
             {ticketFilter && (
               <button
                 className="search-clear"
-                onClick={() => handleTicketFilter('')}
+                onClick={() => handleTicketFilter("")}
                 aria-label="Clear ticket filter"
               >
                 &times;
@@ -402,16 +464,19 @@ export function QueueHistoryTemplatesPanel({
                 <p>
                   No drafts found
                   {draftSearchQuery && ` matching "${draftSearchQuery}"`}
-                  {draftSearchQuery && ticketFilter && ' and'}
+                  {draftSearchQuery && ticketFilter && " and"}
                   {ticketFilter && ` for ticket "${ticketFilter}"`}
                 </p>
-                <p className="empty-hint">Try different search terms or clear the filters.</p>
+                <p className="empty-hint">
+                  Try different search terms or clear the filters.
+                </p>
               </>
             ) : (
               <>
                 <p>No saved drafts yet.</p>
                 <p className="empty-hint">
-                  Generate a response in the Draft tab and click "Save Draft" to save it here.
+                  Generate a response in the Draft tab and click "Save Draft" to
+                  save it here.
                 </p>
               </>
             )}
@@ -419,76 +484,87 @@ export function QueueHistoryTemplatesPanel({
         ) : (
           <div className="draft-list">
             {displayDrafts.map((draft) => (
-          <div key={draft.id} className="draft-card">
-            <div className="draft-header">
-              <span className="draft-date">{formatDate(draft.created_at)}</span>
-              <div className="draft-badges">
-                {draft.model_name && (
-                  <span className="draft-model" title={`Generated by ${draft.model_name}`}>
-                    {draft.model_name}
+              <div key={draft.id} className="draft-card">
+                <div className="draft-header">
+                  <span className="draft-date">
+                    {formatDate(draft.created_at)}
                   </span>
-                )}
-                {draft.ticket_id && (
-                  <button
-                    className="draft-ticket"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTicketBadgeClick(draft.ticket_id!);
-                    }}
-                    title="Click to filter by this ticket"
-                  >
-                    {draft.ticket_id}
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="draft-preview">
-              <div className="draft-input-preview">
-                <span className="preview-label">Input:</span>
-                <span>{truncateText(draft.input_text, 100)}</span>
-              </div>
-              {draft.response_text && (
-                <div className="draft-response-preview">
-                  <span className="preview-label">Response:</span>
-                  <span>{truncateText(draft.response_text, 100)}</span>
+                  <div className="draft-badges">
+                    {draft.model_name && (
+                      <span
+                        className="draft-model"
+                        title={`Generated by ${draft.model_name}`}
+                      >
+                        {draft.model_name}
+                      </span>
+                    )}
+                    {draft.ticket_id && (
+                      <button
+                        className="draft-ticket"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTicketBadgeClick(draft.ticket_id!);
+                        }}
+                        title="Click to filter by this ticket"
+                      >
+                        {draft.ticket_id}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-            <div className="draft-actions">
-              <Button
-                variant="primary"
-                size="small"
-                onClick={() => handleLoadDraft(draft)}
-              >
-                Load
-              </Button>
-              <Button
-                variant="ghost"
-                size="small"
-                onClick={() => handleToggleVersions(draft)}
-              >
-                {loadingVersions === draft.id ? 'Loading...' : expandedVersions === draft.id ? 'Hide Versions' : 'Versions'}
-              </Button>
-              <Button
-                variant="ghost"
-                size="small"
-                onClick={() => setDeleteConfirm({ type: 'draft', id: draft.id })}
-              >
-                Delete
-              </Button>
-            </div>
+                <div className="draft-preview">
+                  <div className="draft-input-preview">
+                    <span className="preview-label">Input:</span>
+                    <span>{truncateText(draft.input_text, 100)}</span>
+                  </div>
+                  {draft.response_text && (
+                    <div className="draft-response-preview">
+                      <span className="preview-label">Response:</span>
+                      <span>{truncateText(draft.response_text, 100)}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="draft-actions">
+                  <Button
+                    variant="primary"
+                    size="small"
+                    onClick={() => handleLoadDraft(draft)}
+                  >
+                    Load
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => handleToggleVersions(draft)}
+                  >
+                    {loadingVersions === draft.id
+                      ? "Loading..."
+                      : expandedVersions === draft.id
+                        ? "Hide Versions"
+                        : "Versions"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() =>
+                      setDeleteConfirm({ type: "draft", id: draft.id })
+                    }
+                  >
+                    Delete
+                  </Button>
+                </div>
 
-            {/* Version History Timeline */}
-            {expandedVersions === draft.id && (
-              <VersionTimeline
-                versions={versionData[draft.id] || []}
-                currentDraft={draft}
-                onRestore={handleRestoreVersion}
-                onCompare={handleCompareVersions}
-                loading={loadingVersions === draft.id}
-              />
-            )}
-          </div>
+                {/* Version History Timeline */}
+                {expandedVersions === draft.id && (
+                  <VersionTimeline
+                    versions={versionData[draft.id] || []}
+                    currentDraft={draft}
+                    onRestore={handleRestoreVersion}
+                    onCompare={handleCompareVersions}
+                    loading={loadingVersions === draft.id}
+                  />
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -536,7 +612,9 @@ export function QueueHistoryTemplatesPanel({
                 <div className="template-header">
                   <span className="template-name">{template.name}</span>
                   {template.category && (
-                    <span className="template-category">{template.category}</span>
+                    <span className="template-category">
+                      {template.category}
+                    </span>
                   )}
                 </div>
                 <div className="template-preview">
@@ -560,7 +638,9 @@ export function QueueHistoryTemplatesPanel({
                   <Button
                     variant="ghost"
                     size="small"
-                    onClick={() => setDeleteConfirm({ type: 'template', id: template.id })}
+                    onClick={() =>
+                      setDeleteConfirm({ type: "template", id: template.id })
+                    }
                   >
                     Delete
                   </Button>
@@ -578,14 +658,14 @@ export function QueueHistoryTemplatesPanel({
       {!hideSectionTabs && (
         <div className="section-tabs">
           <button
-            className={`section-tab ${resolvedActiveSection === 'history' ? 'active' : ''}`}
-            onClick={() => handleSectionChange('history')}
+            className={`section-tab ${resolvedActiveSection === "history" ? "active" : ""}`}
+            onClick={() => handleSectionChange("history")}
           >
             History ({drafts.length})
           </button>
           <button
-            className={`section-tab ${resolvedActiveSection === 'templates' ? 'active' : ''}`}
-            onClick={() => handleSectionChange('templates')}
+            className={`section-tab ${resolvedActiveSection === "templates" ? "active" : ""}`}
+            onClick={() => handleSectionChange("templates")}
           >
             Templates ({templates.length})
           </button>
@@ -593,14 +673,16 @@ export function QueueHistoryTemplatesPanel({
       )}
 
       <div className="section-content">
-        {resolvedActiveSection === 'history' ? renderHistorySection() : renderTemplatesSection()}
+        {resolvedActiveSection === "history"
+          ? renderHistorySection()
+          : renderTemplatesSection()}
       </div>
 
       {/* Template Form Modal */}
       {showTemplateForm && (
         <div className="modal-overlay" onClick={handleCancelTemplateForm}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>{editingTemplate ? 'Edit Template' : 'Create Template'}</h3>
+            <h3>{editingTemplate ? "Edit Template" : "Create Template"}</h3>
             <div className="template-form">
               <div className="form-field">
                 <label htmlFor="template-name">Name</label>
@@ -609,7 +691,12 @@ export function QueueHistoryTemplatesPanel({
                   type="text"
                   placeholder="e.g., Password Reset Response"
                   value={templateFormData.name}
-                  onChange={(e) => setTemplateFormData({ ...templateFormData, name: e.target.value })}
+                  onChange={(e) =>
+                    setTemplateFormData({
+                      ...templateFormData,
+                      name: e.target.value,
+                    })
+                  }
                   autoFocus
                 />
               </div>
@@ -620,7 +707,12 @@ export function QueueHistoryTemplatesPanel({
                   type="text"
                   placeholder="e.g., Password, VPN, General"
                   value={templateFormData.category}
-                  onChange={(e) => setTemplateFormData({ ...templateFormData, category: e.target.value })}
+                  onChange={(e) =>
+                    setTemplateFormData({
+                      ...templateFormData,
+                      category: e.target.value,
+                    })
+                  }
                 />
               </div>
               <div className="form-field">
@@ -637,7 +729,9 @@ export function QueueHistoryTemplatesPanel({
                     {showVariablePicker && (
                       <div className="variable-picker-dropdown">
                         <div className="variable-section">
-                          <div className="variable-section-title">Built-in Variables</div>
+                          <div className="variable-section-title">
+                            Built-in Variables
+                          </div>
                           {getBuiltinVariableNames().map((name) => (
                             <button
                               key={name}
@@ -646,13 +740,17 @@ export function QueueHistoryTemplatesPanel({
                               title={BUILTIN_VARIABLE_DESCRIPTIONS[name]}
                             >
                               <span className="variable-name">{`{{${name}}}`}</span>
-                              <span className="variable-desc">{BUILTIN_VARIABLE_DESCRIPTIONS[name]}</span>
+                              <span className="variable-desc">
+                                {BUILTIN_VARIABLE_DESCRIPTIONS[name]}
+                              </span>
                             </button>
                           ))}
                         </div>
                         {customVariables.length > 0 && (
                           <div className="variable-section">
-                            <div className="variable-section-title">Custom Variables</div>
+                            <div className="variable-section-title">
+                              Custom Variables
+                            </div>
                             {customVariables.map((v) => (
                               <button
                                 key={v.id}
@@ -675,7 +773,12 @@ export function QueueHistoryTemplatesPanel({
                   id="template-content"
                   placeholder="Enter the template content... Use {{variable_name}} for dynamic values."
                   value={templateFormData.content}
-                  onChange={(e) => setTemplateFormData({ ...templateFormData, content: e.target.value })}
+                  onChange={(e) =>
+                    setTemplateFormData({
+                      ...templateFormData,
+                      content: e.target.value,
+                    })
+                  }
                   rows={8}
                 />
               </div>
@@ -686,9 +789,12 @@ export function QueueHistoryTemplatesPanel({
                 <Button
                   variant="primary"
                   onClick={handleSaveTemplate}
-                  disabled={!templateFormData.name.trim() || !templateFormData.content.trim()}
+                  disabled={
+                    !templateFormData.name.trim() ||
+                    !templateFormData.content.trim()
+                  }
                 >
-                  {editingTemplate ? 'Save Changes' : 'Create'}
+                  {editingTemplate ? "Save Changes" : "Create"}
                 </Button>
               </div>
             </div>
@@ -699,10 +805,14 @@ export function QueueHistoryTemplatesPanel({
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
-          <div className="modal-content modal-confirm" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-content modal-confirm"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3>Confirm Delete</h3>
             <p>
-              Are you sure you want to delete this {deleteConfirm.type}? This action cannot be undone.
+              Are you sure you want to delete this {deleteConfirm.type}? This
+              action cannot be undone.
             </p>
             <div className="form-actions">
               <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>
@@ -711,7 +821,7 @@ export function QueueHistoryTemplatesPanel({
               <Button
                 variant="primary"
                 onClick={() => {
-                  if (deleteConfirm.type === 'draft') {
+                  if (deleteConfirm.type === "draft") {
                     handleDeleteDraft(deleteConfirm.id);
                   } else {
                     handleDeleteTemplate(deleteConfirm.id);
@@ -728,8 +838,8 @@ export function QueueHistoryTemplatesPanel({
       {/* Diff Viewer Modal */}
       {diffState && (
         <DiffViewer
-          textA={diffState.a.response_text || ''}
-          textB={diffState.b.response_text || ''}
+          textA={diffState.a.response_text || ""}
+          textB={diffState.b.response_text || ""}
           labelA={`Current (${new Date(diffState.a.created_at).toLocaleDateString()})`}
           labelB={`Version (${new Date(diffState.b.created_at).toLocaleDateString()})`}
           onClose={() => setDiffState(null)}

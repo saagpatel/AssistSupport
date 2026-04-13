@@ -1,7 +1,7 @@
-import { Button } from '../shared/Button';
-import { Dialog } from '../shared/Dialog';
-import { SaveAsTemplateModal } from './SaveAsTemplateModal';
-import type { SavedDraft, SimilarCase } from '../../types/workspace';
+import { Button } from "../shared/Button";
+import { Dialog } from "../shared/Dialog";
+import { SaveAsTemplateModal } from "./SaveAsTemplateModal";
+import type { SavedDraft, SimilarCase } from "../../types/workspace";
 
 interface WorkspaceDialogsProps {
   showTemplateModal: boolean;
@@ -17,11 +17,15 @@ interface WorkspaceDialogsProps {
   onCloseTemplateModal: () => void;
   pendingSimilarCaseOpen: SimilarCase | null;
   onCloseSimilarCaseDialog: () => void;
-  onConfirmOpenSimilarCase: (mode: 'replace' | 'save-and-open' | 'compare') => void | Promise<void>;
+  onConfirmOpenSimilarCase: (
+    mode: "replace" | "save-and-open" | "compare",
+  ) => void | Promise<void>;
   hasResponse: boolean;
   pendingDraftOpen: SavedDraft | null;
   onCloseDraftDialog: () => void;
-  onConfirmOpenDraft: (mode: 'replace' | 'save-and-open') => void | Promise<void>;
+  onConfirmOpenDraft: (
+    mode: "replace" | "save-and-open",
+  ) => void | Promise<void>;
 }
 
 export function WorkspaceDialogs({
@@ -59,8 +63,8 @@ export function WorkspaceDialogs({
         <div className="draft-tab__confirm-dialog">
           <h3>Open another saved case?</h3>
           <p>
-            Your current workspace still has in-progress content. Save it first, compare it to the
-            saved case, or replace it intentionally.
+            Your current workspace still has in-progress content. Save it first,
+            compare it to the saved case, or replace it intentionally.
           </p>
           {pendingSimilarCaseOpen ? (
             <p className="draft-tab__confirm-dialog-target">
@@ -74,7 +78,7 @@ export function WorkspaceDialogs({
             <Button
               variant="secondary"
               onClick={() => {
-                void onConfirmOpenSimilarCase('compare');
+                void onConfirmOpenSimilarCase("compare");
               }}
               disabled={!hasResponse}
             >
@@ -83,7 +87,7 @@ export function WorkspaceDialogs({
             <Button
               variant="secondary"
               onClick={() => {
-                void onConfirmOpenSimilarCase('save-and-open');
+                void onConfirmOpenSimilarCase("save-and-open");
               }}
             >
               Save and open
@@ -91,7 +95,7 @@ export function WorkspaceDialogs({
             <Button
               variant="primary"
               onClick={() => {
-                void onConfirmOpenSimilarCase('replace');
+                void onConfirmOpenSimilarCase("replace");
               }}
             >
               Open anyway
@@ -108,11 +112,17 @@ export function WorkspaceDialogs({
         <div className="draft-tab__confirm-dialog">
           <h3>Open selected draft?</h3>
           <p>
-            Your current workspace has in-progress content. Save it first or replace it intentionally.
+            Your current workspace has in-progress content. Save it first or
+            replace it intentionally.
           </p>
           {pendingDraftOpen ? (
             <p className="draft-tab__confirm-dialog-target">
-              Next draft: <strong>{pendingDraftOpen.ticket_id?.trim() || pendingDraftOpen.summary_text || 'Saved draft'}</strong>
+              Next draft:{" "}
+              <strong>
+                {pendingDraftOpen.ticket_id?.trim() ||
+                  pendingDraftOpen.summary_text ||
+                  "Saved draft"}
+              </strong>
             </p>
           ) : null}
           <div className="draft-tab__confirm-dialog-actions">
@@ -122,7 +132,7 @@ export function WorkspaceDialogs({
             <Button
               variant="secondary"
               onClick={() => {
-                void onConfirmOpenDraft('save-and-open');
+                void onConfirmOpenDraft("save-and-open");
               }}
             >
               Save and open
@@ -130,7 +140,7 @@ export function WorkspaceDialogs({
             <Button
               variant="primary"
               onClick={() => {
-                void onConfirmOpenDraft('replace');
+                void onConfirmOpenDraft("replace");
               }}
             >
               Open anyway

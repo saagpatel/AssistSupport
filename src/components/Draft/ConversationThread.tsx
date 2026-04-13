@@ -1,10 +1,10 @@
-import { useEffect, useRef } from 'react';
-import type { ContextSource } from '../../types/knowledge';
-import './ConversationThread.css';
+import { useEffect, useRef } from "react";
+import type { ContextSource } from "../../types/knowledge";
+import "./ConversationThread.css";
 
 export interface ConversationEntry {
   id: string;
-  type: 'input' | 'search-results' | 'streaming' | 'response';
+  type: "input" | "search-results" | "streaming" | "response";
   timestamp: string;
   content: string;
   sources?: ContextSource[];
@@ -21,19 +21,26 @@ interface ConversationThreadProps {
   isStreaming?: boolean;
 }
 
-export function ConversationThread({ entries, streamingText, isStreaming }: ConversationThreadProps) {
+export function ConversationThread({
+  entries,
+  streamingText,
+  isStreaming,
+}: ConversationThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when entries change
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [entries, streamingText]);
 
   const formatTime = (timestamp: string) => {
     try {
-      return new Date(timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      return new Date(timestamp).toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } catch {
-      return '';
+      return "";
     }
   };
 
@@ -45,34 +52,49 @@ export function ConversationThread({ entries, streamingText, isStreaming }: Conv
         </div>
       )}
 
-      {entries.map(entry => (
-        <div key={entry.id} className={`conversation-entry entry-${entry.type}`}>
+      {entries.map((entry) => (
+        <div
+          key={entry.id}
+          className={`conversation-entry entry-${entry.type}`}
+        >
           <div className="entry-header">
             <span className="entry-label">
-              {entry.type === 'input' ? 'You' : entry.type === 'response' ? 'AI Response' : entry.type === 'search-results' ? 'KB Search' : 'Generating...'}
+              {entry.type === "input"
+                ? "You"
+                : entry.type === "response"
+                  ? "AI Response"
+                  : entry.type === "search-results"
+                    ? "KB Search"
+                    : "Generating..."}
             </span>
             <span className="entry-time">{formatTime(entry.timestamp)}</span>
           </div>
           <div className="entry-content">
-            {entry.type === 'search-results' ? (
+            {entry.type === "search-results" ? (
               <div className="entry-sources-summary">
-                {entry.sources?.length ? `Found ${entry.sources.length} relevant source${entry.sources.length !== 1 ? 's' : ''}` : 'No sources found'}
+                {entry.sources?.length
+                  ? `Found ${entry.sources.length} relevant source${entry.sources.length !== 1 ? "s" : ""}`
+                  : "No sources found"}
               </div>
             ) : (
               <div className="entry-text">{entry.content}</div>
             )}
           </div>
-          {entry.type === 'response' && entry.sources && entry.sources.length > 0 && (
-            <div className="entry-sources">
-              {entry.sources.map((source) => (
-                <span key={source.chunk_id} className="entry-source-chip">
-                  {source.title || source.file_path}
-                  <span className="source-chip-score">{(source.score * 100).toFixed(0)}%</span>
-                </span>
-              ))}
-            </div>
-          )}
-          {entry.type === 'response' && entry.metrics && (
+          {entry.type === "response" &&
+            entry.sources &&
+            entry.sources.length > 0 && (
+              <div className="entry-sources">
+                {entry.sources.map((source) => (
+                  <span key={source.chunk_id} className="entry-source-chip">
+                    {source.title || source.file_path}
+                    <span className="source-chip-score">
+                      {(source.score * 100).toFixed(0)}%
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
+          {entry.type === "response" && entry.metrics && (
             <div className="entry-metrics">
               <span>{entry.metrics.word_count} words</span>
               <span>{entry.metrics.tokens_per_second.toFixed(1)} tok/s</span>

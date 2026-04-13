@@ -1,27 +1,33 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { type DraftTabHandle } from './components/Draft/DraftTab';
-import { Toast, ToastContainer } from './components/shared/Toast';
-import { Button } from './components/shared/Button';
-import { CommandPalette, useCommandPalette } from './components/shared/CommandPalette';
-import { KeyboardShortcuts, useKeyboardShortcutsHelp } from './components/shared/KeyboardShortcuts';
-import { OnboardingWizard } from './components/shared/OnboardingWizard';
-import { PassphraseUnlockScreen } from './components/shared/PassphraseUnlockScreen';
-import { RecoveryScreen } from './components/shared/RecoveryScreen';
-import { useInitialize } from './hooks/useInitialize';
-import { useToastContext } from './contexts/ToastContext';
-import { AppStatusProvider } from './contexts/AppStatusContext';
-import { useKeyboardShortcuts } from './hooks/useKeyboard';
+import { useEffect, useMemo, useRef } from "react";
+import { type DraftTabHandle } from "./components/Draft/DraftTab";
+import { Toast, ToastContainer } from "./components/shared/Toast";
+import { Button } from "./components/shared/Button";
+import {
+  CommandPalette,
+  useCommandPalette,
+} from "./components/shared/CommandPalette";
+import {
+  KeyboardShortcuts,
+  useKeyboardShortcutsHelp,
+} from "./components/shared/KeyboardShortcuts";
+import { OnboardingWizard } from "./components/shared/OnboardingWizard";
+import { PassphraseUnlockScreen } from "./components/shared/PassphraseUnlockScreen";
+import { RecoveryScreen } from "./components/shared/RecoveryScreen";
+import { useInitialize } from "./hooks/useInitialize";
+import { useToastContext } from "./contexts/ToastContext";
+import { AppStatusProvider } from "./contexts/AppStatusContext";
+import { useKeyboardShortcuts } from "./hooks/useKeyboard";
 import {
   mapShortcutIndexToTab,
   renderActiveTab,
   useAppShellCommands,
   useAppShellState,
   useDraftActions,
-} from './features/app-shell';
-import { isTabEnabled } from './features/app-shell/tabPolicy';
-import { resolveRevampFlags } from './features/revamp';
-import { RevampShell } from './features/revamp/shell/RevampShell';
-import './App.css';
+} from "./features/app-shell";
+import { isTabEnabled } from "./features/app-shell/tabPolicy";
+import { resolveRevampFlags } from "./features/revamp";
+import { RevampShell } from "./features/revamp/shell/RevampShell";
+import "./App.css";
 
 function AppContent() {
   const { initResult, loading, error, unlockWithPassphrase } = useInitialize();
@@ -85,13 +91,14 @@ function AppContent() {
 
   useEffect(() => {
     if (!isTabEnabled(activeTab, revampFlags)) {
-      setActiveTab('draft');
+      setActiveTab("draft");
     }
   }, [activeTab, revampFlags, setActiveTab]);
 
   const commands = useAppShellCommands({
     activeTab,
-    revampCommandPaletteV2Enabled: revampFlags.ASSISTSUPPORT_REVAMP_COMMAND_PALETTE_V2,
+    revampCommandPaletteV2Enabled:
+      revampFlags.ASSISTSUPPORT_REVAMP_COMMAND_PALETTE_V2,
     queueFirstInboxEnabled: revampFlags.ASSISTSUPPORT_REVAMP_INBOX,
     revampFlags,
     setActiveTab,
@@ -117,10 +124,7 @@ function AppContent() {
   if (error) {
     if (initResult?.passphrase_required) {
       return (
-        <PassphraseUnlockScreen
-          error={error}
-          onUnlock={unlockWithPassphrase}
-        />
+        <PassphraseUnlockScreen error={error} onUnlock={unlockWithPassphrase} />
       );
     }
 
@@ -129,7 +133,8 @@ function AppContent() {
         <h1>Initialization Error</h1>
         <pre>{error}</pre>
         <p className="error-hint">
-          Try restarting the application. If the problem persists, check the console for details.
+          Try restarting the application. If the problem persists, check the
+          console for details.
         </p>
         <Button variant="primary" onClick={() => window.location.reload()}>
           Retry
@@ -140,10 +145,7 @@ function AppContent() {
 
   if (initResult?.passphrase_required) {
     return (
-      <PassphraseUnlockScreen
-        error={null}
-        onUnlock={unlockWithPassphrase}
-      />
+      <PassphraseUnlockScreen error={null} onUnlock={unlockWithPassphrase} />
     );
   }
 
@@ -186,7 +188,7 @@ function AppContent() {
       {revampLayout}
 
       <ToastContainer>
-        {toasts.map(toast => (
+        {toasts.map((toast) => (
           <Toast
             key={toast.id}
             message={toast.message}
@@ -205,7 +207,9 @@ function AppContent() {
       <KeyboardShortcuts
         isOpen={shortcutsHelp.isOpen}
         onClose={shortcutsHelp.close}
-        showAdminShortcuts={Boolean(revampFlags.ASSISTSUPPORT_ENABLE_ADMIN_TABS)}
+        showAdminShortcuts={Boolean(
+          revampFlags.ASSISTSUPPORT_ENABLE_ADMIN_TABS,
+        )}
       />
 
       {showOnboarding && (

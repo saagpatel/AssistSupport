@@ -56,3 +56,6 @@ updates:
       - intake
     commit-message:
       prefix: "build(deps)"
+    ignore:
+      - dependency-name: "pnpm/action-setup"
+      - dependency-name: "taiki-e/install-action"

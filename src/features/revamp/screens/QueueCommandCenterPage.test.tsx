@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QueueCommandCenterPage } from './QueueCommandCenterPage';
-import type { SavedDraft } from '../../../types/workspace';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { QueueCommandCenterPage } from "./QueueCommandCenterPage";
+import type { SavedDraft } from "../../../types/workspace";
 
 const loadDraftsMock = vi.fn();
 const searchDraftsMock = vi.fn();
@@ -28,12 +34,19 @@ let collaborationDispatchEnabled = false;
 
 let draftState: {
   drafts: SavedDraft[];
-  templates: Array<{ id: string; name: string; category: string | null; content: string; created_at: string; updated_at: string }>;
+  templates: Array<{
+    id: string;
+    name: string;
+    category: string | null;
+    content: string;
+    created_at: string;
+    updated_at: string;
+  }>;
   loading: boolean;
   error: string | null;
 };
 
-vi.mock('../../../hooks/useDrafts', () => ({
+vi.mock("../../../hooks/useDrafts", () => ({
   useDrafts: () => ({
     drafts: draftState.drafts,
     templates: draftState.templates,
@@ -53,7 +66,7 @@ vi.mock('../../../hooks/useDrafts', () => ({
   }),
 }));
 
-vi.mock('../../../hooks/useQueueOps', () => ({
+vi.mock("../../../hooks/useQueueOps", () => ({
   useQueueOps: () => ({
     clusterTicketsForTriage: clusterTicketsForTriageMock,
     listRecentTriageClusters: listRecentTriageClustersMock,
@@ -64,7 +77,7 @@ vi.mock('../../../hooks/useQueueOps', () => ({
   }),
 }));
 
-vi.mock('../../revamp', () => ({
+vi.mock("../../revamp", () => ({
   resolveRevampFlags: () => ({
     ASSISTSUPPORT_REVAMP_APP_SHELL: true,
     ASSISTSUPPORT_REVAMP_INBOX: true,
@@ -85,13 +98,13 @@ vi.mock('../../revamp', () => ({
   }),
 }));
 
-vi.mock('../../../hooks/useAnalytics', () => ({
+vi.mock("../../../hooks/useAnalytics", () => ({
   useAnalytics: () => ({
     logEvent: logEventMock,
   }),
 }));
 
-vi.mock('../../../contexts/ToastContext', () => ({
+vi.mock("../../../contexts/ToastContext", () => ({
   useToastContext: () => ({
     success: showSuccessMock,
     error: showErrorMock,
@@ -100,26 +113,26 @@ vi.mock('../../../contexts/ToastContext', () => ({
 
 function makeDraft(partial: Partial<SavedDraft> = {}): SavedDraft {
   return {
-    id: partial.id ?? 'draft-1',
-    input_text: partial.input_text ?? 'VPN outage for west region users',
-    summary_text: partial.summary_text ?? 'VPN outage',
+    id: partial.id ?? "draft-1",
+    input_text: partial.input_text ?? "VPN outage for west region users",
+    summary_text: partial.summary_text ?? "VPN outage",
     diagnosis_json: partial.diagnosis_json ?? null,
-    response_text: partial.response_text ?? 'Escalated to network team.',
-    ticket_id: partial.ticket_id ?? 'INC-1001',
+    response_text: partial.response_text ?? "Escalated to network team.",
+    ticket_id: partial.ticket_id ?? "INC-1001",
     kb_sources_json: partial.kb_sources_json ?? null,
-    created_at: partial.created_at ?? '2026-03-10T10:00:00.000Z',
-    updated_at: partial.updated_at ?? '2026-03-10T10:00:00.000Z',
+    created_at: partial.created_at ?? "2026-03-10T10:00:00.000Z",
+    updated_at: partial.updated_at ?? "2026-03-10T10:00:00.000Z",
     is_autosave: partial.is_autosave ?? false,
-    model_name: partial.model_name ?? 'Local Model',
+    model_name: partial.model_name ?? "Local Model",
     case_intake_json: partial.case_intake_json ?? null,
-    status: partial.status ?? 'draft',
+    status: partial.status ?? "draft",
     handoff_summary: partial.handoff_summary ?? null,
     finalized_at: partial.finalized_at ?? null,
     finalized_by: partial.finalized_by ?? null,
   };
 }
 
-describe('QueueCommandCenterPage', () => {
+describe("QueueCommandCenterPage", () => {
   beforeEach(() => {
     draftState = {
       drafts: [],
@@ -150,21 +163,29 @@ describe('QueueCommandCenterPage', () => {
     collaborationDispatchEnabled = false;
     searchDraftsMock.mockImplementation(async (query: string) =>
       draftState.drafts.filter((draft) =>
-        `${draft.ticket_id ?? ''} ${draft.summary_text ?? ''} ${draft.input_text}`.toLowerCase().includes(query.toLowerCase()),
+        `${draft.ticket_id ?? ""} ${draft.summary_text ?? ""} ${draft.input_text}`
+          .toLowerCase()
+          .includes(query.toLowerCase()),
       ),
     );
     loadTemplatesMock.mockResolvedValue(undefined);
     deleteDraftMock.mockResolvedValue(true);
-    saveTemplateMock.mockResolvedValue('template-1');
-    updateTemplateMock.mockResolvedValue('template-1');
+    saveTemplateMock.mockResolvedValue("template-1");
+    updateTemplateMock.mockResolvedValue("template-1");
     deleteTemplateMock.mockResolvedValue(true);
-    getDraftMock.mockImplementation(async (draftId: string) => draftState.drafts.find((draft) => draft.id === draftId) ?? null);
+    getDraftMock.mockImplementation(
+      async (draftId: string) =>
+        draftState.drafts.find((draft) => draft.id === draftId) ?? null,
+    );
     getDraftVersionsMock.mockResolvedValue([]);
     restoreDraftVersionMock.mockResolvedValue(true);
-    computeInputHashMock.mockResolvedValue('hash-1');
+    computeInputHashMock.mockResolvedValue("hash-1");
     listRecentTriageClustersMock.mockResolvedValue([]);
     listDispatchHistoryMock.mockResolvedValue([]);
-    if (typeof localStorage !== 'undefined' && typeof localStorage.clear === 'function') {
+    if (
+      typeof localStorage !== "undefined" &&
+      typeof localStorage.clear === "function"
+    ) {
       localStorage.clear();
     }
   });
@@ -173,72 +194,76 @@ describe('QueueCommandCenterPage', () => {
     cleanup();
   });
 
-  it('shows queue loading state while drafts are being fetched', () => {
+  it("shows queue loading state while drafts are being fetched", () => {
     draftState.loading = true;
 
     render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
 
-    expect(screen.getByText('Loading…')).toBeTruthy();
+    expect(screen.getByText("Loading…")).toBeTruthy();
     expect(loadDraftsMock).toHaveBeenCalledWith(100);
   });
 
-  it('shows an error recovery state when queue data cannot be loaded', () => {
-    draftState.error = 'draft load failed';
+  it("shows an error recovery state when queue data cannot be loaded", () => {
+    draftState.error = "draft load failed";
 
     render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
 
-    expect(screen.getByText('Queue unavailable')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry Load' }));
+    expect(screen.getByText("Queue unavailable")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Retry Load" }));
     expect(loadDraftsMock).toHaveBeenCalledTimes(2);
   });
 
-  it('switches between triage, history, and templates without leaving the queue surface', async () => {
+  it("switches between triage, history, and templates without leaving the queue surface", async () => {
     draftState.drafts = [makeDraft()];
     draftState.templates = [
       {
-        id: 'template-1',
-        name: 'Escalation note',
-        category: 'VPN',
-        content: 'Share an update with {{customer_name}}',
-        created_at: '2026-03-10T10:00:00.000Z',
-        updated_at: '2026-03-10T10:00:00.000Z',
+        id: "template-1",
+        name: "Escalation note",
+        category: "VPN",
+        content: "Share an update with {{customer_name}}",
+        created_at: "2026-03-10T10:00:00.000Z",
+        updated_at: "2026-03-10T10:00:00.000Z",
       },
     ];
 
     render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { name: 'Queue Command Center' })).toBeTruthy();
-    expect(screen.getByLabelText('Search queue')).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Queue Command Center" }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Search queue")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'History' }));
-    expect(await screen.findByPlaceholderText('Search drafts...')).toBeTruthy();
-    expect(screen.queryByLabelText('Search queue')).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    expect(await screen.findByPlaceholderText("Search drafts...")).toBeTruthy();
+    expect(screen.queryByLabelText("Search queue")).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }));
-    expect(await screen.findByRole('button', { name: 'Create Template' })).toBeTruthy();
-    expect(screen.getByText('Escalation note')).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Templates" }));
+    expect(
+      await screen.findByRole("button", { name: "Create Template" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Escalation note")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Triage' }));
-    expect(await screen.findByLabelText('Search queue')).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Triage" }));
+    expect(await screen.findByLabelText("Search queue")).toBeTruthy();
   });
 
-  it('opens a queue item into Workspace from the canonical triage surface', async () => {
+  it("opens a queue item into Workspace from the canonical triage surface", async () => {
     draftState.drafts = [makeDraft()];
     const onLoadDraft = vi.fn();
 
     render(<QueueCommandCenterPage onLoadDraft={onLoadDraft} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Open Draft' }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open Draft" }));
 
     expect(onLoadDraft).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 'draft-1',
-        ticket_id: 'INC-1001',
+        id: "draft-1",
+        ticket_id: "INC-1001",
       }),
     );
   });
 
-  it('consumes one-shot queue views and returns history/templates users to triage when a queue deep link arrives', async () => {
+  it("consumes one-shot queue views and returns history/templates users to triage when a queue deep link arrives", async () => {
     draftState.drafts = [makeDraft()];
     const onQueueViewConsumed = vi.fn();
     const { rerender } = render(
@@ -253,8 +278,8 @@ describe('QueueCommandCenterPage', () => {
       expect(onQueueViewConsumed).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'History' }));
-    expect(await screen.findByPlaceholderText('Search drafts...')).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    expect(await screen.findByPlaceholderText("Search drafts...")).toBeTruthy();
 
     rerender(
       <QueueCommandCenterPage
@@ -264,105 +289,111 @@ describe('QueueCommandCenterPage', () => {
       />,
     );
 
-    expect(await screen.findByLabelText('Search queue')).toBeTruthy();
+    expect(await screen.findByLabelText("Search queue")).toBeTruthy();
     expect(onQueueViewConsumed).toHaveBeenCalledTimes(2);
   });
 
-  it('filters missing-context work and runs batch triage from the visible queue', async () => {
+  it("filters missing-context work and runs batch triage from the visible queue", async () => {
     draftState.drafts = [
       makeDraft({
         case_intake_json: JSON.stringify({
-          issue: 'VPN outage',
-          missing_data: ['affected system'],
-          note_audience: 'internal-note',
+          issue: "VPN outage",
+          missing_data: ["affected system"],
+          note_audience: "internal-note",
         }),
       }),
     ];
     clusterTicketsForTriageMock.mockResolvedValue([
       {
-        cluster_key: 'vpn',
-        summary: 'VPN issues',
-        ticket_ids: ['INC-1001'],
+        cluster_key: "vpn",
+        summary: "VPN issues",
+        ticket_ids: ["INC-1001"],
       },
     ]);
 
     render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Missing context' }));
-    expect(screen.getAllByText('INC-1001')).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Missing context" }));
+    expect(screen.getAllByText("INC-1001")).toHaveLength(2);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use visible queue' }));
-    const input = screen.getByLabelText('Batch triage input') as HTMLTextAreaElement;
-    expect(input.value).toContain('INC-1001|VPN outage');
+    fireEvent.click(screen.getByRole("button", { name: "Use visible queue" }));
+    const input = screen.getByLabelText(
+      "Batch triage input",
+    ) as HTMLTextAreaElement;
+    expect(input.value).toContain("INC-1001|VPN outage");
 
-    fireEvent.click(screen.getByRole('button', { name: 'Run triage' }));
+    fireEvent.click(screen.getByRole("button", { name: "Run triage" }));
 
     await waitFor(() => {
       expect(clusterTicketsForTriageMock).toHaveBeenCalledWith([
-        { id: 'INC-1001', summary: 'VPN outage' },
+        { id: "INC-1001", summary: "VPN outage" },
       ]);
     });
     expect(await screen.findByText(/VPN issues/)).toBeTruthy();
-    expect(showSuccessMock).toHaveBeenCalledWith('Batch triage completed');
+    expect(showSuccessMock).toHaveBeenCalledWith("Batch triage completed");
   });
 
-  it('previews and records a queue dispatch send when collaboration dispatch is enabled', async () => {
+  it("previews and records a queue dispatch send when collaboration dispatch is enabled", async () => {
     collaborationDispatchEnabled = true;
     draftState.drafts = [makeDraft()];
     previewCollaborationDispatchMock.mockResolvedValue({
-      id: 'dispatch-1',
-      integration_type: 'jira',
-      draft_id: 'draft-1',
-      title: 'Escalation · INC-1001',
-      destination_label: 'Jira escalation payload',
-      payload_preview: 'Escalation summary',
-      status: 'previewed',
+      id: "dispatch-1",
+      integration_type: "jira",
+      draft_id: "draft-1",
+      title: "Escalation · INC-1001",
+      destination_label: "Jira escalation payload",
+      payload_preview: "Escalation summary",
+      status: "previewed",
       metadata_json: null,
-      created_at: '2026-03-10T10:00:00.000Z',
-      updated_at: '2026-03-10T10:00:00.000Z',
+      created_at: "2026-03-10T10:00:00.000Z",
+      updated_at: "2026-03-10T10:00:00.000Z",
     });
     confirmCollaborationDispatchMock.mockResolvedValue({
-      id: 'dispatch-1',
-      integration_type: 'jira',
-      draft_id: 'draft-1',
-      title: 'Escalation · INC-1001',
-      destination_label: 'Jira escalation payload',
-      payload_preview: 'Escalation summary',
-      status: 'sent',
+      id: "dispatch-1",
+      integration_type: "jira",
+      draft_id: "draft-1",
+      title: "Escalation · INC-1001",
+      destination_label: "Jira escalation payload",
+      payload_preview: "Escalation summary",
+      status: "sent",
       metadata_json: null,
-      created_at: '2026-03-10T10:00:00.000Z',
-      updated_at: '2026-03-10T10:01:00.000Z',
+      created_at: "2026-03-10T10:00:00.000Z",
+      updated_at: "2026-03-10T10:01:00.000Z",
     });
     listDispatchHistoryMock.mockResolvedValue([
       {
-        id: 'dispatch-1',
-        integration_type: 'jira',
-        draft_id: 'draft-1',
-        title: 'Escalation · INC-1001',
-        destination_label: 'Jira escalation payload',
-        payload_preview: 'Escalation summary',
-        status: 'previewed',
+        id: "dispatch-1",
+        integration_type: "jira",
+        draft_id: "draft-1",
+        title: "Escalation · INC-1001",
+        destination_label: "Jira escalation payload",
+        payload_preview: "Escalation summary",
+        status: "previewed",
         metadata_json: null,
-        created_at: '2026-03-10T10:00:00.000Z',
-        updated_at: '2026-03-10T10:00:00.000Z',
+        created_at: "2026-03-10T10:00:00.000Z",
+        updated_at: "2026-03-10T10:00:00.000Z",
       },
     ]);
 
     render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview payload' }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview payload" }));
 
     await waitFor(() => {
       expect(previewCollaborationDispatchMock).toHaveBeenCalled();
     });
 
-    expect(await screen.findByText('Jira escalation payload')).toBeTruthy();
+    expect(await screen.findByText("Jira escalation payload")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm sent' }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm sent" }));
 
     await waitFor(() => {
-      expect(confirmCollaborationDispatchMock).toHaveBeenCalledWith('dispatch-1');
+      expect(confirmCollaborationDispatchMock).toHaveBeenCalledWith(
+        "dispatch-1",
+      );
     });
-    expect(showSuccessMock).toHaveBeenCalledWith('Jira escalation payload dispatch confirmed as sent');
+    expect(showSuccessMock).toHaveBeenCalledWith(
+      "Jira escalation payload dispatch confirmed as sent",
+    );
   });
 });

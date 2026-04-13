@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import { useWorkspaceCommandBridge } from './useWorkspaceCommandBridge';
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { useWorkspaceCommandBridge } from "./useWorkspaceCommandBridge";
 import {
   WORKSPACE_ANALYZE_INTAKE_EVENT,
   WORKSPACE_COMPARE_LAST_RESOLUTION_EVENT,
@@ -9,10 +9,10 @@ import {
   WORKSPACE_COPY_HANDOFF_EVENT,
   WORKSPACE_COPY_KB_DRAFT_EVENT,
   WORKSPACE_REFRESH_SIMILAR_CASES_EVENT,
-} from './workspaceEvents';
+} from "./workspaceEvents";
 
-describe('useWorkspaceCommandBridge', () => {
-  it('wires the workspace command events to the provided callbacks when enabled', () => {
+describe("useWorkspaceCommandBridge", () => {
+  it("wires the workspace command events to the provided callbacks when enabled", () => {
     const onAnalyzeIntake = vi.fn();
     const onCopyHandoffPack = vi.fn();
     const onCopyEvidencePack = vi.fn();
@@ -20,15 +20,17 @@ describe('useWorkspaceCommandBridge', () => {
     const onRefreshSimilarCases = vi.fn();
     const onCompareLastResolution = vi.fn();
 
-    renderHook(() => useWorkspaceCommandBridge({
-      enabled: true,
-      onAnalyzeIntake,
-      onCopyHandoffPack,
-      onCopyEvidencePack,
-      onCopyKbDraft,
-      onRefreshSimilarCases,
-      onCompareLastResolution,
-    }));
+    renderHook(() =>
+      useWorkspaceCommandBridge({
+        enabled: true,
+        onAnalyzeIntake,
+        onCopyHandoffPack,
+        onCopyEvidencePack,
+        onCopyKbDraft,
+        onRefreshSimilarCases,
+        onCompareLastResolution,
+      }),
+    );
 
     act(() => {
       window.dispatchEvent(new Event(WORKSPACE_ANALYZE_INTAKE_EVENT));
@@ -47,18 +49,20 @@ describe('useWorkspaceCommandBridge', () => {
     expect(onCompareLastResolution).toHaveBeenCalledTimes(1);
   });
 
-  it('does not wire events when disabled', () => {
+  it("does not wire events when disabled", () => {
     const onAnalyzeIntake = vi.fn();
 
-    renderHook(() => useWorkspaceCommandBridge({
-      enabled: false,
-      onAnalyzeIntake,
-      onCopyHandoffPack: vi.fn(),
-      onCopyEvidencePack: vi.fn(),
-      onCopyKbDraft: vi.fn(),
-      onRefreshSimilarCases: vi.fn(),
-      onCompareLastResolution: vi.fn(),
-    }));
+    renderHook(() =>
+      useWorkspaceCommandBridge({
+        enabled: false,
+        onAnalyzeIntake,
+        onCopyHandoffPack: vi.fn(),
+        onCopyEvidencePack: vi.fn(),
+        onCopyKbDraft: vi.fn(),
+        onRefreshSimilarCases: vi.fn(),
+        onCompareLastResolution: vi.fn(),
+      }),
+    );
 
     act(() => {
       window.dispatchEvent(new Event(WORKSPACE_ANALYZE_INTAKE_EVENT));

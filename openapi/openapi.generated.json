@@ -3,7 +3,7 @@
   "info": {
     "title": "AssistSupport Search API",
     "version": "1.2.0",
-    "description": "Local loopback search sidecar used by AssistSupport for adaptive hybrid KB search, feedback capture, readiness checks, and Knowledge diagnostics stats."
+    "description": "Local loopback search sidecar used by AssistSupport for hybrid KB search, feedback capture, readiness checks, and operational stats."
   },
   "servers": [
     {
@@ -142,6 +142,16 @@
           "include_scores": {
             "type": "boolean",
             "default": false
+          },
+          "fusion_strategy": {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "rrf",
+              "weighted",
+              "rerank"
+            ],
+            "default": "adaptive"
           }
         }
       },
@@ -212,6 +222,7 @@
           "latency_ms",
           "embedding_time_ms",
           "search_time_ms",
+          "rerank_time_ms",
           "result_count",
           "timestamp"
         ],
@@ -223,6 +234,9 @@
             "type": "number"
           },
           "search_time_ms": {
+            "type": "number"
+          },
+          "rerank_time_ms": {
             "type": "number"
           },
           "result_count": {

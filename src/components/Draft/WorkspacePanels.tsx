@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 interface WorkspacePanelsProps {
   diagnosisCollapsed: boolean;
@@ -20,7 +20,9 @@ export function WorkspacePanels({
   return (
     <div className="draft-panels-container">
       <div className="draft-panel input-panel">{inputPanel}</div>
-      <div className={`draft-panel diagnosis-panel ${diagnosisCollapsed ? 'collapsed' : ''}`}>
+      <div
+        className={`draft-panel diagnosis-panel ${diagnosisCollapsed ? "collapsed" : ""}`}
+      >
         {diagnosisPanel}
       </div>
       <div className="draft-panel response-panel">{responsePanel}</div>

@@ -1,9 +1,12 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 
-const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const SRC_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 
 function walkSourceFiles(dir: string): string[] {
   const output: string[] = [];
@@ -15,7 +18,11 @@ function walkSourceFiles(dir: string): string[] {
       output.push(...walkSourceFiles(fullPath));
       continue;
     }
-    if (!fullPath.match(/\.(ts|tsx)$/) || fullPath.endsWith('.test.ts') || fullPath.endsWith('.test.tsx')) {
+    if (
+      !fullPath.match(/\.(ts|tsx)$/) ||
+      fullPath.endsWith(".test.ts") ||
+      fullPath.endsWith(".test.tsx")
+    ) {
       continue;
     }
     output.push(fullPath);
@@ -24,16 +31,16 @@ function walkSourceFiles(dir: string): string[] {
   return output;
 }
 
-describe('type import policy', () => {
-  it('retires the broad types barrel', () => {
-    expect(existsSync(path.join(SRC_ROOT, 'types', 'index.ts'))).toBe(false);
+describe("type import policy", () => {
+  it("retires the broad types barrel", () => {
+    expect(existsSync(path.join(SRC_ROOT, "types", "index.ts"))).toBe(false);
   });
 
-  it('keeps production source off the broad types barrel', () => {
+  it("keeps production source off the broad types barrel", () => {
     const violations: string[] = [];
 
     for (const filePath of walkSourceFiles(SRC_ROOT)) {
-      const content = readFileSync(filePath, 'utf8');
+      const content = readFileSync(filePath, "utf8");
       if (content.match(/from ['"](?:\.\.\/)+types(?:\/index)?['"]/)) {
         violations.push(path.relative(SRC_ROOT, filePath));
       }

@@ -55,14 +55,14 @@ pnpm tauri build
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Desktop shell | Tauri 2 + Rust |
-| Frontend | React + TypeScript + Vite |
-| ML search | TF-IDF, Logistic Regression, ms-marco-MiniLM-L-6-v2 |
-| Local storage | SQLite (encrypted) |
-| LLM inference | Local via Ollama (optional) |
-| Fonts | IBM Plex Sans, JetBrains Mono |
+| Layer         | Technology                                          |
+| ------------- | --------------------------------------------------- |
+| Desktop shell | Tauri 2 + Rust                                      |
+| Frontend      | React + TypeScript + Vite                           |
+| ML search     | TF-IDF, Logistic Regression, ms-marco-MiniLM-L-6-v2 |
+| Local storage | SQLite (encrypted)                                  |
+| LLM inference | Local via Ollama (optional)                         |
+| Fonts         | IBM Plex Sans, JetBrains Mono                       |
 
 ## Architecture
 

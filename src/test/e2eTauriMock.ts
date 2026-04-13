@@ -1,4 +1,4 @@
-import { mockIPC, mockWindows } from '@tauri-apps/api/mocks';
+import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 
 const kbStats = {
   document_count: 2,
@@ -8,17 +8,17 @@ const kbStats = {
 
 const kbDocuments = [
   {
-    id: 'doc-1',
-    file_path: '/mock/kb/remote-work-policy.md',
-    title: 'Remote Work Policy',
-    indexed_at: '2026-02-03T10:00:00Z',
+    id: "doc-1",
+    file_path: "/mock/kb/remote-work-policy.md",
+    title: "Remote Work Policy",
+    indexed_at: "2026-02-03T10:00:00Z",
     chunk_count: 4,
   },
   {
-    id: 'doc-2',
-    file_path: '/mock/kb/security-baseline.md',
-    title: 'Security Baseline',
-    indexed_at: '2026-02-03T10:05:00Z',
+    id: "doc-2",
+    file_path: "/mock/kb/security-baseline.md",
+    title: "Security Baseline",
+    indexed_at: "2026-02-03T10:05:00Z",
     chunk_count: 4,
   },
 ];
@@ -26,17 +26,17 @@ const kbDocuments = [
 function mockSearchResults() {
   return [
     {
-      chunk_id: 'chunk-1',
-      document_id: 'doc-1',
-      file_path: '/mock/kb/remote-work-policy.md',
-      title: 'Remote Work Policy',
-      heading_path: 'Policy > VPN',
-      content: 'Use approved VPN and MFA when working remotely.',
-      snippet: 'Use approved VPN and MFA when working remotely.',
+      chunk_id: "chunk-1",
+      document_id: "doc-1",
+      file_path: "/mock/kb/remote-work-policy.md",
+      title: "Remote Work Policy",
+      heading_path: "Policy > VPN",
+      content: "Use approved VPN and MFA when working remotely.",
+      snippet: "Use approved VPN and MFA when working remotely.",
       score: 0.95,
-      source: 'Hybrid',
-      namespace_id: 'default',
-      source_type: 'file',
+      source: "Hybrid",
+      namespace_id: "default",
+      source_type: "file",
     },
   ];
 }
@@ -44,72 +44,85 @@ function mockSearchResults() {
 export function setupE2eTauriMock(): void {
   const deploymentArtifacts = [
     {
-      id: 'artifact-1',
-      artifact_type: 'app_bundle',
-      version: '1.0.0',
-      channel: 'stable',
-      sha256: 'abc123',
+      id: "artifact-1",
+      artifact_type: "app_bundle",
+      version: "1.0.0",
+      channel: "stable",
+      sha256: "abc123",
       is_signed: true,
-      created_at: '2026-02-03T10:00:00Z',
+      created_at: "2026-02-03T10:00:00Z",
     },
   ];
 
   const deploymentRuns = [
     {
-      id: 'run-1',
-      target_channel: 'stable',
-      status: 'succeeded',
-      preflight_json: JSON.stringify(['Database integrity: pass', 'Model status: loaded']),
+      id: "run-1",
+      target_channel: "stable",
+      status: "succeeded",
+      preflight_json: JSON.stringify([
+        "Database integrity: pass",
+        "Model status: loaded",
+      ]),
       rollback_available: true,
-      created_at: '2026-02-03T10:00:00Z',
-      completed_at: '2026-02-03T10:01:00Z',
+      created_at: "2026-02-03T10:00:00Z",
+      completed_at: "2026-02-03T10:01:00Z",
     },
   ];
 
   const evalRuns = [
     {
-      id: 'eval-1',
-      suite_name: 'ops-regression-suite',
+      id: "eval-1",
+      suite_name: "ops-regression-suite",
       total_cases: 2,
       passed_cases: 2,
       avg_confidence: 0.76,
-      details_json: '[]',
-      created_at: '2026-02-03T11:00:00Z',
+      details_json: "[]",
+      created_at: "2026-02-03T11:00:00Z",
     },
   ];
 
   const triageClusters = [
     {
-      id: 'cluster-1',
-      cluster_key: 'vpn',
-      summary: '2 tickets about vpn',
+      id: "cluster-1",
+      cluster_key: "vpn",
+      summary: "2 tickets about vpn",
       ticket_count: 2,
-      tickets_json: JSON.stringify([{ id: 'INC-1001', summary: 'VPN timeout' }]),
-      created_at: '2026-02-03T11:05:00Z',
+      tickets_json: JSON.stringify([
+        { id: "INC-1001", summary: "VPN timeout" },
+      ]),
+      created_at: "2026-02-03T11:05:00Z",
     },
   ];
 
   const runbookSessions = [
     {
-      id: 'runbook-1',
-      scenario: 'security-incident',
-      scope_key: 'ops:global',
-      status: 'active',
-      steps_json: JSON.stringify(['Acknowledge incident', 'Contain access', 'Notify stakeholders']),
+      id: "runbook-1",
+      scenario: "security-incident",
+      scope_key: "ops:global",
+      status: "active",
+      steps_json: JSON.stringify([
+        "Acknowledge incident",
+        "Contain access",
+        "Notify stakeholders",
+      ]),
       current_step: 0,
-      created_at: '2026-02-03T11:10:00Z',
-      updated_at: '2026-02-03T11:10:00Z',
+      created_at: "2026-02-03T11:10:00Z",
+      updated_at: "2026-02-03T11:10:00Z",
     },
   ];
 
   const runbookTemplates = [
     {
-      id: 'runbook-template-1',
-      name: 'Security Incident',
-      scenario: 'security-incident',
-      steps_json: JSON.stringify(['Acknowledge incident', 'Contain access', 'Notify stakeholders']),
-      created_at: '2026-02-03T11:08:00Z',
-      updated_at: '2026-02-03T11:08:00Z',
+      id: "runbook-template-1",
+      name: "Security Incident",
+      scenario: "security-incident",
+      steps_json: JSON.stringify([
+        "Acknowledge incident",
+        "Contain access",
+        "Notify stakeholders",
+      ]),
+      created_at: "2026-02-03T11:08:00Z",
+      updated_at: "2026-02-03T11:08:00Z",
     },
   ];
 
@@ -125,23 +138,27 @@ export function setupE2eTauriMock(): void {
 
   const resolutionKits = [
     {
-      id: 'kit-1',
-      name: 'VPN Incident Starter',
-      summary: 'Baseline steps for repeated VPN incidents.',
-      category: 'incident',
-      response_template: 'We are reviewing the VPN incident and will update you shortly.',
-      checklist_items_json: JSON.stringify(['Confirm scope', 'Check recent network changes']),
-      kb_document_ids_json: JSON.stringify(['doc-1']),
-      runbook_scenario: 'security-incident',
+      id: "kit-1",
+      name: "VPN Incident Starter",
+      summary: "Baseline steps for repeated VPN incidents.",
+      category: "incident",
+      response_template:
+        "We are reviewing the VPN incident and will update you shortly.",
+      checklist_items_json: JSON.stringify([
+        "Confirm scope",
+        "Check recent network changes",
+      ]),
+      kb_document_ids_json: JSON.stringify(["doc-1"]),
+      runbook_scenario: "security-incident",
       approval_hint: null,
-      created_at: '2026-02-03T11:09:00Z',
-      updated_at: '2026-02-03T11:09:00Z',
+      created_at: "2026-02-03T11:09:00Z",
+      updated_at: "2026-02-03T11:09:00Z",
     },
   ];
 
   const workspaceFavorites: Array<{
     id: string;
-    kind: 'runbook' | 'policy' | 'kb' | 'kit';
+    kind: "runbook" | "policy" | "kb" | "kit";
     label: string;
     resource_id: string;
     metadata_json: string | null;
@@ -151,12 +168,12 @@ export function setupE2eTauriMock(): void {
 
   const dispatchHistory: Array<{
     id: string;
-    integration_type: 'jira' | 'servicenow' | 'slack' | 'teams';
+    integration_type: "jira" | "servicenow" | "slack" | "teams";
     draft_id: string | null;
     title: string;
     destination_label: string;
     payload_preview: string;
-    status: 'previewed' | 'sent' | 'cancelled' | 'failed';
+    status: "previewed" | "sent" | "cancelled" | "failed";
     metadata_json: string | null;
     created_at: string;
     updated_at: string;
@@ -177,25 +194,25 @@ export function setupE2eTauriMock(): void {
 
   const integrationConfigs = [
     {
-      id: 'integration-1',
-      integration_type: 'servicenow',
+      id: "integration-1",
+      integration_type: "servicenow",
       enabled: true,
       config_json: '{"endpoint":"https://servicenow.example.com"}',
-      updated_at: '2026-02-03T11:15:00Z',
+      updated_at: "2026-02-03T11:15:00Z",
     },
     {
-      id: 'integration-2',
-      integration_type: 'slack',
+      id: "integration-2",
+      integration_type: "slack",
       enabled: false,
       config_json: null,
-      updated_at: '2026-02-03T11:15:00Z',
+      updated_at: "2026-02-03T11:15:00Z",
     },
     {
-      id: 'integration-3',
-      integration_type: 'teams',
+      id: "integration-3",
+      integration_type: "teams",
       enabled: false,
       config_json: null,
-      updated_at: '2026-02-03T11:15:00Z',
+      updated_at: "2026-02-03T11:15:00Z",
     },
   ];
 
@@ -215,55 +232,56 @@ export function setupE2eTauriMock(): void {
 
   const draftStore: MockDraftRecord[] = [];
 
-  mockWindows('main');
+  mockWindows("main");
   mockIPC(
     async (cmd, payload) => {
       switch (cmd) {
-        case 'initialize_app':
-        case 'unlock_with_passphrase':
+        case "initialize_app":
+        case "unlock_with_passphrase":
           return {
             is_first_run: false,
             vector_enabled: false,
             vector_store_ready: false,
-            key_storage_mode: 'keychain',
+            key_storage_mode: "keychain",
             passphrase_required: false,
             recovery_issue: null,
           };
-        case 'check_fts5_enabled':
+        case "check_fts5_enabled":
           return true;
-        case 'get_memory_kernel_integration_pin':
+        case "get_memory_kernel_integration_pin":
           return {
-            memorykernel_repo: 'https://github.com/saagar210/MemoryKernel',
-            release_tag: 'v0.3.2',
-            commit_sha: 'cf331449e1589581a5dcbb3adecd3e9ae4509277',
-            expected_service_contract_version: 'service.v2',
-            expected_api_contract_version: 'api.v1',
-            expected_integration_baseline: 'integration/v1',
-            default_base_url: 'http://127.0.0.1:4010',
+            memorykernel_repo: "https://github.com/saagar210/MemoryKernel",
+            release_tag: "v0.3.2",
+            commit_sha: "cf331449e1589581a5dcbb3adecd3e9ae4509277",
+            expected_service_contract_version: "service.v2",
+            expected_api_contract_version: "api.v1",
+            expected_integration_baseline: "integration/v1",
+            default_base_url: "http://127.0.0.1:4010",
             default_timeout_ms: 2500,
           };
-        case 'get_memory_kernel_preflight_status':
+        case "get_memory_kernel_preflight_status":
           return {
             enabled: true,
             ready: false,
             enrichment_enabled: false,
-            status: 'offline',
-            message: 'MemoryKernel service is unavailable at http://127.0.0.1:4010',
-            base_url: 'http://127.0.0.1:4010',
+            status: "offline",
+            message:
+              "MemoryKernel service is unavailable at http://127.0.0.1:4010",
+            base_url: "http://127.0.0.1:4010",
             service_contract_version: null,
             api_contract_version: null,
-            expected_service_contract_version: 'service.v2',
-            expected_api_contract_version: 'api.v1',
-            integration_baseline: 'integration/v1',
-            release_tag: 'v0.3.2',
-            commit_sha: 'cf331449e1589581a5dcbb3adecd3e9ae4509277',
+            expected_service_contract_version: "service.v2",
+            expected_api_contract_version: "api.v1",
+            integration_baseline: "integration/v1",
+            release_tag: "v0.3.2",
+            commit_sha: "cf331449e1589581a5dcbb3adecd3e9ae4509277",
           };
-        case 'memory_kernel_query_ask':
+        case "memory_kernel_query_ask":
           return {
             applied: false,
-            status: 'fallback',
-            message: 'MemoryKernel enrichment currently unavailable',
-            fallback_reason: 'offline',
+            status: "fallback",
+            message: "MemoryKernel enrichment currently unavailable",
+            fallback_reason: "offline",
             machine_error_code: null,
             context_package_id: null,
             enrichment_text: null,
@@ -271,33 +289,34 @@ export function setupE2eTauriMock(): void {
               enabled: true,
               ready: false,
               enrichment_enabled: false,
-              status: 'offline',
-              message: 'MemoryKernel service is unavailable at http://127.0.0.1:4010',
-              base_url: 'http://127.0.0.1:4010',
+              status: "offline",
+              message:
+                "MemoryKernel service is unavailable at http://127.0.0.1:4010",
+              base_url: "http://127.0.0.1:4010",
               service_contract_version: null,
               api_contract_version: null,
-              expected_service_contract_version: 'service.v2',
-              expected_api_contract_version: 'api.v1',
-              integration_baseline: 'integration/v1',
-              release_tag: 'v0.3.2',
-              commit_sha: 'cf331449e1589581a5dcbb3adecd3e9ae4509277',
+              expected_service_contract_version: "service.v2",
+              expected_api_contract_version: "api.v1",
+              integration_baseline: "integration/v1",
+              release_tag: "v0.3.2",
+              commit_sha: "cf331449e1589581a5dcbb3adecd3e9ae4509277",
             },
           };
-        case 'check_db_integrity':
+        case "check_db_integrity":
           return true;
-        case 'init_llm_engine':
-        case 'init_embedding_engine':
-        case 'cancel_generation':
-        case 'configure_jira':
-        case 'clear_jira_config':
-        case 'set_context_window':
-        case 'set_vector_consent':
-        case 'set_kb_folder':
-        case 'index_kb':
-        case 'generate_kb_embeddings':
-        case 'log_analytics_event':
+        case "init_llm_engine":
+        case "init_embedding_engine":
+        case "cancel_generation":
+        case "configure_jira":
+        case "clear_jira_config":
+        case "set_context_window":
+        case "set_vector_consent":
+        case "set_kb_folder":
+        case "index_kb":
+        case "generate_kb_embeddings":
+        case "log_analytics_event":
           return null;
-        case 'get_model_state':
+        case "get_model_state":
           return {
             llm_model_id: null,
             llm_model_path: null,
@@ -305,47 +324,51 @@ export function setupE2eTauriMock(): void {
             embeddings_model_path: null,
             embeddings_loaded: false,
           };
-        case 'is_model_loaded':
+        case "is_model_loaded":
           return true;
-        case 'get_model_info':
+        case "get_model_info":
           return {
-            id: 'llama-3.1-8b-instruct',
-            name: 'Llama 3.1 8B Instruct',
+            id: "llama-3.1-8b-instruct",
+            name: "Llama 3.1 8B Instruct",
             n_ctx_train: 8192,
           };
-        case 'list_downloaded_models':
-          return ['llama-3.1-8b-instruct'];
-        case 'get_context_window':
+        case "list_downloaded_models":
+          return ["llama-3.1-8b-instruct"];
+        case "get_context_window":
           return 4096;
-        case 'is_embedding_model_loaded':
-        case 'is_embedding_model_downloaded':
+        case "is_embedding_model_loaded":
+        case "is_embedding_model_downloaded":
           return false;
-        case 'get_embedding_model_info':
+        case "get_embedding_model_info":
           return null;
-        case 'get_embedding_model_path':
+        case "get_embedding_model_path":
           return null;
-        case 'get_vector_consent':
-          return { enabled: false, consented_at: null, encryption_supported: true };
-        case 'get_kb_folder':
-          return '/mock/kb';
-        case 'get_kb_stats':
+        case "get_vector_consent":
+          return {
+            enabled: false,
+            consented_at: null,
+            encryption_supported: true,
+          };
+        case "get_kb_folder":
+          return "/mock/kb";
+        case "get_kb_stats":
           return kbStats;
-        case 'list_kb_documents':
+        case "list_kb_documents":
           return kbDocuments;
-        case 'list_namespaces':
-          return [{ id: 'default', name: 'default' }];
-        case 'search_kb':
-        case 'search_kb_with_options':
+        case "list_namespaces":
+          return [{ id: "default", name: "default" }];
+        case "search_kb":
+        case "search_kb_with_options":
           return mockSearchResults();
-        case 'get_search_context':
-          return 'Source: Remote Work Policy';
-        case 'list_templates':
-        case 'list_saved_response_templates':
-        case 'find_similar_saved_responses':
-        case 'get_alternatives_for_draft':
-        case 'get_draft_versions':
+        case "get_search_context":
+          return "Source: Remote Work Policy";
+        case "list_templates":
+        case "list_saved_response_templates":
+        case "find_similar_saved_responses":
+        case "get_alternatives_for_draft":
+        case "get_draft_versions":
           return [];
-        case 'list_drafts': {
+        case "list_drafts": {
           const body = payload as { limit?: number } | undefined;
           const limit = body?.limit ?? 50;
           return draftStore
@@ -354,7 +377,7 @@ export function setupE2eTauriMock(): void {
             .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
             .slice(0, limit);
         }
-        case 'list_autosaves': {
+        case "list_autosaves": {
           const body = payload as { limit?: number } | undefined;
           const limit = body?.limit ?? 50;
           return draftStore
@@ -363,9 +386,11 @@ export function setupE2eTauriMock(): void {
             .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
             .slice(0, limit);
         }
-        case 'search_drafts': {
-          const body = payload as { query?: string; limit?: number } | undefined;
-          const query = (body?.query ?? '').toLowerCase().trim();
+        case "search_drafts": {
+          const body = payload as
+            | { query?: string; limit?: number }
+            | undefined;
+          const query = (body?.query ?? "").toLowerCase().trim();
           const limit = body?.limit ?? 50;
           if (!query) {
             return draftStore
@@ -385,13 +410,13 @@ export function setupE2eTauriMock(): void {
                 draft.response_text,
               ]
                 .filter(Boolean)
-                .join(' ')
+                .join(" ")
                 .toLowerCase();
               return haystack.includes(query);
             })
             .slice(0, limit);
         }
-        case 'get_draft': {
+        case "get_draft": {
           const body = payload as { draftId?: string } | undefined;
           const match = draftStore.find((draft) => draft.id === body?.draftId);
           if (!match) {
@@ -399,34 +424,40 @@ export function setupE2eTauriMock(): void {
           }
           return match;
         }
-        case 'save_draft':
-          {
-            const body = payload as { draft?: MockDraftRecord } | undefined;
-            const draft = body?.draft;
-            if (!draft) {
-              return 'mock-draft-id';
-            }
-
-            const atRiskMarker = '[e2e-at-risk]';
-            const shouldBackdate = draft.input_text?.includes(atRiskMarker) ?? false;
-            const normalizedDraft: MockDraftRecord = {
-              ...draft,
-              input_text: shouldBackdate
-                ? draft.input_text.replace(atRiskMarker, '').trim()
-                : draft.input_text,
-              updated_at: shouldBackdate ? '2025-01-01T00:00:00.000Z' : draft.updated_at,
-              created_at: shouldBackdate ? '2025-01-01T00:00:00.000Z' : draft.created_at,
-            };
-
-            const existingIndex = draftStore.findIndex((item) => item.id === draft.id);
-            if (existingIndex >= 0) {
-              draftStore[existingIndex] = normalizedDraft;
-            } else {
-              draftStore.push(normalizedDraft);
-            }
-            return normalizedDraft.id;
+        case "save_draft": {
+          const body = payload as { draft?: MockDraftRecord } | undefined;
+          const draft = body?.draft;
+          if (!draft) {
+            return "mock-draft-id";
           }
-        case 'delete_draft': {
+
+          const atRiskMarker = "[e2e-at-risk]";
+          const shouldBackdate =
+            draft.input_text?.includes(atRiskMarker) ?? false;
+          const normalizedDraft: MockDraftRecord = {
+            ...draft,
+            input_text: shouldBackdate
+              ? draft.input_text.replace(atRiskMarker, "").trim()
+              : draft.input_text,
+            updated_at: shouldBackdate
+              ? "2025-01-01T00:00:00.000Z"
+              : draft.updated_at,
+            created_at: shouldBackdate
+              ? "2025-01-01T00:00:00.000Z"
+              : draft.created_at,
+          };
+
+          const existingIndex = draftStore.findIndex(
+            (item) => item.id === draft.id,
+          );
+          if (existingIndex >= 0) {
+            draftStore[existingIndex] = normalizedDraft;
+          } else {
+            draftStore.push(normalizedDraft);
+          }
+          return normalizedDraft.id;
+        }
+        case "delete_draft": {
           const body = payload as { draftId?: string } | undefined;
           const draftId = body?.draftId;
           if (!draftId) {
@@ -436,43 +467,43 @@ export function setupE2eTauriMock(): void {
           draftStore.splice(0, draftStore.length, ...next);
           return null;
         }
-        case 'generate_streaming':
-        case 'generate_with_context':
-          {
-            // Allow tests to exercise citation gating + copy override paths without changing
-            // production behavior. Marker is only used in the e2e mock layer.
-            const userInput = String((payload as any)?.params?.user_input ?? '');
-            const wantsNoCitations = userInput.includes('[e2e-no-citations]');
+        case "generate_streaming":
+        case "generate_with_context": {
+          // Allow tests to exercise citation gating + copy override paths without changing
+          // production behavior. Marker is only used in the e2e mock layer.
+          const userInput = String((payload as any)?.params?.user_input ?? "");
+          const wantsNoCitations = userInput.includes("[e2e-no-citations]");
 
-            if (wantsNoCitations) {
-              return {
-                text: 'I cannot provide a confident response without citations. Please verify manually or expand the knowledge base search.',
-                tokens_generated: 36,
-                duration_ms: 520,
-                source_chunk_ids: [],
-                sources: [],
-                metrics: {
-                  tokens_per_second: 69.2,
-                  sources_used: 0,
-                  word_count: 20,
-                  length_target_met: true,
-                  context_utilization: 0.08,
-                },
-                prompt_template_version: 'e2e-mock',
-                confidence: {
-                  mode: 'clarify',
-                  score: 0.42,
-                  rationale: 'No supporting knowledge base sources were found for this query.',
-                },
-                grounding: [],
-              };
-            }
+          if (wantsNoCitations) {
+            return {
+              text: "I cannot provide a confident response without citations. Please verify manually or expand the knowledge base search.",
+              tokens_generated: 36,
+              duration_ms: 520,
+              source_chunk_ids: [],
+              sources: [],
+              metrics: {
+                tokens_per_second: 69.2,
+                sources_used: 0,
+                word_count: 20,
+                length_target_met: true,
+                context_utilization: 0.08,
+              },
+              prompt_template_version: "e2e-mock",
+              confidence: {
+                mode: "clarify",
+                score: 0.42,
+                rationale:
+                  "No supporting knowledge base sources were found for this query.",
+              },
+              grounding: [],
+            };
+          }
 
           return {
-            text: 'Per Remote Work Policy, use the approved VPN and complete MFA before accessing internal systems.',
+            text: "Per Remote Work Policy, use the approved VPN and complete MFA before accessing internal systems.",
             tokens_generated: 48,
             duration_ms: 900,
-            source_chunk_ids: ['chunk-1'],
+            source_chunk_ids: ["chunk-1"],
             sources: mockSearchResults(),
             metrics: {
               tokens_per_second: 53.3,
@@ -481,24 +512,26 @@ export function setupE2eTauriMock(): void {
               length_target_met: true,
               context_utilization: 0.22,
             },
-            prompt_template_version: 'e2e-mock',
+            prompt_template_version: "e2e-mock",
             confidence: {
-              mode: 'answer',
+              mode: "answer",
               score: 0.86,
-              rationale: 'Strong grounded evidence across cited sources',
+              rationale: "Strong grounded evidence across cited sources",
             },
             grounding: [
               {
-                claim: 'Use approved VPN and complete MFA.',
+                claim: "Use approved VPN and complete MFA.",
                 source_indexes: [0],
-                support_level: 'strong',
+                support_level: "strong",
               },
             ],
           };
-          }
-        case 'get_deployment_health_summary': {
+        }
+        case "get_deployment_health_summary": {
           const lastRun = deploymentRuns[deploymentRuns.length - 1] ?? null;
-          const signedArtifacts = deploymentArtifacts.filter(a => a.is_signed).length;
+          const signedArtifacts = deploymentArtifacts.filter(
+            (a) => a.is_signed,
+          ).length;
           return {
             total_artifacts: deploymentArtifacts.length,
             signed_artifacts: signedArtifacts,
@@ -506,9 +539,9 @@ export function setupE2eTauriMock(): void {
             last_run: lastRun,
           };
         }
-        case 'list_deployment_artifacts':
+        case "list_deployment_artifacts":
           return deploymentArtifacts.slice().reverse();
-        case 'record_deployment_artifact': {
+        case "record_deployment_artifact": {
           const body = payload as {
             artifactType?: string;
             version?: string;
@@ -518,22 +551,26 @@ export function setupE2eTauriMock(): void {
           };
           const next = {
             id: `artifact-${deploymentArtifacts.length + 1}`,
-            artifact_type: body.artifactType ?? 'artifact',
-            version: body.version ?? '0.0.0',
-            channel: body.channel ?? 'stable',
-            sha256: body.sha256 ?? '',
+            artifact_type: body.artifactType ?? "artifact",
+            version: body.version ?? "0.0.0",
+            channel: body.channel ?? "stable",
+            sha256: body.sha256 ?? "",
             is_signed: !!body.isSigned,
             created_at: new Date().toISOString(),
           };
           deploymentArtifacts.push(next);
           return next.id;
         }
-        case 'run_deployment_preflight': {
-          const checks = ['Database integrity: pass', 'Model status: loaded', 'Signed artifacts: pass'];
+        case "run_deployment_preflight": {
+          const checks = [
+            "Database integrity: pass",
+            "Model status: loaded",
+            "Signed artifacts: pass",
+          ];
           const run = {
             id: `run-${deploymentRuns.length + 1}`,
-            target_channel: 'stable',
-            status: 'succeeded',
+            target_channel: "stable",
+            status: "succeeded",
             preflight_json: JSON.stringify(checks),
             rollback_available: true,
             created_at: new Date().toISOString(),
@@ -542,37 +579,54 @@ export function setupE2eTauriMock(): void {
           deploymentRuns.push(run);
           return { ok: true, checks };
         }
-        case 'verify_signed_artifact': {
-          const body = payload as { artifactId?: string; expectedSha256?: string | null };
-          const artifact = deploymentArtifacts.find(a => a.id === body.artifactId) ?? deploymentArtifacts[0];
+        case "verify_signed_artifact": {
+          const body = payload as {
+            artifactId?: string;
+            expectedSha256?: string | null;
+          };
+          const artifact =
+            deploymentArtifacts.find((a) => a.id === body.artifactId) ??
+            deploymentArtifacts[0];
           const expected = body.expectedSha256 ?? null;
-          const hashMatches = expected ? artifact.sha256.toLowerCase() === expected.toLowerCase() : true;
+          const hashMatches = expected
+            ? artifact.sha256.toLowerCase() === expected.toLowerCase()
+            : true;
           return {
             artifact,
             is_signed: artifact.is_signed,
             hash_matches: hashMatches,
-            status: artifact.is_signed && hashMatches ? 'verified' : artifact.is_signed ? 'hash_mismatch' : 'unsigned',
+            status:
+              artifact.is_signed && hashMatches
+                ? "verified"
+                : artifact.is_signed
+                  ? "hash_mismatch"
+                  : "unsigned",
           };
         }
-        case 'rollback_deployment_run': {
+        case "rollback_deployment_run": {
           const body = payload as { runId?: string };
-          const run = deploymentRuns.find(r => r.id === body.runId) ?? deploymentRuns[deploymentRuns.length - 1];
+          const run =
+            deploymentRuns.find((r) => r.id === body.runId) ??
+            deploymentRuns[deploymentRuns.length - 1];
           if (run) {
-            run.status = 'rolled_back';
+            run.status = "rolled_back";
             run.completed_at = new Date().toISOString();
           }
           return null;
         }
-        case 'list_eval_runs':
+        case "list_eval_runs":
           return evalRuns.slice().reverse();
-        case 'run_eval_harness': {
-          const body = payload as { suiteName?: string; cases?: Array<{ query?: string }> };
+        case "run_eval_harness": {
+          const body = payload as {
+            suiteName?: string;
+            cases?: Array<{ query?: string }>;
+          };
           const total = body.cases?.length ?? 0;
           const passed = total;
           const avgConfidence = 0.74;
           const run = {
             id: `eval-${evalRuns.length + 1}`,
-            suite_name: body.suiteName ?? 'suite',
+            suite_name: body.suiteName ?? "suite",
             total_cases: total,
             passed_cases: passed,
             avg_confidence: avgConfidence,
@@ -587,36 +641,44 @@ export function setupE2eTauriMock(): void {
             avg_confidence: avgConfidence,
           };
         }
-        case 'list_recent_triage_clusters':
+        case "list_recent_triage_clusters":
           return triageClusters.slice().reverse();
-        case 'cluster_tickets_for_triage': {
-          const body = payload as { tickets?: Array<{ id?: string; summary?: string }> };
+        case "cluster_tickets_for_triage": {
+          const body = payload as {
+            tickets?: Array<{ id?: string; summary?: string }>;
+          };
           const tickets = body.tickets ?? [];
-          const byKey = new Map<string, Array<{ id?: string; summary?: string }>>();
+          const byKey = new Map<
+            string,
+            Array<{ id?: string; summary?: string }>
+          >();
           for (const ticket of tickets) {
-            const key = ticket.summary?.split(/\s+/)[0]?.toLowerCase() || 'general';
+            const key =
+              ticket.summary?.split(/\s+/)[0]?.toLowerCase() || "general";
             if (!byKey.has(key)) byKey.set(key, []);
             byKey.get(key)!.push(ticket);
           }
-          const output = Array.from(byKey.entries()).map(([cluster_key, group], idx) => {
-            const record = {
-              id: `cluster-${triageClusters.length + idx + 1}`,
-              cluster_key,
-              summary: `${group.length} tickets about ${cluster_key}`,
-              ticket_count: group.length,
-              tickets_json: JSON.stringify(group),
-              created_at: new Date().toISOString(),
-            };
-            triageClusters.push(record);
-            return {
-              cluster_key,
-              summary: record.summary,
-              ticket_ids: group.map(ticket => ticket.id ?? ''),
-            };
-          });
+          const output = Array.from(byKey.entries()).map(
+            ([cluster_key, group], idx) => {
+              const record = {
+                id: `cluster-${triageClusters.length + idx + 1}`,
+                cluster_key,
+                summary: `${group.length} tickets about ${cluster_key}`,
+                ticket_count: group.length,
+                tickets_json: JSON.stringify(group),
+                created_at: new Date().toISOString(),
+              };
+              triageClusters.push(record);
+              return {
+                cluster_key,
+                summary: record.summary,
+                ticket_ids: group.map((ticket) => ticket.id ?? ""),
+              };
+            },
+          );
           return output;
         }
-        case 'list_runbook_sessions':
+        case "list_runbook_sessions":
           return runbookSessions
             .filter((session) => {
               const body = payload as { scopeKey?: string | null } | undefined;
@@ -627,8 +689,10 @@ export function setupE2eTauriMock(): void {
             })
             .slice()
             .reverse();
-        case 'reassign_runbook_session_scope': {
-          const body = payload as { fromScopeKey?: string; toScopeKey?: string } | undefined;
+        case "reassign_runbook_session_scope": {
+          const body = payload as
+            | { fromScopeKey?: string; toScopeKey?: string }
+            | undefined;
           runbookSessions.forEach((session) => {
             if (session.scope_key === body?.fromScopeKey && body?.toScopeKey) {
               session.scope_key = body.toScopeKey;
@@ -637,13 +701,17 @@ export function setupE2eTauriMock(): void {
           });
           return null;
         }
-        case 'start_runbook_session': {
-          const body = payload as { scenario?: string; steps?: string[]; scopeKey?: string };
+        case "start_runbook_session": {
+          const body = payload as {
+            scenario?: string;
+            steps?: string[];
+            scopeKey?: string;
+          };
           const next = {
             id: `runbook-${runbookSessions.length + 1}`,
-            scenario: body.scenario ?? 'runbook',
-            scope_key: body.scopeKey ?? 'workspace:mock',
-            status: 'active',
+            scenario: body.scenario ?? "runbook",
+            scope_key: body.scopeKey ?? "workspace:mock",
+            status: "active",
             steps_json: JSON.stringify(body.steps ?? []),
             current_step: 0,
             created_at: new Date().toISOString(),
@@ -652,9 +720,13 @@ export function setupE2eTauriMock(): void {
           runbookSessions.push(next);
           return next;
         }
-        case 'advance_runbook_session': {
-          const body = payload as { sessionId?: string; currentStep?: number; status?: string | null };
-          const session = runbookSessions.find(s => s.id === body.sessionId);
+        case "advance_runbook_session": {
+          const body = payload as {
+            sessionId?: string;
+            currentStep?: number;
+            status?: string | null;
+          };
+          const session = runbookSessions.find((s) => s.id === body.sessionId);
           if (session) {
             session.current_step = body.currentStep ?? session.current_step;
             if (body.status) session.status = body.status;
@@ -662,22 +734,27 @@ export function setupE2eTauriMock(): void {
           }
           return null;
         }
-        case 'list_runbook_templates':
+        case "list_runbook_templates":
           return runbookTemplates.slice().reverse();
-        case 'save_runbook_template': {
-          const body = payload as { template?: typeof runbookTemplates[number] } | undefined;
+        case "save_runbook_template": {
+          const body = payload as
+            | { template?: (typeof runbookTemplates)[number] }
+            | undefined;
           const template = body?.template;
           if (!template) {
-            return 'runbook-template-new';
+            return "runbook-template-new";
           }
-          const id = template.id || `runbook-template-${runbookTemplates.length + 1}`;
+          const id =
+            template.id || `runbook-template-${runbookTemplates.length + 1}`;
           const normalized = {
             ...template,
             id,
             created_at: template.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
-          const existingIndex = runbookTemplates.findIndex((item) => item.id === id);
+          const existingIndex = runbookTemplates.findIndex(
+            (item) => item.id === id,
+          );
           if (existingIndex >= 0) {
             runbookTemplates[existingIndex] = normalized;
           } else {
@@ -685,36 +762,46 @@ export function setupE2eTauriMock(): void {
           }
           return id;
         }
-        case 'list_runbook_step_evidence': {
+        case "list_runbook_step_evidence": {
           const body = payload as { sessionId?: string } | undefined;
-          return runbookEvidence.filter((item) => item.session_id === body?.sessionId);
+          return runbookEvidence.filter(
+            (item) => item.session_id === body?.sessionId,
+          );
         }
-        case 'add_runbook_step_evidence': {
-          const body = payload as {
-            sessionId?: string;
-            stepIndex?: number;
-            status?: string;
-            evidenceText?: string;
-            skipReason?: string | null;
-          } | undefined;
+        case "add_runbook_step_evidence": {
+          const body = payload as
+            | {
+                sessionId?: string;
+                stepIndex?: number;
+                status?: string;
+                evidenceText?: string;
+                skipReason?: string | null;
+              }
+            | undefined;
           const entry = {
             id: `runbook-evidence-${runbookEvidence.length + 1}`,
-            session_id: body?.sessionId ?? 'runbook-1',
+            session_id: body?.sessionId ?? "runbook-1",
             step_index: body?.stepIndex ?? 0,
-            status: body?.status ?? 'completed',
-            evidence_text: body?.evidenceText ?? '',
+            status: body?.status ?? "completed",
+            evidence_text: body?.evidenceText ?? "",
             skip_reason: body?.skipReason ?? null,
             created_at: new Date().toISOString(),
           };
           runbookEvidence.push(entry);
           return entry;
         }
-        case 'list_integrations':
+        case "list_integrations":
           return integrationConfigs;
-        case 'configure_integration': {
-          const body = payload as { integrationType?: string; enabled?: boolean; configJson?: string | null };
-          const type = body.integrationType ?? 'unknown';
-          const existing = integrationConfigs.find(item => item.integration_type === type);
+        case "configure_integration": {
+          const body = payload as {
+            integrationType?: string;
+            enabled?: boolean;
+            configJson?: string | null;
+          };
+          const type = body.integrationType ?? "unknown";
+          const existing = integrationConfigs.find(
+            (item) => item.integration_type === type,
+          );
           if (existing) {
             existing.enabled = !!body.enabled;
             existing.config_json = body.configJson ?? null;
@@ -730,13 +817,15 @@ export function setupE2eTauriMock(): void {
           }
           return null;
         }
-        case 'list_resolution_kits':
+        case "list_resolution_kits":
           return resolutionKits.slice().reverse();
-        case 'save_resolution_kit': {
-          const body = payload as { kit?: typeof resolutionKits[number] } | undefined;
+        case "save_resolution_kit": {
+          const body = payload as
+            | { kit?: (typeof resolutionKits)[number] }
+            | undefined;
           const kit = body?.kit;
           if (!kit) {
-            return 'kit-new';
+            return "kit-new";
           }
           const id = kit.id || `kit-${resolutionKits.length + 1}`;
           const normalized = {
@@ -745,7 +834,9 @@ export function setupE2eTauriMock(): void {
             created_at: kit.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
-          const existingIndex = resolutionKits.findIndex((item) => item.id === id);
+          const existingIndex = resolutionKits.findIndex(
+            (item) => item.id === id,
+          );
           if (existingIndex >= 0) {
             resolutionKits[existingIndex] = normalized;
           } else {
@@ -753,16 +844,20 @@ export function setupE2eTauriMock(): void {
           }
           return id;
         }
-        case 'list_workspace_favorites':
+        case "list_workspace_favorites":
           return workspaceFavorites.slice().reverse();
-        case 'save_workspace_favorite': {
-          const body = payload as { favorite?: typeof workspaceFavorites[number] } | undefined;
+        case "save_workspace_favorite": {
+          const body = payload as
+            | { favorite?: (typeof workspaceFavorites)[number] }
+            | undefined;
           const favorite = body?.favorite;
           if (!favorite) {
-            return 'favorite-new';
+            return "favorite-new";
           }
           const existing = workspaceFavorites.find(
-            (item) => item.kind === favorite.kind && item.resource_id === favorite.resource_id,
+            (item) =>
+              item.kind === favorite.kind &&
+              item.resource_id === favorite.resource_id,
           );
           if (existing) {
             existing.label = favorite.label;
@@ -779,29 +874,33 @@ export function setupE2eTauriMock(): void {
           workspaceFavorites.push(next);
           return next.id;
         }
-        case 'delete_workspace_favorite': {
+        case "delete_workspace_favorite": {
           const body = payload as { favoriteId?: string } | undefined;
-          const next = workspaceFavorites.filter((item) => item.id !== body?.favoriteId);
+          const next = workspaceFavorites.filter(
+            (item) => item.id !== body?.favoriteId,
+          );
           workspaceFavorites.splice(0, workspaceFavorites.length, ...next);
           return null;
         }
-        case 'preview_collaboration_dispatch': {
-          const body = payload as {
-            integrationType?: 'jira' | 'servicenow' | 'slack' | 'teams';
-            draftId?: string | null;
-            title?: string;
-            destinationLabel?: string;
-            payloadPreview?: string;
-            metadataJson?: string | null;
-          } | undefined;
+        case "preview_collaboration_dispatch": {
+          const body = payload as
+            | {
+                integrationType?: "jira" | "servicenow" | "slack" | "teams";
+                draftId?: string | null;
+                title?: string;
+                destinationLabel?: string;
+                payloadPreview?: string;
+                metadataJson?: string | null;
+              }
+            | undefined;
           const record = {
             id: `dispatch-${dispatchHistory.length + 1}`,
-            integration_type: body?.integrationType ?? 'jira',
+            integration_type: body?.integrationType ?? "jira",
             draft_id: body?.draftId ?? null,
-            title: body?.title ?? 'Dispatch preview',
-            destination_label: body?.destinationLabel ?? 'Jira',
-            payload_preview: body?.payloadPreview ?? '',
-            status: 'previewed' as const,
+            title: body?.title ?? "Dispatch preview",
+            destination_label: body?.destinationLabel ?? "Jira",
+            payload_preview: body?.payloadPreview ?? "",
+            status: "previewed" as const,
             metadata_json: body?.metadataJson ?? null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -809,34 +908,40 @@ export function setupE2eTauriMock(): void {
           dispatchHistory.push(record);
           return record;
         }
-        case 'confirm_collaboration_dispatch':
-        case 'send_collaboration_dispatch': {
+        case "confirm_collaboration_dispatch":
+        case "send_collaboration_dispatch": {
           const body = payload as { dispatchId?: string } | undefined;
-          const record = dispatchHistory.find((item) => item.id === body?.dispatchId);
+          const record = dispatchHistory.find(
+            (item) => item.id === body?.dispatchId,
+          );
           if (!record) {
             throw new Error(`Dispatch not found: ${body?.dispatchId}`);
           }
-          record.status = 'sent';
+          record.status = "sent";
           record.updated_at = new Date().toISOString();
           return record;
         }
-        case 'cancel_collaboration_dispatch': {
+        case "cancel_collaboration_dispatch": {
           const body = payload as { dispatchId?: string } | undefined;
-          const record = dispatchHistory.find((item) => item.id === body?.dispatchId);
+          const record = dispatchHistory.find(
+            (item) => item.id === body?.dispatchId,
+          );
           if (!record) {
             throw new Error(`Dispatch not found: ${body?.dispatchId}`);
           }
-          record.status = 'cancelled';
+          record.status = "cancelled";
           record.updated_at = new Date().toISOString();
           return record;
         }
-        case 'list_dispatch_history':
+        case "list_dispatch_history":
           return dispatchHistory.slice().reverse();
-        case 'save_case_outcome': {
-          const body = payload as { outcome?: typeof caseOutcomes[number] } | undefined;
+        case "save_case_outcome": {
+          const body = payload as
+            | { outcome?: (typeof caseOutcomes)[number] }
+            | undefined;
           const outcome = body?.outcome;
           if (!outcome) {
-            return 'case-outcome-new';
+            return "case-outcome-new";
           }
           const id = outcome.id || `case-outcome-${caseOutcomes.length + 1}`;
           const normalized = {
@@ -845,7 +950,9 @@ export function setupE2eTauriMock(): void {
             created_at: outcome.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
-          const existingIndex = caseOutcomes.findIndex((item) => item.id === id);
+          const existingIndex = caseOutcomes.findIndex(
+            (item) => item.id === id,
+          );
           if (existingIndex >= 0) {
             caseOutcomes[existingIndex] = normalized;
           } else {
@@ -853,34 +960,34 @@ export function setupE2eTauriMock(): void {
           }
           return id;
         }
-        case 'list_case_outcomes':
+        case "list_case_outcomes":
           return caseOutcomes.slice().reverse();
-        case 'check_search_api_health':
+        case "check_search_api_health":
           return true;
-        case 'get_search_api_health_status':
+        case "get_search_api_health_status":
           return {
             healthy: true,
-            status: 'ok',
-            message: 'Connected',
-            base_url: 'http://localhost:3000',
+            status: "ok",
+            message: "Connected",
+            base_url: "http://localhost:3000",
           };
-        case 'hybrid_search':
+        case "hybrid_search":
           return {
-            status: 'success',
-            query: (payload as { query?: string })?.query ?? 'mock query',
-            query_id: 'query-e2e-1',
-            intent: 'POLICY',
+            status: "success",
+            query: (payload as { query?: string })?.query ?? "mock query",
+            query_id: "query-e2e-1",
+            intent: "POLICY",
             intent_confidence: 0.93,
             results_count: 1,
             results: [
               {
                 rank: 1,
-                article_id: 'article-1',
-                title: 'Removable Media Policy',
-                category: 'POLICY',
-                preview: 'USB drives are restricted unless approved.',
-                source_document: 'doc-2',
-                section: 'Section 4.2',
+                article_id: "article-1",
+                title: "Removable Media Policy",
+                category: "POLICY",
+                preview: "USB drives are restricted unless approved.",
+                source_document: "doc-2",
+                section: "Section 4.2",
                 scores: { bm25: 0.91, vector: 0.88, fused: 0.9 },
               },
             ],
@@ -889,12 +996,12 @@ export function setupE2eTauriMock(): void {
               embedding_time_ms: 2.1,
               search_time_ms: 6.3,
               result_count: 1,
-              timestamp: '2026-02-03T10:00:00Z',
+              timestamp: "2026-02-03T10:00:00Z",
             },
           };
-        case 'submit_search_feedback':
-          return 'Feedback submitted';
-        case 'get_search_api_stats':
+        case "submit_search_feedback":
+          return "Feedback submitted";
+        case "get_search_api_stats":
           return {
             queries_24h: 12,
             queries_total: 240,
@@ -902,22 +1009,22 @@ export function setupE2eTauriMock(): void {
             feedback_stats: { helpful: 8, not_helpful: 1, incorrect: 0 },
             intent_distribution: { POLICY: 6, PROCEDURE: 4, REFERENCE: 2 },
           };
-        case 'get_analytics_summary':
+        case "get_analytics_summary":
           return {
             total_events: 18,
             responses_generated: 6,
             searches_performed: 5,
             drafts_saved: 7,
             daily_counts: [
-              { date: '2026-02-06', count: 4 },
-              { date: '2026-02-07', count: 6 },
-              { date: '2026-02-08', count: 8 },
+              { date: "2026-02-06", count: 4 },
+              { date: "2026-02-07", count: 6 },
+              { date: "2026-02-08", count: 8 },
             ],
             average_rating: 4.4,
             total_ratings: 5,
             rating_distribution: [0, 0, 1, 1, 3],
           };
-        case 'get_response_quality_summary':
+        case "get_response_quality_summary":
           return {
             snapshots_count: 5,
             saved_count: 4,
@@ -929,24 +1036,24 @@ export function setupE2eTauriMock(): void {
             median_time_to_draft_ms: 7900,
             copy_per_saved_ratio: 0.75,
           };
-        case 'is_jira_configured':
+        case "is_jira_configured":
           return false;
-        case 'get_jira_config':
+        case "get_jira_config":
           return null;
-        case 'get_startup_metrics':
+        case "get_startup_metrics":
           return { total_ms: 1200, init_app_ms: 420, models_cached: true };
-        case 'get_audit_entries':
+        case "get_audit_entries":
           return [];
-        case 'list_custom_variables':
+        case "list_custom_variables":
           return [];
         default:
           // Keep the app responsive even when new commands are added.
-          if (cmd.startsWith('list_') || cmd.startsWith('get_')) return [];
-          if (cmd.startsWith('is_') || cmd.startsWith('has_')) return false;
-          if (cmd.startsWith('save_') || cmd.startsWith('create_')) return 'ok';
+          if (cmd.startsWith("list_") || cmd.startsWith("get_")) return [];
+          if (cmd.startsWith("is_") || cmd.startsWith("has_")) return false;
+          if (cmd.startsWith("save_") || cmd.startsWith("create_")) return "ok";
           return null;
       }
     },
-    { shouldMockEvents: true }
+    { shouldMockEvents: true },
   );
 }

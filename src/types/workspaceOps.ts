@@ -14,7 +14,7 @@ export interface ResolutionKitRecord {
 
 export interface WorkspaceFavoriteRecord {
   id: string;
-  kind: 'runbook' | 'policy' | 'kb' | 'kit';
+  kind: "runbook" | "policy" | "kb" | "kit";
   label: string;
   resource_id: string;
   metadata_json: string | null;
@@ -46,7 +46,7 @@ export interface RunbookStepEvidenceRecord {
   id: string;
   session_id: string;
   step_index: number;
-  status: 'pending' | 'completed' | 'skipped' | 'failed';
+  status: "pending" | "completed" | "skipped" | "failed";
   evidence_text: string;
   skip_reason: string | null;
   created_at: string;

@@ -84,7 +84,10 @@ impl Database {
                      FROM jobs WHERE status = ? ORDER BY created_at DESC LIMIT ?",
                 )?;
                 let jobs = stmt
-                    .query_map(params![status_filter.to_string(), limit as i64], parse_job_row)?
+                    .query_map(
+                        params![status_filter.to_string(), limit as i64],
+                        parse_job_row,
+                    )?
                     .collect::<Result<Vec<_>, _>>()?;
                 jobs
             }

@@ -105,8 +105,14 @@
   transition: var(--transition-colors);
 }
 
-.period-btn:hover { background: var(--bg-hover); }
-.period-btn.active { background: var(--accent-light); color: var(--accent-primary); font-weight: 500; }
+.period-btn:hover {
+  background: var(--bg-hover);
+}
+.period-btn.active {
+  background: var(--accent-light);
+  color: var(--accent-primary);
+  font-weight: 500;
+}
 
 /* Stat Cards */
 .stat-cards {

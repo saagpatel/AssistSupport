@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { useAnalytics } from './useAnalytics';
+import { useState, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { useAnalytics } from "./useAnalytics";
 import type {
   KbDocument,
   IndexStats,
@@ -9,8 +9,8 @@ import type {
   SearchResult,
   SearchOptions,
   IndexedFile,
-} from '../types/knowledge';
-import type { VectorConsent } from '../types/settings';
+} from "../types/knowledge";
+import type { VectorConsent } from "../types/settings";
 
 export interface IndexingProgress {
   current: number;
@@ -42,7 +42,11 @@ interface IndexProgressCompleted {
 interface IndexProgressError {
   Error: { file_name: string; message: string };
 }
-type IndexProgressEvent = IndexProgressStarted | IndexProgressProcessing | IndexProgressCompleted | IndexProgressError;
+type IndexProgressEvent =
+  | IndexProgressStarted
+  | IndexProgressProcessing
+  | IndexProgressCompleted
+  | IndexProgressError;
 
 export function useKb() {
   const { logEvent } = useAnalytics();
@@ -61,11 +65,11 @@ export function useKb() {
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
 
-    listen<IndexProgressEvent>('kb:indexing:progress', (event) => {
+    listen<IndexProgressEvent>("kb:indexing:progress", (event) => {
       const payload = event.payload;
 
-      if ('Started' in payload) {
-        setState(prev => ({
+      if ("Started" in payload) {
+        setState((prev) => ({
           ...prev,
           indexingProgress: {
             current: 0,
@@ -74,9 +78,9 @@ export function useKb() {
             percentage: 0,
           },
         }));
-      } else if ('Processing' in payload) {
+      } else if ("Processing" in payload) {
         const { current, total, file_name } = payload.Processing;
-        setState(prev => ({
+        setState((prev) => ({
           ...prev,
           indexingProgress: {
             current,
@@ -85,20 +89,24 @@ export function useKb() {
             percentage: Math.round((current / total) * 100),
           },
         }));
-      } else if ('Completed' in payload) {
-        setState(prev => ({
+      } else if ("Completed" in payload) {
+        setState((prev) => ({
           ...prev,
           indexingProgress: null,
         }));
-      } else if ('Error' in payload) {
+      } else if ("Error" in payload) {
         // Log error but continue indexing
-        console.warn(`Indexing error for ${payload.Error.file_name}: ${payload.Error.message}`);
+        console.warn(
+          `Indexing error for ${payload.Error.file_name}: ${payload.Error.message}`,
+        );
       }
-    }).then(fn => {
-      unlisten = fn;
-    }).catch(err => {
-      console.warn('Failed to listen for indexing progress:', err);
-    });
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch((err) => {
+        console.warn("Failed to listen for indexing progress:", err);
+      });
 
     return () => {
       if (unlisten) unlisten();
@@ -107,11 +115,11 @@ export function useKb() {
 
   const loadKbInfo = useCallback(async () => {
     try {
-      const folder = await invoke<string | null>('get_kb_folder');
-      const stats = await invoke<IndexStats>('get_kb_stats');
-      const docs = await invoke<KbDocument[]>('list_kb_documents');
+      const folder = await invoke<string | null>("get_kb_folder");
+      const stats = await invoke<IndexStats>("get_kb_stats");
+      const docs = await invoke<KbDocument[]>("list_kb_documents");
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         folderPath: folder,
         stats,
@@ -119,7 +127,7 @@ export function useKb() {
         error: null,
       }));
     } catch (e) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         error: String(e),
       }));
@@ -128,14 +136,17 @@ export function useKb() {
 
   const getKbFolder = useCallback(async (): Promise<string | null> => {
     try {
-      return await invoke<string | null>('get_kb_folder');
+      return await invoke<string | null>("get_kb_folder");
     } catch {
       return null;
     }
   }, []);
 
-  const getIndexStats = useCallback(async (): Promise<{ total_chunks: number; total_files: number }> => {
-    const stats = await invoke<IndexStats>('get_kb_stats');
+  const getIndexStats = useCallback(async (): Promise<{
+    total_chunks: number;
+    total_files: number;
+  }> => {
+    const stats = await invoke<IndexStats>("get_kb_stats");
     return {
       total_chunks: stats.chunk_count,
       total_files: stats.document_count,
@@ -144,8 +155,8 @@ export function useKb() {
 
   const listFiles = useCallback(async (): Promise<IndexedFile[]> => {
     try {
-      const docs = await invoke<KbDocument[]>('list_kb_documents');
-      return docs.map(doc => ({
+      const docs = await invoke<KbDocument[]>("list_kb_documents");
+      return docs.map((doc) => ({
         file_path: doc.file_path,
         title: doc.title ?? null,
         chunk_count: doc.chunk_count ?? 0,
@@ -158,14 +169,14 @@ export function useKb() {
 
   const setKbFolder = useCallback(async (path: string) => {
     try {
-      await invoke('set_kb_folder', { folderPath: path });
-      setState(prev => ({
+      await invoke("set_kb_folder", { folderPath: path });
+      setState((prev) => ({
         ...prev,
         folderPath: path,
         error: null,
       }));
     } catch (e) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         error: String(e),
       }));
@@ -174,15 +185,15 @@ export function useKb() {
   }, []);
 
   const indexKb = useCallback(async (): Promise<IndexResult> => {
-    setState(prev => ({ ...prev, indexing: true, error: null }));
+    setState((prev) => ({ ...prev, indexing: true, error: null }));
     try {
-      const result = await invoke<IndexResult>('index_kb');
+      const result = await invoke<IndexResult>("index_kb");
 
       // Refresh stats and documents after indexing
-      const stats = await invoke<IndexStats>('get_kb_stats');
-      const docs = await invoke<KbDocument[]>('list_kb_documents');
+      const stats = await invoke<IndexStats>("get_kb_stats");
+      const docs = await invoke<KbDocument[]>("list_kb_documents");
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         indexing: false,
         stats,
@@ -190,7 +201,7 @@ export function useKb() {
       }));
       return result;
     } catch (e) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         indexing: false,
         error: String(e),
@@ -203,14 +214,20 @@ export function useKb() {
     await indexKb();
   }, [indexKb]);
 
-  const generateEmbeddings = useCallback(async (): Promise<{ chunks_processed: number; vectors_created: number }> => {
-    setState(prev => ({ ...prev, indexing: true, error: null }));
+  const generateEmbeddings = useCallback(async (): Promise<{
+    chunks_processed: number;
+    vectors_created: number;
+  }> => {
+    setState((prev) => ({ ...prev, indexing: true, error: null }));
     try {
-      const result = await invoke<{ chunks_processed: number; vectors_created: number }>('generate_kb_embeddings');
-      setState(prev => ({ ...prev, indexing: false }));
+      const result = await invoke<{
+        chunks_processed: number;
+        vectors_created: number;
+      }>("generate_kb_embeddings");
+      setState((prev) => ({ ...prev, indexing: false }));
       return result;
     } catch (e) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         indexing: false,
         error: String(e),
@@ -219,98 +236,112 @@ export function useKb() {
     }
   }, []);
 
-  const search = useCallback(async (
-    query: string,
-    limit?: number,
-    namespaceId?: string | null,
-    options?: SearchOptions
-  ): Promise<SearchResult[]> => {
-    setState(prev => ({ ...prev, searching: true, error: null }));
-    try {
-      // Use advanced search if options provided, otherwise use basic search
-      const results = options
-        ? await invoke<SearchResult[]>('search_kb_with_options', {
-            query,
-            limit: limit ?? 10,
-            namespaceId: namespaceId ?? null,
-            options,
-          })
-        : await invoke<SearchResult[]>('search_kb', {
-            query,
-            limit: limit ?? 10,
-            namespaceId: namespaceId ?? null,
-          });
-      setState(prev => ({ ...prev, searching: false }));
-      logEvent('search_performed', {
-        results_count: results.length,
-        has_options: !!options,
-      });
-      return results;
-    } catch (e) {
-      setState(prev => ({
-        ...prev,
-        searching: false,
-        error: String(e),
-      }));
-      throw e;
-    }
-  }, [logEvent]);
+  const search = useCallback(
+    async (
+      query: string,
+      limit?: number,
+      namespaceId?: string | null,
+      options?: SearchOptions,
+    ): Promise<SearchResult[]> => {
+      setState((prev) => ({ ...prev, searching: true, error: null }));
+      try {
+        // Use advanced search if options provided, otherwise use basic search
+        const results = options
+          ? await invoke<SearchResult[]>("search_kb_with_options", {
+              query,
+              limit: limit ?? 10,
+              namespaceId: namespaceId ?? null,
+              options,
+            })
+          : await invoke<SearchResult[]>("search_kb", {
+              query,
+              limit: limit ?? 10,
+              namespaceId: namespaceId ?? null,
+            });
+        setState((prev) => ({ ...prev, searching: false }));
+        logEvent("search_performed", {
+          results_count: results.length,
+          has_options: !!options,
+        });
+        return results;
+      } catch (e) {
+        setState((prev) => ({
+          ...prev,
+          searching: false,
+          error: String(e),
+        }));
+        throw e;
+      }
+    },
+    [logEvent],
+  );
 
-  const getSearchContext = useCallback(async (
-    query: string,
-    limit?: number,
-    namespaceId?: string | null
-  ): Promise<string> => {
-    try {
-      return await invoke<string>('get_search_context', {
-        query,
-        limit: limit ?? 5,
-        namespaceId: namespaceId ?? null,
-      });
-    } catch (e) {
-      setState(prev => ({
-        ...prev,
-        error: String(e),
-      }));
-      throw e;
-    }
-  }, []);
+  const getSearchContext = useCallback(
+    async (
+      query: string,
+      limit?: number,
+      namespaceId?: string | null,
+    ): Promise<string> => {
+      try {
+        return await invoke<string>("get_search_context", {
+          query,
+          limit: limit ?? 5,
+          namespaceId: namespaceId ?? null,
+        });
+      } catch (e) {
+        setState((prev) => ({
+          ...prev,
+          error: String(e),
+        }));
+        throw e;
+      }
+    },
+    [],
+  );
 
   const getVectorConsent = useCallback(async (): Promise<VectorConsent> => {
-    return invoke<VectorConsent>('get_vector_consent');
+    return invoke<VectorConsent>("get_vector_consent");
   }, []);
 
-  const setVectorConsent = useCallback(async (enabled: boolean): Promise<void> => {
-    await invoke('set_vector_consent', {
-      enabled,
-      encryptionSupported: true, // Always true since we use SQLCipher
-    });
-  }, []);
+  const setVectorConsent = useCallback(
+    async (enabled: boolean): Promise<void> => {
+      await invoke("set_vector_consent", {
+        enabled,
+        encryptionSupported: true, // Always true since we use SQLCipher
+      });
+    },
+    [],
+  );
 
-  const removeDocument = useCallback(async (filePath: string): Promise<boolean> => {
-    try {
-      const removed = await invoke<boolean>('remove_kb_document', { filePath });
+  const removeDocument = useCallback(
+    async (filePath: string): Promise<boolean> => {
+      try {
+        const removed = await invoke<boolean>("remove_kb_document", {
+          filePath,
+        });
 
-      // Refresh stats and documents after removal
-      if (removed) {
-        const stats = await invoke<IndexStats>('get_kb_stats');
-        const docs = await invoke<KbDocument[]>('list_kb_documents');
-        setState(prev => ({
+        // Refresh stats and documents after removal
+        if (removed) {
+          const stats = await invoke<IndexStats>("get_kb_stats");
+          const docs = await invoke<KbDocument[]>("list_kb_documents");
+          setState((prev) => ({
+            ...prev,
+            stats,
+            documents: docs,
+          }));
+        }
+
+        return removed;
+      } catch (e) {
+        setState((prev) => ({
           ...prev,
-          stats,
-          documents: docs,
+          error: String(e),
         }));
+        throw e;
       }
-
-      return removed;
-    } catch (e) {
-      setState(prev => ({
-        ...prev,
-        error: String(e),
-      }));
-      throw e;
-    }
-  }, []);
+    },
+    [],
+  );
 
   return {
     ...state,

@@ -1,7 +1,7 @@
-import { AnalyticsTab } from '../../components/Analytics/AnalyticsTab';
+import { AnalyticsTab } from "../../components/Analytics/AnalyticsTab";
 
 interface AnalyticsPageProps {
-  initialSection?: 'overview' | 'pilot';
+  initialSection?: "overview" | "pilot";
 }
 
 export function AnalyticsPage({ initialSection }: AnalyticsPageProps) {
