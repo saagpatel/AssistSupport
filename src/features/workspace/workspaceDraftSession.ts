@@ -1,4 +1,4 @@
-import type { CaseIntake } from '../../types';
+import type { CaseIntake } from "../../types/workspace";
 
 export interface MeaningfulWorkspaceDraftArgs {
   inputText: string;
@@ -55,12 +55,14 @@ export function parseWorkspaceDraftMetadata(
       workspaceSavedDraftCreatedAt?: unknown;
     };
     return {
-      savedDraftId: typeof parsed.workspaceSavedDraftId === 'string'
-        ? parsed.workspaceSavedDraftId
-        : null,
-      savedDraftCreatedAt: typeof parsed.workspaceSavedDraftCreatedAt === 'string'
-        ? parsed.workspaceSavedDraftCreatedAt
-        : null,
+      savedDraftId:
+        typeof parsed.workspaceSavedDraftId === "string"
+          ? parsed.workspaceSavedDraftId
+          : null,
+      savedDraftCreatedAt:
+        typeof parsed.workspaceSavedDraftCreatedAt === "string"
+          ? parsed.workspaceSavedDraftCreatedAt
+          : null,
     };
   } catch {
     return {
@@ -74,16 +76,18 @@ export function parseGuidedRunbookDraftNote(
   diagnosisJson: string | null | undefined,
 ): string {
   if (!diagnosisJson?.trim()) {
-    return '';
+    return "";
   }
 
   try {
-    const parsed = JSON.parse(diagnosisJson) as { guidedRunbookDraftNote?: unknown };
-    return typeof parsed.guidedRunbookDraftNote === 'string'
+    const parsed = JSON.parse(diagnosisJson) as {
+      guidedRunbookDraftNote?: unknown;
+    };
+    return typeof parsed.guidedRunbookDraftNote === "string"
       ? parsed.guidedRunbookDraftNote
-      : '';
+      : "";
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -96,31 +100,32 @@ export function hasMeaningfulWorkspaceDraftContent({
   hasGuidedRunbookState,
 }: MeaningfulWorkspaceDraftArgs): boolean {
   const hasStructuredIntake = Boolean(
-    caseIntake?.issue?.trim()
-    || caseIntake?.environment?.trim()
-    || caseIntake?.impact?.trim()
-    || caseIntake?.affected_user?.trim()
-    || caseIntake?.affected_system?.trim()
-    || caseIntake?.affected_site?.trim()
-    || caseIntake?.symptoms?.trim()
-    || caseIntake?.steps_tried?.trim()
-    || caseIntake?.blockers?.trim()
-    || caseIntake?.likely_category?.trim()
-    || caseIntake?.user?.trim()
-    || caseIntake?.device?.trim()
-    || caseIntake?.os?.trim()
-    || caseIntake?.reproduction?.trim()
-    || caseIntake?.logs?.trim()
-    || (caseIntake?.custom_fields && Object.keys(caseIntake.custom_fields).length > 0)
+    caseIntake?.issue?.trim() ||
+    caseIntake?.environment?.trim() ||
+    caseIntake?.impact?.trim() ||
+    caseIntake?.affected_user?.trim() ||
+    caseIntake?.affected_system?.trim() ||
+    caseIntake?.affected_site?.trim() ||
+    caseIntake?.symptoms?.trim() ||
+    caseIntake?.steps_tried?.trim() ||
+    caseIntake?.blockers?.trim() ||
+    caseIntake?.likely_category?.trim() ||
+    caseIntake?.user?.trim() ||
+    caseIntake?.device?.trim() ||
+    caseIntake?.os?.trim() ||
+    caseIntake?.reproduction?.trim() ||
+    caseIntake?.logs?.trim() ||
+    (caseIntake?.custom_fields &&
+      Object.keys(caseIntake.custom_fields).length > 0),
   );
 
   return Boolean(
-    inputText.trim()
-    || responseText?.trim()
-    || diagnosisJson?.trim()
-    || hasStructuredIntake
-    || handoffTouched
-    || hasGuidedRunbookState,
+    inputText.trim() ||
+    responseText?.trim() ||
+    diagnosisJson?.trim() ||
+    hasStructuredIntake ||
+    handoffTouched ||
+    hasGuidedRunbookState,
   );
 }
 
@@ -153,10 +158,10 @@ export function resolveWorkspaceAutosaveState({
 }
 
 export function shouldProceedAfterSaveAttempt(
-  mode: 'replace' | 'save-and-open' | 'compare',
+  mode: "replace" | "save-and-open" | "compare",
   savedDraftId: string | null,
 ): boolean {
-  return mode !== 'save-and-open' || Boolean(savedDraftId);
+  return mode !== "save-and-open" || Boolean(savedDraftId);
 }
 
 export function resolveLoadedWorkspaceDraftState(
@@ -165,9 +170,7 @@ export function resolveLoadedWorkspaceDraftState(
   metadata?: WorkspaceDraftMetadata,
 ): LoadedWorkspaceDraftState {
   const sourceSavedDraftId = metadata?.savedDraftId?.trim() || null;
-  const effectiveSavedDraftId = isAutosave
-    ? sourceSavedDraftId
-    : draftId;
+  const effectiveSavedDraftId = isAutosave ? sourceSavedDraftId : draftId;
   const effectiveScopeDraftId = isAutosave
     ? (sourceSavedDraftId ?? draftId)
     : draftId;
@@ -187,7 +190,7 @@ export function resolveVisibleRunbookScopeKey(
   if (hasPrimaryScopedSessions || !hasLegacySessions) {
     return currentScopeKey;
   }
-  return 'legacy:unscoped';
+  return "legacy:unscoped";
 }
 
 export function shouldTreatGuidedRunbookAsWorkspaceProgress({
@@ -197,8 +200,9 @@ export function shouldTreatGuidedRunbookAsWorkspaceProgress({
   workspaceRunbookScopeKey,
 }: VisibleRunbookMigrationArgs): boolean {
   return Boolean(
-    runbookSessionTouched
-    || (hasGuidedRunbookSession && runbookSessionSourceScopeKey === workspaceRunbookScopeKey),
+    runbookSessionTouched ||
+    (hasGuidedRunbookSession &&
+      runbookSessionSourceScopeKey === workspaceRunbookScopeKey),
   );
 }
 

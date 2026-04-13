@@ -11,7 +11,7 @@ from runtime_config import load_runtime_config, ensure_valid_runtime_config
 
 
 class _SmokeEngine:
-    def search(self, query, limit=10, use_deduplication=True, fusion_strategy="adaptive"):
+    def search(self, query, limit=10, use_deduplication=True):
         return {
             "query": query,
             "query_id": "smoke-query-1",
@@ -34,15 +34,21 @@ class _SmokeEngine:
                 "total_time_ms": 12.5,
                 "embedding_time_ms": 1.5,
                 "search_time_ms": 4.0,
-                "rerank_time_ms": 0.0,
             },
         }
 
     def get_readiness(self):
         return {
-            "vector_search_enabled": True,
             "embedder_ready": True,
-            "reranker_ready": True,
+        }
+
+    def get_component_status(self):
+        return {
+            "embedder": {
+                "status": "ok",
+                "model_name": "smoke-embedder",
+                "dimension": 2,
+            }
         }
 
 
@@ -55,6 +61,7 @@ def main() -> int:
 
     search_api.API_KEY = config.api_key
     search_api.app.config["TESTING"] = True
+    search_api.check_db_connection = lambda: True
     smoke_engine = _SmokeEngine()
     search_api._engine = smoke_engine
     search_api._get_engine = lambda: smoke_engine

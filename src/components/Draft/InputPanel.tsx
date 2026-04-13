@@ -1,13 +1,14 @@
-import { useState, useCallback, useRef, useEffect, KeyboardEvent } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { Button } from '../shared/Button';
-import { useJira, JiraTicket } from '../../hooks/useJira';
-import { AutoSuggest } from './AutoSuggest';
-import { VoiceInput } from './VoiceInput';
-import { TemplateSelector } from './TemplateSelector';
-import { BatchPanel } from '../Batch/BatchPanel';
-import type { ResponseLength, OcrResult, FirstResponseTone, ResponseTemplate } from '../../types';
-import './InputPanel.css';
+import { useState, useCallback, useRef, useEffect, KeyboardEvent } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Button } from "../shared/Button";
+import { useJira, JiraTicket } from "../../hooks/useJira";
+import { AutoSuggest } from "./AutoSuggest";
+import { VoiceInput } from "./VoiceInput";
+import { TemplateSelector } from "./TemplateSelector";
+import { BatchPanel } from "../Batch/BatchPanel";
+import type { FirstResponseTone, OcrResult } from "../../types/llm";
+import type { ResponseLength, ResponseTemplate } from "../../types/workspace";
+import "./InputPanel.css";
 
 interface InputPanelProps {
   value: string;
@@ -37,25 +38,26 @@ interface InputPanelProps {
   onNavigateToSource?: (searchQuery: string) => void;
 }
 
-type TaskPresetKey = 'incident' | 'access' | 'rollout';
+type TaskPresetKey = "incident" | "access" | "rollout";
 
-const TASK_PRESETS: Record<TaskPresetKey, { label: string; content: string }> = {
-  incident: {
-    label: 'Incident triage',
-    content:
-      'Incident triage context:\n- Customer/business impact:\n- Scope (users/systems/regions):\n- Time issue started:\n- Actions already attempted:\n- Current blocker / escalation needed:',
-  },
-  access: {
-    label: 'Access request',
-    content:
-      'Access request context:\n- Requestor and team:\n- Requested system/resource:\n- Business justification:\n- Required access level:\n- Required-by date and approver:',
-  },
-  rollout: {
-    label: 'Change / rollout support',
-    content:
-      'Change rollout context:\n- Change window:\n- Affected services:\n- Validation checklist:\n- Rollback trigger:\n- Communication audience/status:',
-  },
-};
+const TASK_PRESETS: Record<TaskPresetKey, { label: string; content: string }> =
+  {
+    incident: {
+      label: "Incident triage",
+      content:
+        "Incident triage context:\n- Customer/business impact:\n- Scope (users/systems/regions):\n- Time issue started:\n- Actions already attempted:\n- Current blocker / escalation needed:",
+    },
+    access: {
+      label: "Access request",
+      content:
+        "Access request context:\n- Requestor and team:\n- Requested system/resource:\n- Business justification:\n- Required access level:\n- Required-by date and approver:",
+    },
+    rollout: {
+      label: "Change / rollout support",
+      content:
+        "Change rollout context:\n- Change window:\n- Affected services:\n- Validation checklist:\n- Rollback trigger:\n- Communication audience/status:",
+    },
+  };
 
 export function InputPanel({
   value,
@@ -87,11 +89,11 @@ export function InputPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { checkConfiguration, getTicket, configured } = useJira();
   const [batchMode, setBatchMode] = useState(false);
-  const [ticketInputValue, setTicketInputValue] = useState(ticketId || '');
+  const [ticketInputValue, setTicketInputValue] = useState(ticketId || "");
   const [ticketFetching, setTicketFetching] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [showDescription, setShowDescription] = useState(false);
-  const [taskPreset, setTaskPreset] = useState('');
+  const [taskPreset, setTaskPreset] = useState("");
   const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -100,48 +102,51 @@ export function InputPanel({
 
   // Sync external ticketId changes to local input
   useEffect(() => {
-    setTicketInputValue(ticketId || '');
+    setTicketInputValue(ticketId || "");
   }, [ticketId]);
 
   // Debounced ticket fetch
-  const handleTicketInputChange = useCallback((value: string) => {
-    const upperValue = value.toUpperCase();
-    setTicketInputValue(upperValue);
-    setTicketError(null);
+  const handleTicketInputChange = useCallback(
+    (value: string) => {
+      const upperValue = value.toUpperCase();
+      setTicketInputValue(upperValue);
+      setTicketError(null);
 
-    // Clear existing timeout
-    if (fetchTimeoutRef.current) {
-      clearTimeout(fetchTimeoutRef.current);
-    }
+      // Clear existing timeout
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
 
-    // If empty, clear ticket
-    if (!upperValue.trim()) {
-      onTicketIdChange(null);
-      onTicketChange(null);
-      return;
-    }
-
-    // Debounce fetch by 500ms
-    fetchTimeoutRef.current = setTimeout(async () => {
-      // Only fetch if it looks like a ticket key (e.g., PROJ-123)
-      if (!/^[A-Z]+-\d+$/.test(upperValue.trim())) {
+      // If empty, clear ticket
+      if (!upperValue.trim()) {
+        onTicketIdChange(null);
+        onTicketChange(null);
         return;
       }
 
-      setTicketFetching(true);
-      try {
-        const fetchedTicket = await getTicket(upperValue.trim());
-        onTicketIdChange(upperValue.trim());
-        onTicketChange(fetchedTicket);
-        setTicketError(null);
-      } catch (err) {
-        setTicketError(err instanceof Error ? err.message : String(err));
-        onTicketChange(null);
-      } finally {
-        setTicketFetching(false);
-      }
-    }, 500);
-  }, [getTicket, onTicketIdChange, onTicketChange]);
+      // Debounce fetch by 500ms
+      fetchTimeoutRef.current = setTimeout(async () => {
+        // Only fetch if it looks like a ticket key (e.g., PROJ-123)
+        if (!/^[A-Z]+-\d+$/.test(upperValue.trim())) {
+          return;
+        }
+
+        setTicketFetching(true);
+        try {
+          const fetchedTicket = await getTicket(upperValue.trim());
+          onTicketIdChange(upperValue.trim());
+          onTicketChange(fetchedTicket);
+          setTicketError(null);
+        } catch (err) {
+          setTicketError(err instanceof Error ? err.message : String(err));
+          onTicketChange(null);
+        } finally {
+          setTicketFetching(false);
+        }
+      }, 500);
+    },
+    [getTicket, onTicketIdChange, onTicketChange],
+  );
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -153,67 +158,78 @@ export function InputPanel({
   }, []);
 
   const handleClearTicket = useCallback(() => {
-    setTicketInputValue('');
+    setTicketInputValue("");
     onTicketIdChange(null);
     onTicketChange(null);
     setTicketError(null);
   }, [onTicketIdChange, onTicketChange]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Cmd+G to generate
-    if (e.metaKey && e.key === 'g') {
-      e.preventDefault();
-      if (modelLoaded && !generating && value.trim()) {
-        onGenerate();
-      }
-    }
-    // Cmd+N to clear
-    if (e.metaKey && e.key === 'n') {
-      e.preventDefault();
-      onClear();
-    }
-  }, [modelLoaded, generating, value, onGenerate, onClear]);
-
-  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
-    const items = e.clipboardData.items;
-    for (const item of items) {
-      if (item.type.startsWith('image/')) {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      // Cmd+G to generate
+      if (e.metaKey && e.key === "g") {
         e.preventDefault();
-        const blob = item.getAsFile();
-        if (blob) {
-          try {
-            onOcrTextChange('[Processing image...]');
-
-            // Convert blob to base64
-            const arrayBuffer = await blob.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
-            let binary = '';
-            for (let i = 0; i < bytes.byteLength; i++) {
-              binary += String.fromCharCode(bytes[i]);
-            }
-            const base64 = btoa(binary);
-
-            // Process OCR via backend
-            const result = await invoke<OcrResult>('process_ocr_bytes', { imageBase64: base64 });
-            if (result.text.trim()) {
-              onOcrTextChange(result.text);
-            } else {
-              onOcrTextChange('[No text detected in image]');
-            }
-          } catch (err) {
-            console.error('OCR failed:', err);
-            onOcrTextChange(`[OCR failed: ${err}]`);
-          }
+        if (modelLoaded && !generating && value.trim()) {
+          onGenerate();
         }
-        return;
       }
-    }
-  }, [onOcrTextChange]);
+      // Cmd+N to clear
+      if (e.metaKey && e.key === "n") {
+        e.preventDefault();
+        onClear();
+      }
+    },
+    [modelLoaded, generating, value, onGenerate, onClear],
+  );
 
-  const handleVoiceTranscript = useCallback((text: string) => {
-    const separator = value && !value.endsWith(' ') ? ' ' : '';
-    onChange(value + separator + text);
-  }, [value, onChange]);
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent) => {
+      const items = e.clipboardData.items;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const blob = item.getAsFile();
+          if (blob) {
+            try {
+              onOcrTextChange("[Processing image...]");
+
+              // Convert blob to base64
+              const arrayBuffer = await blob.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuffer);
+              let binary = "";
+              for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+              }
+              const base64 = btoa(binary);
+
+              // Process OCR via backend
+              const result = await invoke<OcrResult>("process_ocr_bytes", {
+                imageBase64: base64,
+              });
+              if (result.text.trim()) {
+                onOcrTextChange(result.text);
+              } else {
+                onOcrTextChange("[No text detected in image]");
+              }
+            } catch (err) {
+              console.error("OCR failed:", err);
+              onOcrTextChange(`[OCR failed: ${err}]`);
+            }
+          }
+          return;
+        }
+      }
+    },
+    [onOcrTextChange],
+  );
+
+  const handleVoiceTranscript = useCallback(
+    (text: string) => {
+      const separator = value && !value.endsWith(" ") ? " " : "";
+      onChange(value + separator + text);
+    },
+    [value, onChange],
+  );
 
   const handleTaskPresetChange = useCallback(
     (presetKey: string) => {
@@ -227,9 +243,12 @@ export function InputPanel({
         return;
       }
 
-      const nextValue = value.trim().length > 0 ? `${preset.content}\n\n${value}` : preset.content;
+      const nextValue =
+        value.trim().length > 0
+          ? `${preset.content}\n\n${value}`
+          : preset.content;
       onChange(nextValue);
-      setTaskPreset('');
+      setTaskPreset("");
     },
     [onChange, value],
   );
@@ -243,7 +262,7 @@ export function InputPanel({
         <h3>Input</h3>
         <div className="input-actions">
           <button
-            className={`batch-toggle ${batchMode ? 'active' : ''}`}
+            className={`batch-toggle ${batchMode ? "active" : ""}`}
             onClick={() => setBatchMode(!batchMode)}
             title="Toggle batch mode"
           >
@@ -258,7 +277,7 @@ export function InputPanel({
           <select
             className="response-length-select task-preset-select"
             value={taskPreset}
-            onChange={e => handleTaskPresetChange(e.target.value)}
+            onChange={(e) => handleTaskPresetChange(e.target.value)}
             title="Apply ticket task preset"
             aria-label="Ticket task preset"
           >
@@ -272,7 +291,9 @@ export function InputPanel({
           <select
             className="response-length-select"
             value={responseLength}
-            onChange={e => onResponseLengthChange(e.target.value as ResponseLength)}
+            onChange={(e) =>
+              onResponseLengthChange(e.target.value as ResponseLength)
+            }
             aria-label="Response length"
           >
             <option value="Short">Short (~80 words)</option>
@@ -312,14 +333,18 @@ export function InputPanel({
             className="input-textarea"
             placeholder="Paste ticket content or describe the issue..."
             value={value}
-            onChange={e => onChange(e.target.value)}
+            onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
           />
 
           <AutoSuggest
             query={value}
-            onSelectSuggestion={onNavigateToSource ? (title) => onNavigateToSource(title) : undefined}
+            onSelectSuggestion={
+              onNavigateToSource
+                ? (title) => onNavigateToSource(title)
+                : undefined
+            }
           />
 
           {ocrText && (
@@ -349,7 +374,7 @@ export function InputPanel({
                   className="ticket-input"
                   placeholder="PROJ-123"
                   value={ticketInputValue}
-                  onChange={e => handleTicketInputChange(e.target.value)}
+                  onChange={(e) => handleTicketInputChange(e.target.value)}
                 />
                 {ticketInputValue && (
                   <button
@@ -360,22 +385,26 @@ export function InputPanel({
                     &times;
                   </button>
                 )}
-                {ticketFetching && <span className="ticket-loading">Loading...</span>}
+                {ticketFetching && (
+                  <span className="ticket-loading">Loading...</span>
+                )}
               </div>
 
-              {ticketError && (
-                <div className="ticket-error">{ticketError}</div>
-              )}
+              {ticketError && <div className="ticket-error">{ticketError}</div>}
 
               {ticket && !ticketError && (
                 <div className="ticket-preview">
                   <div className="ticket-header">
                     <span className="ticket-key">{ticket.key}</span>
-                    <span className={`ticket-status status-${ticket.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <span
+                      className={`ticket-status status-${ticket.status.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
                       {ticket.status}
                     </span>
                     {ticket.priority && (
-                      <span className={`ticket-priority priority-${ticket.priority.toLowerCase()}`}>
+                      <span
+                        className={`ticket-priority priority-${ticket.priority.toLowerCase()}`}
+                      >
                         {ticket.priority}
                       </span>
                     )}
@@ -386,11 +415,15 @@ export function InputPanel({
                       className="ticket-description-toggle"
                       onClick={() => setShowDescription(!showDescription)}
                     >
-                      {showDescription ? '▼ Hide description' : '▶ Show description'}
+                      {showDescription
+                        ? "▼ Hide description"
+                        : "▶ Show description"}
                     </button>
                   )}
                   {showDescription && ticket.description && (
-                    <div className="ticket-description">{ticket.description}</div>
+                    <div className="ticket-description">
+                      {ticket.description}
+                    </div>
                   )}
                 </div>
               )}
@@ -404,7 +437,11 @@ export function InputPanel({
                 <select
                   className="first-response-tone"
                   value={firstResponseTone}
-                  onChange={e => onFirstResponseToneChange(e.target.value as FirstResponseTone)}
+                  onChange={(e) =>
+                    onFirstResponseToneChange(
+                      e.target.value as FirstResponseTone,
+                    )
+                  }
                   aria-label="First response tone"
                 >
                   <option value="slack">Slack (friendly)</option>
@@ -441,19 +478,20 @@ export function InputPanel({
               className="first-response-textarea"
               placeholder="Drafted first response will appear here..."
               value={firstResponse}
-              onChange={e => onFirstResponseChange(e.target.value)}
+              onChange={(e) => onFirstResponseChange(e.target.value)}
             />
           </div>
 
           <div className="input-footer">
             <span className="word-count">{wordCount} words</span>
-            <span className={`model-status ${modelLoaded ? 'model-ready' : 'model-warning'}`}>
-              {modelLoaded ? '● Model ready' : '○ No model loaded'}
+            <span
+              className={`model-status ${modelLoaded ? "model-ready" : "model-warning"}`}
+            >
+              {modelLoaded ? "● Model ready" : "○ No model loaded"}
             </span>
           </div>
         </div>
       )}
-
     </>
   );
 }

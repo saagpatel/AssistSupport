@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import type { JiraTransition } from '../types';
+import { useState, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { JiraTransition } from "../types/settings";
 
 export interface JiraConfig {
   base_url: string;
@@ -28,10 +28,10 @@ export function useJira() {
 
   const checkConfiguration = useCallback(async (): Promise<boolean> => {
     try {
-      const result = await invoke<boolean>('is_jira_configured');
+      const result = await invoke<boolean>("is_jira_configured");
       setConfigured(result);
       if (result) {
-        const cfg = await invoke<JiraConfig | null>('get_jira_config');
+        const cfg = await invoke<JiraConfig | null>("get_jira_config");
         setConfig(cfg);
       }
       return result;
@@ -41,30 +41,29 @@ export function useJira() {
     }
   }, []);
 
-  const configure = useCallback(async (
-    baseUrl: string,
-    email: string,
-    apiToken: string
-  ): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      await invoke('configure_jira', { baseUrl, email, apiToken });
-      setConfigured(true);
-      setConfig({ base_url: baseUrl, email });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const configure = useCallback(
+    async (baseUrl: string, email: string, apiToken: string): Promise<void> => {
+      setLoading(true);
+      setError(null);
+      try {
+        await invoke("configure_jira", { baseUrl, email, apiToken });
+        setConfigured(true);
+        setConfig({ base_url: baseUrl, email });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   const disconnect = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
-      await invoke('clear_jira_config');
+      await invoke("clear_jira_config");
       setConfigured(false);
       setConfig(null);
     } catch (err) {
@@ -75,53 +74,67 @@ export function useJira() {
     }
   }, []);
 
-  const getTicket = useCallback(async (ticketKey: string): Promise<JiraTicket> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const ticket = await invoke<JiraTicket>('get_jira_ticket', { ticketKey });
-      return ticket;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const getTicket = useCallback(
+    async (ticketKey: string): Promise<JiraTicket> => {
+      setLoading(true);
+      setError(null);
+      try {
+        const ticket = await invoke<JiraTicket>("get_jira_ticket", {
+          ticketKey,
+        });
+        return ticket;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
-  const getTransitions = useCallback(async (ticketKey: string): Promise<JiraTransition[]> => {
-    try {
-      const transitions = await invoke<JiraTransition[]>('get_jira_transitions', { ticketKey });
-      return transitions;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      return [];
-    }
-  }, []);
+  const getTransitions = useCallback(
+    async (ticketKey: string): Promise<JiraTransition[]> => {
+      try {
+        const transitions = await invoke<JiraTransition[]>(
+          "get_jira_transitions",
+          { ticketKey },
+        );
+        return transitions;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+        return [];
+      }
+    },
+    [],
+  );
 
-  const transitionTicket = useCallback(async (
-    ticketKey: string,
-    transitionId: string,
-    draftId?: string,
-  ): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      await invoke('transition_jira_ticket', {
-        ticketKey,
-        transitionId,
-        draftId: draftId ?? null,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const transitionTicket = useCallback(
+    async (
+      ticketKey: string,
+      transitionId: string,
+      draftId?: string,
+    ): Promise<void> => {
+      setLoading(true);
+      setError(null);
+      try {
+        await invoke("transition_jira_ticket", {
+          ticketKey,
+          transitionId,
+          draftId: draftId ?? null,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   return {
     configured,

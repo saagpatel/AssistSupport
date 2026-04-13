@@ -7,6 +7,82 @@
   height: 100%;
 }
 
+.analytics-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.analytics-page-header h2 {
+  margin: 0;
+}
+
+.analytics-page-subtitle,
+.analytics-panel-subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.analytics-section-picker {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--bg-secondary);
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+}
+
+.analytics-section-btn {
+  padding: var(--space-1-5) var(--space-3);
+  border: none;
+  background: none;
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: var(--transition-colors);
+}
+
+.analytics-section-btn:hover,
+.analytics-section-btn:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+}
+
+.analytics-section-btn.active {
+  background: var(--accent-light);
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.analytics-section-surface {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.analytics-section-surface-pilot {
+  gap: var(--space-4);
+}
+
+.analytics-panel-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  padding: var(--space-4);
+}
+
+.analytics-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
 /* Period Selector */
 .period-selector {
   display: flex;
@@ -29,8 +105,14 @@
   transition: var(--transition-colors);
 }
 
-.period-btn:hover { background: var(--bg-hover); }
-.period-btn.active { background: var(--accent-light); color: var(--accent-primary); font-weight: 500; }
+.period-btn:hover {
+  background: var(--bg-hover);
+}
+.period-btn.active {
+  background: var(--accent-light);
+  color: var(--accent-primary);
+  font-weight: 500;
+}
 
 /* Stat Cards */
 .stat-cards {
@@ -248,6 +330,15 @@
 }
 
 @media (max-width: 900px) {
+  .analytics-page-header {
+    flex-direction: column;
+  }
+
+  .analytics-section-picker {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
   .charts-grid {
     grid-template-columns: 1fr;
   }

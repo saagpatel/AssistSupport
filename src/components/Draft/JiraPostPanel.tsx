@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { Button } from '../shared/Button';
-import { useToastContext } from '../../contexts/ToastContext';
-import type { JiraTransition } from '../../types';
-import './JiraPostPanel.css';
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Button } from "../shared/Button";
+import { useToastContext } from "../../contexts/ToastContext";
+import type { JiraTransition } from "../../types/settings";
+import "./JiraPostPanel.css";
 
 interface JiraPostPanelProps {
   ticketKey: string | null;
@@ -11,10 +11,14 @@ interface JiraPostPanelProps {
   draftId: string | null;
 }
 
-export function JiraPostPanel({ ticketKey, responseText, draftId }: JiraPostPanelProps) {
+export function JiraPostPanel({
+  ticketKey,
+  responseText,
+  draftId,
+}: JiraPostPanelProps) {
   const { success: showSuccess, error: showError } = useToastContext();
   const [transitions, setTransitions] = useState<JiraTransition[]>([]);
-  const [selectedTransition, setSelectedTransition] = useState<string>('');
+  const [selectedTransition, setSelectedTransition] = useState<string>("");
   const [posting, setPosting] = useState(false);
   const [loadingTransitions, setLoadingTransitions] = useState(false);
 
@@ -22,10 +26,12 @@ export function JiraPostPanel({ ticketKey, responseText, draftId }: JiraPostPane
     if (!ticketKey) return;
     setLoadingTransitions(true);
     try {
-      const data = await invoke<JiraTransition[]>('get_jira_transitions', { ticketKey });
+      const data = await invoke<JiraTransition[]>("get_jira_transitions", {
+        ticketKey,
+      });
       setTransitions(data);
     } catch (err) {
-      console.error('Failed to load transitions:', err);
+      console.error("Failed to load transitions:", err);
       setTransitions([]);
     } finally {
       setLoadingTransitions(false);
@@ -40,22 +46,29 @@ export function JiraPostPanel({ ticketKey, responseText, draftId }: JiraPostPane
     if (!ticketKey || !responseText.trim()) return;
     setPosting(true);
     try {
-      await invoke<string>('post_and_transition', {
+      await invoke<string>("post_and_transition", {
         ticketKey,
         comment: responseText,
         transitionId: selectedTransition || null,
         draftId,
       });
       const action = selectedTransition
-        ? 'Posted comment and updated status'
-        : 'Posted comment';
+        ? "Posted comment and updated status"
+        : "Posted comment";
       showSuccess(`${action} on ${ticketKey}`);
     } catch (err) {
       showError(`Jira operation failed: ${err}`);
     } finally {
       setPosting(false);
     }
-  }, [ticketKey, responseText, selectedTransition, draftId, showSuccess, showError]);
+  }, [
+    ticketKey,
+    responseText,
+    selectedTransition,
+    draftId,
+    showSuccess,
+    showError,
+  ]);
 
   if (!ticketKey) return null;
 
@@ -96,7 +109,7 @@ export function JiraPostPanel({ ticketKey, responseText, draftId }: JiraPostPane
           loading={posting}
           className="btn-hover-scale"
         >
-          {selectedTransition ? 'Post & Update Status' : 'Post Comment'}
+          {selectedTransition ? "Post & Update Status" : "Post Comment"}
         </Button>
       </div>
     </div>

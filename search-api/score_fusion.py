@@ -1,46 +1,11 @@
 #!/usr/bin/env python3
-"""
-Score Fusion Module for Hybrid Search
-Combines BM25 (keyword) and HNSW (vector) scores into unified ranking
-Implements: Reciprocal Rank Fusion (RRF) + weighted combination
-"""
+"""Score fusion helpers for the surviving adaptive hybrid search path."""
 
-import math
-from typing import List, Dict, Tuple
+from typing import List, Tuple
 
 
 class ScoreFusion:
-    """Hybrid search score fusion strategies"""
-
-    @staticmethod
-    def reciprocal_rank_fusion(
-        bm25_results: List[Tuple[str, float]],
-        vector_results: List[Tuple[str, float]],
-        k: int = 60,
-    ) -> List[Tuple[str, float]]:
-        """
-        Reciprocal Rank Fusion (RRF)
-        Score(d) = sum 1/(k + rank(d))
-
-        Benefits:
-        - Balanced weight to both ranking methods
-        - Robust to outliers
-        - No parameter tuning needed
-
-        Reference: https://arxiv.org/abs/1809.01852
-        """
-        scores = {}
-
-        for rank, (article_id, _) in enumerate(bm25_results, 1):
-            rrf_score = 1.0 / (k + rank)
-            scores[article_id] = scores.get(article_id, 0) + rrf_score
-
-        for rank, (article_id, _) in enumerate(vector_results, 1):
-            rrf_score = 1.0 / (k + rank)
-            scores[article_id] = scores.get(article_id, 0) + rrf_score
-
-        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        return ranked
+    """Adaptive score fusion for the live search runtime."""
 
     @staticmethod
     def weighted_combination(
@@ -116,38 +81,3 @@ class ScoreFusion:
             bm25_weight=w["bm25"],
             vector_weight=w["vector"],
         )
-
-
-if __name__ == "__main__":
-    print("Testing Score Fusion Algorithms\n")
-
-    bm25_results = [
-        ("article_1", 2.5),
-        ("article_2", 2.1),
-        ("article_3", 1.8),
-    ]
-
-    vector_results = [
-        ("article_2", 0.85),
-        ("article_1", 0.82),
-        ("article_4", 0.79),
-    ]
-
-    print("Reciprocal Rank Fusion:")
-    rrf_ranked = ScoreFusion.reciprocal_rank_fusion(bm25_results, vector_results)
-    for i, (article_id, score) in enumerate(rrf_ranked[:5], 1):
-        print(f"  {i}. {article_id}: {score:.4f}")
-
-    print("\nWeighted Combination:")
-    weighted_ranked = ScoreFusion.weighted_combination(bm25_results, vector_results)
-    for i, (article_id, score) in enumerate(weighted_ranked[:5], 1):
-        print(f"  {i}. {article_id}: {score:.4f}")
-
-    print("\nAdaptive (Policy Intent):")
-    adaptive_ranked = ScoreFusion.adaptive_fusion(
-        bm25_results, vector_results, "policy"
-    )
-    for i, (article_id, score) in enumerate(adaptive_ranked[:5], 1):
-        print(f"  {i}. {article_id}: {score:.4f}")
-
-    print("\nAll fusion algorithms working")

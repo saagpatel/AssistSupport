@@ -1,14 +1,23 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ResponseTemplate, TemplateContext, SavedResponseTemplate } from '../../types';
-import { applyTemplate } from '../../utils/templates';
-import { Button } from '../shared/Button';
-import './TemplateSelector.css';
+import { useState, useRef, useEffect, useCallback } from "react";
+import type {
+  ResponseTemplate,
+  SavedResponseTemplate,
+  TemplateContext,
+} from "../../types/workspace";
+import { applyTemplate } from "../../utils/templates";
+import { Button } from "../shared/Button";
+import "./TemplateSelector.css";
 
 interface TemplateSelectorProps {
   templates: ResponseTemplate[];
   onSelectTemplate: (content: string) => void;
   templateContext?: TemplateContext;
-  customVariables?: Array<{ id: string; name: string; value: string; created_at: string }>;
+  customVariables?: Array<{
+    id: string;
+    name: string;
+    value: string;
+    created_at: string;
+  }>;
   savedResponses?: SavedResponseTemplate[];
   onSelectSavedResponse?: (content: string, templateId: string) => void;
 }
@@ -34,15 +43,18 @@ export function TemplateSelector({
     if (!open) return;
 
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setOpen(false);
         setHoveredId(null);
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [open]);
 
@@ -51,20 +63,20 @@ export function TemplateSelector({
     if (!open) return;
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setOpen(false);
         setHoveredId(null);
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
 
   const handleToggle = useCallback(() => {
-    setOpen(prev => !prev);
+    setOpen((prev) => !prev);
     setHoveredId(null);
   }, []);
 
@@ -73,19 +85,19 @@ export function TemplateSelector({
       const processed = applyTemplate(
         template.content,
         templateContext || {},
-        customVariables || []
+        customVariables || [],
       );
       onSelectTemplate(processed);
       setOpen(false);
       setHoveredId(null);
     },
-    [onSelectTemplate, templateContext, customVariables]
+    [onSelectTemplate, templateContext, customVariables],
   );
 
   // Group templates by category
   const grouped: GroupedTemplates = {};
   for (const template of templates) {
-    const category = template.category || 'Uncategorized';
+    const category = template.category || "Uncategorized";
     if (!grouped[category]) {
       grouped[category] = [];
     }
@@ -93,7 +105,9 @@ export function TemplateSelector({
   }
 
   const categoryNames = Object.keys(grouped).sort();
-  const hoveredTemplate = hoveredId ? templates.find(t => t.id === hoveredId) : null;
+  const hoveredTemplate = hoveredId
+    ? templates.find((t) => t.id === hoveredId)
+    : null;
 
   if (templates.length === 0) {
     return null;
@@ -116,11 +130,13 @@ export function TemplateSelector({
           <div className="template-menu">
             {savedResponses && savedResponses.length > 0 && (
               <div className="template-category">
-                <div className="template-category-name">Your Saved Responses</div>
-                {savedResponses.slice(0, 10).map(sr => (
+                <div className="template-category-name">
+                  Your Saved Responses
+                </div>
+                {savedResponses.slice(0, 10).map((sr) => (
                   <button
                     key={sr.id}
-                    className={`template-item ${hoveredId === sr.id ? 'active' : ''}`}
+                    className={`template-item ${hoveredId === sr.id ? "active" : ""}`}
                     onClick={() => {
                       onSelectSavedResponse?.(sr.content, sr.id);
                       if (!onSelectSavedResponse) {
@@ -134,19 +150,21 @@ export function TemplateSelector({
                   >
                     {sr.name}
                     {sr.use_count > 0 && (
-                      <span className="template-use-count">{sr.use_count}x</span>
+                      <span className="template-use-count">
+                        {sr.use_count}x
+                      </span>
                     )}
                   </button>
                 ))}
               </div>
             )}
-            {categoryNames.map(category => (
+            {categoryNames.map((category) => (
               <div key={category} className="template-category">
                 <div className="template-category-name">{category}</div>
-                {grouped[category].map(template => (
+                {grouped[category].map((template) => (
                   <button
                     key={template.id}
-                    className={`template-item ${hoveredId === template.id ? 'active' : ''}`}
+                    className={`template-item ${hoveredId === template.id ? "active" : ""}`}
                     onClick={() => handleSelect(template)}
                     onMouseEnter={() => setHoveredId(template.id)}
                     onFocus={() => setHoveredId(template.id)}
@@ -160,10 +178,12 @@ export function TemplateSelector({
 
           {hoveredTemplate && (
             <div className="template-preview">
-              <div className="template-preview-title">{hoveredTemplate.name}</div>
+              <div className="template-preview-title">
+                {hoveredTemplate.name}
+              </div>
               <div className="template-preview-content">
                 {hoveredTemplate.content.length > 300
-                  ? hoveredTemplate.content.slice(0, 300) + '...'
+                  ? hoveredTemplate.content.slice(0, 300) + "..."
                   : hoveredTemplate.content}
               </div>
             </div>

@@ -68,7 +68,6 @@ if (authToken) {
 const requestBody = JSON.stringify({
   query,
   top_k: Number.isFinite(topK) && topK > 0 ? topK : 5,
-  fusion_strategy: "adaptive",
 });
 
 const readyResponse = await fetch(`${baseUrl}${readyPath}`);

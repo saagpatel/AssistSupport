@@ -3,11 +3,11 @@
  * Persistent sidebar with icons and labels
  */
 
-import { Icon, IconName } from '../shared/Icon';
-import type { Tab } from '../../types';
-import type { RevampFlags } from '../../features/revamp';
-import { isTabEnabled } from '../../features/app-shell/tabPolicy';
-import './Sidebar.css';
+import { Icon, IconName } from "../shared/Icon";
+import type { Tab } from "../../types/app";
+import type { RevampFlags } from "../../features/revamp";
+import { isTabEnabled } from "../../features/app-shell/tabPolicy";
+import "./Sidebar.css";
 
 interface SidebarProps {
   activeTab: Tab;
@@ -27,80 +27,59 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    id: 'draft',
-    label: 'Draft',
-    icon: 'draft',
-    shortcut: '1',
-    description: 'Compose responses with AI assistance'
+    id: "draft",
+    label: "Workspace",
+    icon: "draft",
+    shortcut: "1",
+    description: "Open the main support workspace",
   },
   {
-    id: 'followups',
-    label: 'Follow-ups',
-    icon: 'followups',
-    shortcut: '2',
-    description: 'Manage saved drafts and history'
+    id: "followups",
+    label: "Queue",
+    icon: "followups",
+    shortcut: "2",
+    description: "Triage the queue and manage follow-up work",
   },
   {
-    id: 'sources',
-    label: 'Sources',
-    icon: 'sources',
-    shortcut: '3',
-    description: 'Browse knowledge base sources'
+    id: "knowledge",
+    label: "Knowledge",
+    icon: "knowledge",
+    shortcut: "3",
+    description: "Browse documents and search diagnostics",
   },
   {
-    id: 'ingest',
-    label: 'Ingest',
-    icon: 'ingest',
-    shortcut: '4',
-    description: 'Add new content to knowledge base'
+    id: "analytics",
+    label: "Analytics",
+    icon: "sparkles",
+    shortcut: "6",
+    description: "View admin analytics and pilot diagnostics",
   },
   {
-    id: 'knowledge',
-    label: 'Knowledge',
-    icon: 'knowledge',
-    shortcut: '5',
-    description: 'Search and explore knowledge base'
-  },
-  {
-    id: 'analytics',
-    label: 'Analytics',
-    icon: 'sparkles',
-    shortcut: '6',
-    description: 'View usage analytics and statistics'
-  },
-  {
-    id: 'pilot',
-    label: 'Pilot',
-    icon: 'list',
-    shortcut: '7',
-    description: 'View pilot feedback dashboard'
-  },
-  {
-    id: 'search',
-    label: 'Search',
-    icon: 'database',
-    shortcut: '8',
-    description: 'Hybrid PostgreSQL search (BM25 + HNSW)'
-  },
-  {
-    id: 'ops',
-    label: 'Ops',
-    icon: 'terminal',
-    description: 'Deployment, evaluation, triage, and runbooks',
+    id: "ops",
+    label: "Operations",
+    icon: "terminal",
+    shortcut: "9",
+    description: "Open deployment and integration diagnostics",
   },
 ];
 
 const settingsItem: NavItem = {
-  id: 'settings',
-  label: 'Settings',
-  icon: 'settings',
-  shortcut: '0',
-  description: 'Configure app and model settings'
+  id: "settings",
+  label: "Settings",
+  icon: "settings",
+  shortcut: "0",
+  description: "Configure app preferences",
 };
 
-export function Sidebar({ activeTab, onTabChange, collapsed, onToggleCollapse, revampFlags }: SidebarProps) {
+export function Sidebar({
+  activeTab,
+  onTabChange,
+  collapsed,
+  onToggleCollapse,
+  revampFlags,
+}: SidebarProps) {
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="sidebar-header">
         {!collapsed && (
           <div className="sidebar-brand">
@@ -111,47 +90,61 @@ export function Sidebar({ activeTab, onTabChange, collapsed, onToggleCollapse, r
         <button
           className="sidebar-toggle"
           onClick={onToggleCollapse}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={16} />
+          <Icon name={collapsed ? "chevron-right" : "chevron-left"} size={16} />
         </button>
       </div>
 
-      <nav className="sidebar-nav" role="navigation" aria-label="Main navigation">
+      <nav
+        className="sidebar-nav"
+        role="navigation"
+        aria-label="Main navigation"
+      >
         <ul className="nav-list">
-          {navItems.filter((item) => isTabEnabled(item.id, revampFlags)).map(item => (
-            <li key={item.id}>
-              <button
-                className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-                onClick={() => onTabChange(item.id)}
-                title={collapsed ? `${item.label}${item.shortcut ? ` (Cmd+${item.shortcut})` : ''}` : item.description}
-                aria-current={activeTab === item.id ? 'page' : undefined}
-              >
-                <Icon name={item.icon} size={20} className="nav-icon" />
-                {!collapsed && (
-                  <>
-                    <span className="nav-label">{item.label}</span>
-                    {item.shortcut && (
-                      <span className="nav-shortcut">
-                        <kbd>&#8984;</kbd>
-                        <kbd>{item.shortcut}</kbd>
-                      </span>
-                    )}
-                  </>
-                )}
-              </button>
-            </li>
-          ))}
+          {navItems
+            .filter((item) => isTabEnabled(item.id, revampFlags))
+            .map((item) => (
+              <li key={item.id}>
+                <button
+                  className={`nav-item ${activeTab === item.id ? "active" : ""}`}
+                  onClick={() => onTabChange(item.id)}
+                  title={
+                    collapsed
+                      ? `${item.label}${item.shortcut ? ` (Cmd+${item.shortcut})` : ""}`
+                      : item.description
+                  }
+                  aria-current={activeTab === item.id ? "page" : undefined}
+                >
+                  <Icon name={item.icon} size={20} className="nav-icon" />
+                  {!collapsed && (
+                    <>
+                      <span className="nav-label">{item.label}</span>
+                      {item.shortcut && (
+                        <span className="nav-shortcut">
+                          <kbd>&#8984;</kbd>
+                          <kbd>{item.shortcut}</kbd>
+                        </span>
+                      )}
+                    </>
+                  )}
+                </button>
+              </li>
+            ))}
         </ul>
       </nav>
 
       <div className="sidebar-footer">
         <button
-          className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => onTabChange('settings')}
-          title={collapsed ? `Settings (Cmd+${settingsItem.shortcut})` : settingsItem.description}
-          aria-current={activeTab === 'settings' ? 'page' : undefined}
+          className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
+          onClick={() => onTabChange("settings")}
+          title={
+            collapsed
+              ? `Settings (Cmd+${settingsItem.shortcut})`
+              : settingsItem.description
+          }
+          aria-current={activeTab === "settings" ? "page" : undefined}
         >
           <Icon name={settingsItem.icon} size={20} className="nav-icon" />
           {!collapsed && (

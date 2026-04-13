@@ -1,19 +1,19 @@
-import type { ReactNode } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Icon } from '../../../components/shared/Icon';
-import type { Tab } from '../../../types';
-import type { RevampFlags } from '../flags';
-import { isTabEnabled } from '../../app-shell/tabPolicy';
-import { useAppStatus } from '../../../contexts/AppStatusContext';
-import { AsButton, Badge, Panel } from '../ui';
-import { WorkspaceQueueContext } from '../../workspace/WorkspaceQueueContext';
-import type { QueueView } from '../../inbox/queueModel';
-import '../../../styles/revamp/index.css';
-import './revampShell.css';
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "../../../components/shared/Icon";
+import type { RevampFlags } from "../flags";
+import { isTabEnabled } from "../../app-shell/tabPolicy";
+import type { TabId } from "../../app-shell/types";
+import { useAppStatus } from "../../../contexts/AppStatusContext";
+import { AsButton, Badge, Panel } from "../ui";
+import { WorkspaceQueueContext } from "../../workspace/WorkspaceQueueContext";
+import type { QueueView } from "../../inbox/queueModel";
+import "../../../styles/revamp/index.css";
+import "./revampShell.css";
 
 export interface RevampShellProps {
-  activeTab: Tab;
-  onTabChange: (tab: Tab) => void;
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
   revampFlags: RevampFlags;
   onNavigateToQueue?: (queueView: QueueView) => void;
   onOpenCommandPalette: () => void;
@@ -22,48 +22,37 @@ export interface RevampShellProps {
 }
 
 interface NavItem {
-  id: Tab;
+  id: TabId;
   label: string;
-  icon: Parameters<typeof Icon>[0]['name'];
-  section: 'Primary' | 'Knowledge' | 'Operations' | 'Advanced';
+  icon: Parameters<typeof Icon>[0]["name"];
+  section: "Core" | "Admin";
 }
 
 const NAV: NavItem[] = [
-  { id: 'draft', label: 'Draft', icon: 'draft', section: 'Primary' },
-  { id: 'followups', label: 'Follow-ups', icon: 'followups', section: 'Primary' },
-  { id: 'sources', label: 'Sources', icon: 'sources', section: 'Knowledge' },
-  { id: 'knowledge', label: 'Knowledge', icon: 'knowledge', section: 'Knowledge' },
-  { id: 'ops', label: 'Ops', icon: 'terminal', section: 'Operations' },
-  { id: 'settings', label: 'Settings', icon: 'settings', section: 'Operations' },
-  // Advanced surfaces are policy gated and default off.
-  { id: 'ingest', label: 'Ingest', icon: 'ingest', section: 'Advanced' },
-  { id: 'analytics', label: 'Analytics', icon: 'sparkles', section: 'Advanced' },
-  { id: 'pilot', label: 'Pilot', icon: 'list', section: 'Advanced' },
-  { id: 'search', label: 'Search', icon: 'database', section: 'Advanced' },
+  { id: "draft", label: "Workspace", icon: "draft", section: "Core" },
+  { id: "followups", label: "Queue", icon: "followups", section: "Core" },
+  { id: "knowledge", label: "Knowledge", icon: "sources", section: "Core" },
+  { id: "settings", label: "Settings", icon: "settings", section: "Core" },
+  { id: "analytics", label: "Analytics", icon: "sparkles", section: "Admin" },
+  { id: "ops", label: "Operations", icon: "terminal", section: "Admin" },
 ];
 
-function tabTitle(tab: Tab): string {
+function tabTitle(tab: TabId): string {
   switch (tab) {
-    case 'draft':
-      return 'Draft Workbench';
-    case 'followups':
-      return 'Queue / Follow-ups';
-    case 'sources':
-      return 'Sources';
-    case 'knowledge':
-      return 'Knowledge';
-    case 'ops':
-      return 'Operations';
-    case 'settings':
-      return 'Settings';
-    case 'ingest':
-      return 'Ingest';
-    case 'analytics':
-      return 'Analytics';
-    case 'pilot':
-      return 'Pilot';
-    case 'search':
-      return 'Search';
+    case "draft":
+      return "Workspace";
+    case "followups":
+      return "Queue";
+    case "knowledge":
+      return "Knowledge";
+    case "ops":
+      return "Operations";
+    case "settings":
+      return "Settings";
+    case "analytics":
+      return "Analytics";
+    default:
+      return "AssistSupport";
   }
 }
 
@@ -95,14 +84,22 @@ export function RevampShell({
   }
   const healthyCount = checks.filter(Boolean).length;
   const totalChecks = checks.length;
-  const healthTone = healthyCount === totalChecks ? 'good' : healthyCount > 0 ? 'warn' : 'bad';
-  const healthLabel = healthyCount === totalChecks ? 'Ready' : healthyCount > 0 ? 'Degraded' : 'Setup required';
+  const healthTone =
+    healthyCount === totalChecks ? "good" : healthyCount > 0 ? "warn" : "bad";
+  const healthLabel =
+    healthyCount === totalChecks
+      ? "Ready"
+      : healthyCount > 0
+        ? "Degraded"
+        : "Setup required";
 
-  const grouped = (section: NavItem['section']) => enabledNav.filter((n) => n.section === section);
+  const grouped = (section: NavItem["section"]) =>
+    enabledNav.filter((n) => n.section === section);
 
   const needsModel = !appStatus.llmLoaded;
   const needsKb = !appStatus.kbIndexed;
-  const memoryKernelDegraded = appStatus.memoryKernelFeatureEnabled && !appStatus.memoryKernelReady;
+  const memoryKernelDegraded =
+    appStatus.memoryKernelFeatureEnabled && !appStatus.memoryKernelReady;
 
   useEffect(() => {
     if (!statusOpen) return;
@@ -120,16 +117,16 @@ export function RevampShell({
     };
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setStatusOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, [statusOpen]);
 
@@ -137,14 +134,18 @@ export function RevampShell({
     <div className="as-shell">
       <aside className="as-shell__nav" aria-label="Primary navigation">
         <div className="as-shell__brand">
-          <div className="as-shell__brandMark" aria-hidden="true">A</div>
+          <div className="as-shell__brandMark" aria-hidden="true">
+            A
+          </div>
           <div className="as-shell__brandText">
             <div className="as-shell__brandName">AssistSupport</div>
-            <div className="as-shell__brandMeta">Local-first support console</div>
+            <div className="as-shell__brandMeta">
+              Local-first support console
+            </div>
           </div>
         </div>
 
-        {(['Primary', 'Knowledge', 'Operations', 'Advanced'] as const).map((section) => {
+        {(["Core", "Admin"] as const).map((section) => {
           const items = grouped(section);
           if (items.length === 0) return null;
           return (
@@ -155,9 +156,14 @@ export function RevampShell({
                   <li key={item.id}>
                     <button
                       type="button"
-                      className={['as-shell__navItem', activeTab === item.id ? 'is-active' : ''].filter(Boolean).join(' ')}
+                      className={[
+                        "as-shell__navItem",
+                        activeTab === item.id ? "is-active" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                       onClick={() => onTabChange(item.id)}
-                      aria-current={activeTab === item.id ? 'page' : undefined}
+                      aria-current={activeTab === item.id ? "page" : undefined}
                     >
                       <Icon name={item.icon} size={18} />
                       <span>{item.label}</span>
@@ -179,10 +185,18 @@ export function RevampShell({
             </div>
           </div>
 
-          <button type="button" className="as-shell__command" onClick={onOpenCommandPalette}>
+          <button
+            type="button"
+            className="as-shell__command"
+            onClick={onOpenCommandPalette}
+          >
             <Icon name="search" size={16} />
-            <span className="as-shell__commandText">Search or type a command...</span>
-            <span className="as-shell__commandKbd" aria-hidden="true">⌘ K</span>
+            <span className="as-shell__commandText">
+              Search or type a command...
+            </span>
+            <span className="as-shell__commandKbd" aria-hidden="true">
+              ⌘ K
+            </span>
           </button>
 
           <div className="as-shell__topbarRight">
@@ -204,7 +218,9 @@ export function RevampShell({
             >
               <Badge tone={healthTone}>{healthLabel}</Badge>
               <span className="as-shell__statusModel">
-                {appStatus.llmLoaded ? (appStatus.llmModelName || 'Model loaded') : 'Model not loaded'}
+                {appStatus.llmLoaded
+                  ? appStatus.llmModelName || "Model loaded"
+                  : "Model not loaded"}
               </span>
               <Icon name="chevron-down" size={14} />
             </button>
@@ -234,20 +250,53 @@ export function RevampShell({
                 }
               >
                 <div className="as-shell__statusGrid">
-                  <StatusRow label="LLM Engine" value={appStatus.llmLoaded ? 'Loaded' : 'Not loaded'} tone={appStatus.llmLoaded ? 'good' : 'bad'} />
-                  <StatusRow label="Embeddings" value={appStatus.embeddingsLoaded ? 'Loaded' : 'Not loaded'} tone={appStatus.embeddingsLoaded ? 'good' : 'warn'} />
-                  <StatusRow label="Knowledge Base" value={`${appStatus.kbDocumentCount} docs · ${appStatus.kbChunkCount} chunks`} tone={appStatus.kbIndexed ? 'good' : 'warn'} />
-                  <StatusRow label="MemoryKernel" value={appStatus.memoryKernelFeatureEnabled ? (appStatus.memoryKernelStatus || 'Unknown') : 'Disabled'} tone={appStatus.memoryKernelFeatureEnabled ? (appStatus.memoryKernelReady ? 'good' : 'warn') : 'neutral'} />
+                  <StatusRow
+                    label="LLM Engine"
+                    value={appStatus.llmLoaded ? "Loaded" : "Not loaded"}
+                    tone={appStatus.llmLoaded ? "good" : "bad"}
+                  />
+                  <StatusRow
+                    label="Embeddings"
+                    value={appStatus.embeddingsLoaded ? "Loaded" : "Not loaded"}
+                    tone={appStatus.embeddingsLoaded ? "good" : "warn"}
+                  />
+                  <StatusRow
+                    label="Knowledge Base"
+                    value={`${appStatus.kbDocumentCount} docs · ${appStatus.kbChunkCount} chunks`}
+                    tone={appStatus.kbIndexed ? "good" : "warn"}
+                  />
+                  <StatusRow
+                    label="MemoryKernel"
+                    value={
+                      appStatus.memoryKernelFeatureEnabled
+                        ? appStatus.memoryKernelStatus || "Unknown"
+                        : "Disabled"
+                    }
+                    tone={
+                      appStatus.memoryKernelFeatureEnabled
+                        ? appStatus.memoryKernelReady
+                          ? "good"
+                          : "warn"
+                        : "neutral"
+                    }
+                  />
                 </div>
                 {(needsModel || needsKb || memoryKernelDegraded) && (
-                  <div style={{ marginTop: 'var(--as-space-4)', display: 'flex', gap: 'var(--as-space-2)', flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      marginTop: "var(--as-space-4)",
+                      display: "flex",
+                      gap: "var(--as-space-2)",
+                      flexWrap: "wrap",
+                    }}
+                  >
                     {needsModel && (
                       <AsButton
                         size="small"
                         tone="primary"
                         onClick={() => {
                           setStatusOpen(false);
-                          onTabChange('settings');
+                          onTabChange("settings");
                         }}
                       >
                         Open Settings
@@ -259,7 +308,7 @@ export function RevampShell({
                         tone="primary"
                         onClick={() => {
                           setStatusOpen(false);
-                          onTabChange('knowledge');
+                          onTabChange("knowledge");
                         }}
                       >
                         Fix Knowledge Base
@@ -271,7 +320,7 @@ export function RevampShell({
                         tone="default"
                         onClick={() => {
                           setStatusOpen(false);
-                          onTabChange('ops');
+                          onTabChange("ops");
                         }}
                       >
                         Open Ops
@@ -284,24 +333,54 @@ export function RevampShell({
           )}
         </header>
 
+        <nav className="as-shell__mobileNav" aria-label="Compact navigation">
+          {enabledNav.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={[
+                "as-shell__mobileNavItem",
+                activeTab === item.id ? "is-active" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => onTabChange(item.id)}
+              aria-current={activeTab === item.id ? "page" : undefined}
+            >
+              <Icon name={item.icon} size={16} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
         <div className="as-shell__content">
           <main className="as-shell__workspace" aria-label="Workspace">
             <div className="as-shell__workspaceInner">{children}</div>
           </main>
-          <aside className="as-shell__rail" aria-label="Diagnostics and guidance">
-            {activeTab === 'draft' && revampFlags.ASSISTSUPPORT_REVAMP_WORKSPACE && (
-              <>
-                <WorkspaceQueueContext onNavigateToQueue={onNavigateToQueue} revampUi />
-                <Panel title="Response playbook" subtitle="Keep responses consistent across the team">
-                  <ol className="as-shell__railBullets">
-                    <li>Capture the issue in plain language.</li>
-                    <li>Validate policy and approval requirements.</li>
-                    <li>Generate and edit response with cited context.</li>
-                    <li>Save to follow-ups for handoff continuity.</li>
-                  </ol>
-                </Panel>
-              </>
-            )}
+          <aside
+            className="as-shell__rail"
+            aria-label="Diagnostics and guidance"
+          >
+            {activeTab === "draft" &&
+              revampFlags.ASSISTSUPPORT_REVAMP_WORKSPACE && (
+                <>
+                  <WorkspaceQueueContext
+                    onNavigateToQueue={onNavigateToQueue}
+                    revampUi
+                  />
+                  <Panel
+                    title="Response playbook"
+                    subtitle="Keep responses consistent across the team"
+                  >
+                    <ol className="as-shell__railBullets">
+                      <li>Capture the issue in plain language.</li>
+                      <li>Validate policy and approval requirements.</li>
+                      <li>Generate and edit response with cited context.</li>
+                      <li>Save to follow-ups for handoff continuity.</li>
+                    </ol>
+                  </Panel>
+                </>
+              )}
             <Panel
               title="AI Status & Guarantees"
               subtitle="Predictable local AI; never blocking"
@@ -309,15 +388,25 @@ export function RevampShell({
               <ul className="as-shell__railList">
                 <li>
                   <span className="as-shell__railKey">Model</span>
-                  <span className="as-shell__railVal">{appStatus.llmLoaded ? (appStatus.llmModelName || 'Loaded') : 'Not loaded'}</span>
+                  <span className="as-shell__railVal">
+                    {appStatus.llmLoaded
+                      ? appStatus.llmModelName || "Loaded"
+                      : "Not loaded"}
+                  </span>
                 </li>
                 <li>
                   <span className="as-shell__railKey">Citations</span>
-                  <span className="as-shell__railVal">Required for copy (override audited)</span>
+                  <span className="as-shell__railVal">
+                    Required for copy (override audited)
+                  </span>
                 </li>
                 <li>
                   <span className="as-shell__railKey">MemoryKernel</span>
-                  <span className="as-shell__railVal">{appStatus.memoryKernelFeatureEnabled ? 'Optional enrichment' : 'Disabled'}</span>
+                  <span className="as-shell__railVal">
+                    {appStatus.memoryKernelFeatureEnabled
+                      ? "Optional enrichment"
+                      : "Disabled"}
+                  </span>
                 </li>
               </ul>
             </Panel>
@@ -330,11 +419,11 @@ export function RevampShell({
                 {needsModel && (
                   <li>
                     Load a local model in Settings.
-                    <div style={{ marginTop: 'var(--as-space-2)' }}>
+                    <div style={{ marginTop: "var(--as-space-2)" }}>
                       <AsButton
                         size="small"
                         tone="primary"
-                        onClick={() => onTabChange('settings')}
+                        onClick={() => onTabChange("settings")}
                       >
                         Open Settings
                       </AsButton>
@@ -343,12 +432,13 @@ export function RevampShell({
                 )}
                 {needsKb && (
                   <li>
-                    Point Knowledge Base to your local docs folder, then rebuild the index.
-                    <div style={{ marginTop: 'var(--as-space-2)' }}>
+                    Point Knowledge Base to your local docs folder, then rebuild
+                    the index.
+                    <div style={{ marginTop: "var(--as-space-2)" }}>
                       <AsButton
                         size="small"
                         tone="primary"
-                        onClick={() => onTabChange('knowledge')}
+                        onClick={() => onTabChange("knowledge")}
                       >
                         Open Knowledge
                       </AsButton>
@@ -357,19 +447,19 @@ export function RevampShell({
                 )}
                 {memoryKernelDegraded && (
                   <li>
-                    MemoryKernel is degraded. Draft generation will continue with deterministic fallback.
-                    <div style={{ marginTop: 'var(--as-space-2)' }}>
-                      <AsButton
-                        size="small"
-                        onClick={() => onTabChange('ops')}
-                      >
+                    MemoryKernel is degraded. Draft generation will continue
+                    with deterministic fallback.
+                    <div style={{ marginTop: "var(--as-space-2)" }}>
+                      <AsButton size="small" onClick={() => onTabChange("ops")}>
                         Open Ops
                       </AsButton>
                     </div>
                   </li>
                 )}
                 {!needsModel && !needsKb && !memoryKernelDegraded && (
-                  <li>Use Cmd+K to jump between Queue, Draft, Sources, and Ops.</li>
+                  <li>
+                    Use Cmd+K to jump between Queue, Draft, Sources, and Ops.
+                  </li>
                 )}
               </ul>
             </Panel>
@@ -380,7 +470,15 @@ export function RevampShell({
   );
 }
 
-function StatusRow({ label, value, tone }: { label: string; value: string; tone: 'neutral' | 'good' | 'warn' | 'bad' }) {
+function StatusRow({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "neutral" | "good" | "warn" | "bad";
+}) {
   return (
     <div className="as-shell__statusRow">
       <div className="as-shell__statusLabel">{label}</div>

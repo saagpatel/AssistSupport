@@ -24,8 +24,8 @@ def build_spec() -> dict:
             "title": "AssistSupport Search API",
             "version": version,
             "description": (
-                "Local loopback search sidecar used by AssistSupport for hybrid KB search, "
-                "feedback capture, readiness checks, and operational stats."
+                "Local loopback search sidecar used by AssistSupport for adaptive hybrid KB "
+                "search, feedback capture, readiness checks, and Knowledge diagnostics stats."
             ),
         },
         "servers": [
@@ -98,11 +98,6 @@ def build_spec() -> dict:
                         "query": {"type": "string", "minLength": 1},
                         "top_k": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10},
                         "include_scores": {"type": "boolean", "default": False},
-                        "fusion_strategy": {
-                            "type": "string",
-                            "enum": ["adaptive", "rrf", "weighted", "rerank"],
-                            "default": "adaptive",
-                        },
                     },
                 },
                 "SearchResultScores": {
@@ -134,7 +129,6 @@ def build_spec() -> dict:
                         "latency_ms",
                         "embedding_time_ms",
                         "search_time_ms",
-                        "rerank_time_ms",
                         "result_count",
                         "timestamp",
                     ],
@@ -142,7 +136,6 @@ def build_spec() -> dict:
                         "latency_ms": {"type": "number"},
                         "embedding_time_ms": {"type": "number"},
                         "search_time_ms": {"type": "number"},
-                        "rerank_time_ms": {"type": "number"},
                         "result_count": {"type": "integer"},
                         "timestamp": {"type": "string", "format": "date-time"},
                     },

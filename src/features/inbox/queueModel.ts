@@ -1,8 +1,13 @@
-import type { SavedDraft } from '../../types';
+import type { SavedDraft } from "../../types/workspace";
 
-export type QueueState = 'open' | 'in_progress' | 'resolved';
-export type QueuePriority = 'low' | 'normal' | 'high' | 'urgent';
-export type QueueView = 'all' | 'unassigned' | 'at_risk' | 'in_progress' | 'resolved';
+export type QueueState = "open" | "in_progress" | "resolved";
+export type QueuePriority = "low" | "normal" | "high" | "urgent";
+export type QueueView =
+  | "all"
+  | "unassigned"
+  | "at_risk"
+  | "in_progress"
+  | "resolved";
 
 export interface QueueMeta {
   state: QueueState;
@@ -72,8 +77,9 @@ export interface QueueHandoffDelta {
   }>;
 }
 
-const QUEUE_META_STORAGE_KEY = 'assistsupport.queue.meta.v1';
-const QUEUE_HANDOFF_SNAPSHOT_STORAGE_KEY = 'assistsupport.queue.handoff.latest.v1';
+const QUEUE_META_STORAGE_KEY = "assistsupport.queue.meta.v1";
+const QUEUE_HANDOFF_SNAPSHOT_STORAGE_KEY =
+  "assistsupport.queue.handoff.latest.v1";
 
 const PRIORITY_RANK: Record<QueuePriority, number> = {
   urgent: 4,
@@ -89,26 +95,30 @@ const SLA_HOURS_BY_PRIORITY: Record<QueuePriority, number> = {
   low: 24,
 };
 
-const ESCALATION_REGEX = /\b(sev1|p1|critical|outage|urgent|production down)\b/i;
-const HIGH_PRIORITY_REGEX = /\b(sev2|p2|blocked|escalat|cannot access|failure)\b/i;
+const ESCALATION_REGEX =
+  /\b(sev1|p1|critical|outage|urgent|production down)\b/i;
+const HIGH_PRIORITY_REGEX =
+  /\b(sev2|p2|blocked|escalat|cannot access|failure)\b/i;
 
 export function inferPriorityFromDraft(draft: SavedDraft): QueuePriority {
-  const ticketText = [draft.ticket_id, draft.summary_text, draft.input_text].filter(Boolean).join(' ');
+  const ticketText = [draft.ticket_id, draft.summary_text, draft.input_text]
+    .filter(Boolean)
+    .join(" ");
   if (ESCALATION_REGEX.test(ticketText)) {
-    return 'urgent';
+    return "urgent";
   }
 
   if (HIGH_PRIORITY_REGEX.test(ticketText)) {
-    return 'high';
+    return "high";
   }
 
-  return 'normal';
+  return "normal";
 }
 
 function createDefaultMeta(draft: SavedDraft): QueueMeta {
   return {
-    state: 'open',
-    owner: 'unassigned',
+    state: "open",
+    owner: "unassigned",
     priority: inferPriorityFromDraft(draft),
     updatedAt: draft.updated_at,
   };
@@ -121,17 +131,20 @@ function safeParseQueueMeta(raw: string | null): QueueMetaMap {
 
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (typeof parsed !== 'object' || parsed === null) {
+    if (typeof parsed !== "object" || parsed === null) {
       return {};
     }
 
-    const normalized = Object.entries(parsed).reduce<QueueMetaMap>((acc, [draftId, value]) => {
-      const entry = normalizeQueueMetaEntry(value);
-      if (entry) {
-        acc[draftId] = entry;
-      }
-      return acc;
-    }, {});
+    const normalized = Object.entries(parsed).reduce<QueueMetaMap>(
+      (acc, [draftId, value]) => {
+        const entry = normalizeQueueMetaEntry(value);
+        if (entry) {
+          acc[draftId] = entry;
+        }
+        return acc;
+      },
+      {},
+    );
 
     return normalized;
   } catch {
@@ -140,14 +153,17 @@ function safeParseQueueMeta(raw: string | null): QueueMetaMap {
 }
 
 function normalizeQueueMetaEntry(value: unknown): QueueMeta | null {
-  if (!value || typeof value !== 'object') {
+  if (!value || typeof value !== "object") {
     return null;
   }
 
   const candidate = value as Partial<QueueMeta>;
   const state = normalizeQueueState(candidate.state);
   const priority = normalizeQueuePriority(candidate.priority);
-  const owner = typeof candidate.owner === 'string' && candidate.owner.trim().length > 0 ? candidate.owner.trim() : 'unassigned';
+  const owner =
+    typeof candidate.owner === "string" && candidate.owner.trim().length > 0
+      ? candidate.owner.trim()
+      : "unassigned";
   const updatedAt = normalizeIsoTimestamp(candidate.updatedAt);
 
   return {
@@ -159,34 +175,43 @@ function normalizeQueueMetaEntry(value: unknown): QueueMeta | null {
 }
 
 function normalizeQueueState(state: unknown): QueueState {
-  if (state === 'open' || state === 'in_progress' || state === 'resolved') {
+  if (state === "open" || state === "in_progress" || state === "resolved") {
     return state;
   }
-  return 'open';
+  return "open";
 }
 
 function normalizeQueuePriority(priority: unknown): QueuePriority {
-  if (priority === 'low' || priority === 'normal' || priority === 'high' || priority === 'urgent') {
+  if (
+    priority === "low" ||
+    priority === "normal" ||
+    priority === "high" ||
+    priority === "urgent"
+  ) {
     return priority;
   }
-  return 'normal';
+  return "normal";
 }
 
 function normalizeIsoTimestamp(value: unknown): string {
-  if (typeof value !== 'string') {
-    return '';
+  if (typeof value !== "string") {
+    return "";
   }
 
   const trimmed = value.trim();
   const parsed = Date.parse(trimmed);
   if (Number.isNaN(parsed)) {
-    return '';
+    return "";
   }
 
   return trimmed;
 }
 
-export function loadQueueMeta(storage: Pick<Storage, 'getItem'> | null = typeof window !== 'undefined' ? window.localStorage : null): QueueMetaMap {
+export function loadQueueMeta(
+  storage: Pick<Storage, "getItem"> | null = typeof window !== "undefined"
+    ? window.localStorage
+    : null,
+): QueueMetaMap {
   if (!storage) {
     return {};
   }
@@ -198,7 +223,12 @@ export function loadQueueMeta(storage: Pick<Storage, 'getItem'> | null = typeof 
   }
 }
 
-export function persistQueueMeta(metaMap: QueueMetaMap, storage: Pick<Storage, 'setItem'> | null = typeof window !== 'undefined' ? window.localStorage : null): void {
+export function persistQueueMeta(
+  metaMap: QueueMetaMap,
+  storage: Pick<Storage, "setItem"> | null = typeof window !== "undefined"
+    ? window.localStorage
+    : null,
+): void {
   if (!storage) {
     return;
   }
@@ -210,7 +240,10 @@ export function persistQueueMeta(metaMap: QueueMetaMap, storage: Pick<Storage, '
   }
 }
 
-function getReferenceTimestamp(isoTimestamp: string | null | undefined, fallbackMs: number): number {
+function getReferenceTimestamp(
+  isoTimestamp: string | null | undefined,
+  fallbackMs: number,
+): number {
   if (!isoTimestamp) {
     return fallbackMs;
   }
@@ -219,14 +252,22 @@ function getReferenceTimestamp(isoTimestamp: string | null | undefined, fallback
   return Number.isNaN(ms) ? fallbackMs : ms;
 }
 
-export function buildQueueItems(drafts: SavedDraft[], metaMap: QueueMetaMap, nowMs = Date.now()): QueueItem[] {
+export function buildQueueItems(
+  drafts: SavedDraft[],
+  metaMap: QueueMetaMap,
+  nowMs = Date.now(),
+): QueueItem[] {
   return drafts
     .map((draft) => {
       const meta = metaMap[draft.id] ?? createDefaultMeta(draft);
-      const referenceMs = getReferenceTimestamp(meta.updatedAt || draft.updated_at, nowMs);
-      const slaHours = SLA_HOURS_BY_PRIORITY[meta.priority] ?? SLA_HOURS_BY_PRIORITY.normal;
+      const referenceMs = getReferenceTimestamp(
+        meta.updatedAt || draft.updated_at,
+        nowMs,
+      );
+      const slaHours =
+        SLA_HOURS_BY_PRIORITY[meta.priority] ?? SLA_HOURS_BY_PRIORITY.normal;
       const slaDueAtMs = referenceMs + slaHours * 60 * 60 * 1000;
-      const isAtRisk = meta.state !== 'resolved' && nowMs > slaDueAtMs;
+      const isAtRisk = meta.state !== "resolved" && nowMs > slaDueAtMs;
 
       return {
         draft,
@@ -236,10 +277,10 @@ export function buildQueueItems(drafts: SavedDraft[], metaMap: QueueMetaMap, now
       };
     })
     .sort((a, b) => {
-      if (a.meta.state === 'resolved' && b.meta.state !== 'resolved') {
+      if (a.meta.state === "resolved" && b.meta.state !== "resolved") {
         return 1;
       }
-      if (b.meta.state === 'resolved' && a.meta.state !== 'resolved') {
+      if (b.meta.state === "resolved" && a.meta.state !== "resolved") {
         return -1;
       }
       if (a.isAtRisk && !b.isAtRisk) {
@@ -249,7 +290,8 @@ export function buildQueueItems(drafts: SavedDraft[], metaMap: QueueMetaMap, now
         return 1;
       }
 
-      const priorityDiff = PRIORITY_RANK[b.meta.priority] - PRIORITY_RANK[a.meta.priority];
+      const priorityDiff =
+        PRIORITY_RANK[b.meta.priority] - PRIORITY_RANK[a.meta.priority];
       if (priorityDiff !== 0) {
         return priorityDiff;
       }
@@ -258,17 +300,25 @@ export function buildQueueItems(drafts: SavedDraft[], metaMap: QueueMetaMap, now
     });
 }
 
-export function filterQueueItems(items: QueueItem[], view: QueueView): QueueItem[] {
+export function filterQueueItems(
+  items: QueueItem[],
+  view: QueueView,
+): QueueItem[] {
   switch (view) {
-    case 'unassigned':
-      return items.filter((item) => item.meta.owner === 'unassigned' && item.meta.state !== 'resolved');
-    case 'at_risk':
-      return items.filter((item) => item.isAtRisk && item.meta.state !== 'resolved');
-    case 'in_progress':
-      return items.filter((item) => item.meta.state === 'in_progress');
-    case 'resolved':
-      return items.filter((item) => item.meta.state === 'resolved');
-    case 'all':
+    case "unassigned":
+      return items.filter(
+        (item) =>
+          item.meta.owner === "unassigned" && item.meta.state !== "resolved",
+      );
+    case "at_risk":
+      return items.filter(
+        (item) => item.isAtRisk && item.meta.state !== "resolved",
+      );
+    case "in_progress":
+      return items.filter((item) => item.meta.state === "in_progress");
+    case "resolved":
+      return items.filter((item) => item.meta.state === "resolved");
+    case "all":
     default:
       return items;
   }
@@ -277,17 +327,25 @@ export function filterQueueItems(items: QueueItem[], view: QueueView): QueueItem
 export function summarizeQueue(items: QueueItem[]): QueueSummary {
   return {
     total: items.length,
-    unassigned: items.filter((item) => item.meta.owner === 'unassigned' && item.meta.state !== 'resolved').length,
-    inProgress: items.filter((item) => item.meta.state === 'in_progress').length,
-    resolved: items.filter((item) => item.meta.state === 'resolved').length,
-    atRisk: items.filter((item) => item.isAtRisk && item.meta.state !== 'resolved').length,
+    unassigned: items.filter(
+      (item) =>
+        item.meta.owner === "unassigned" && item.meta.state !== "resolved",
+    ).length,
+    inProgress: items.filter((item) => item.meta.state === "in_progress")
+      .length,
+    resolved: items.filter((item) => item.meta.state === "resolved").length,
+    atRisk: items.filter(
+      (item) => item.isAtRisk && item.meta.state !== "resolved",
+    ).length,
   };
 }
 
-export function summarizeQueueByPriority(items: QueueItem[]): QueuePrioritySummary {
+export function summarizeQueueByPriority(
+  items: QueueItem[],
+): QueuePrioritySummary {
   return items.reduce<QueuePrioritySummary>(
     (acc, item) => {
-      if (item.meta.state === 'resolved') {
+      if (item.meta.state === "resolved") {
         return acc;
       }
 
@@ -298,15 +356,17 @@ export function summarizeQueueByPriority(items: QueueItem[]): QueuePrioritySumma
   );
 }
 
-export function summarizeQueueByOwner(items: QueueItem[]): QueueOwnerWorkload[] {
+export function summarizeQueueByOwner(
+  items: QueueItem[],
+): QueueOwnerWorkload[] {
   const buckets = new Map<string, QueueOwnerWorkload>();
 
   for (const item of items) {
-    if (item.meta.state === 'resolved') {
+    if (item.meta.state === "resolved") {
       continue;
     }
 
-    const key = item.meta.owner || 'unassigned';
+    const key = item.meta.owner || "unassigned";
     const current = buckets.get(key) ?? {
       owner: key,
       openCount: 0,
@@ -314,7 +374,7 @@ export function summarizeQueueByOwner(items: QueueItem[]): QueueOwnerWorkload[] 
       atRiskCount: 0,
     };
 
-    if (item.meta.state === 'in_progress') {
+    if (item.meta.state === "in_progress") {
       current.inProgressCount += 1;
     } else {
       current.openCount += 1;
@@ -341,9 +401,12 @@ function getQueueTicketLabel(draft: SavedDraft): string {
   return draft.ticket_id?.trim() || `Draft ${draft.id.slice(0, 8)}`;
 }
 
-export function buildQueueHandoffSnapshot(items: QueueItem[], generatedAt = new Date().toISOString()): QueueHandoffSnapshot {
+export function buildQueueHandoffSnapshot(
+  items: QueueItem[],
+  generatedAt = new Date().toISOString(),
+): QueueHandoffSnapshot {
   const atRisk = items
-    .filter((item) => item.isAtRisk && item.meta.state !== 'resolved')
+    .filter((item) => item.isAtRisk && item.meta.state !== "resolved")
     .slice(0, 10)
     .map((item) => ({
       draftId: item.draft.id,
@@ -365,14 +428,14 @@ export function buildQueueHandoffSnapshot(items: QueueItem[], generatedAt = new 
 export function formatQueueTimestamp(value: string): string {
   const parsed = Date.parse(value);
   if (Number.isNaN(parsed)) {
-    return 'Unknown';
+    return "Unknown";
   }
 
-  return new Date(parsed).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Date(parsed).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -387,11 +450,16 @@ function parseHandoffSnapshot(raw: string | null): QueueHandoffSnapshot | null {
 
   try {
     const parsed = JSON.parse(raw) as QueueHandoffSnapshot;
-    if (!parsed || typeof parsed !== 'object') {
+    if (!parsed || typeof parsed !== "object") {
       return null;
     }
 
-    if (!parsed.generatedAt || !parsed.summary || !parsed.prioritySummary || !Array.isArray(parsed.ownerWorkload)) {
+    if (
+      !parsed.generatedAt ||
+      !parsed.summary ||
+      !parsed.prioritySummary ||
+      !Array.isArray(parsed.ownerWorkload)
+    ) {
       return null;
     }
 
@@ -402,14 +470,18 @@ function parseHandoffSnapshot(raw: string | null): QueueHandoffSnapshot | null {
 }
 
 export function loadQueueHandoffSnapshot(
-  storage: Pick<Storage, 'getItem'> | null = typeof window !== 'undefined' ? window.localStorage : null,
+  storage: Pick<Storage, "getItem"> | null = typeof window !== "undefined"
+    ? window.localStorage
+    : null,
 ): QueueHandoffSnapshot | null {
   if (!storage) {
     return null;
   }
 
   try {
-    return parseHandoffSnapshot(storage.getItem(QUEUE_HANDOFF_SNAPSHOT_STORAGE_KEY));
+    return parseHandoffSnapshot(
+      storage.getItem(QUEUE_HANDOFF_SNAPSHOT_STORAGE_KEY),
+    );
   } catch {
     return null;
   }
@@ -417,14 +489,19 @@ export function loadQueueHandoffSnapshot(
 
 export function persistQueueHandoffSnapshot(
   snapshot: QueueHandoffSnapshot,
-  storage: Pick<Storage, 'setItem'> | null = typeof window !== 'undefined' ? window.localStorage : null,
+  storage: Pick<Storage, "setItem"> | null = typeof window !== "undefined"
+    ? window.localStorage
+    : null,
 ): void {
   if (!storage) {
     return;
   }
 
   try {
-    storage.setItem(QUEUE_HANDOFF_SNAPSHOT_STORAGE_KEY, JSON.stringify(snapshot));
+    storage.setItem(
+      QUEUE_HANDOFF_SNAPSHOT_STORAGE_KEY,
+      JSON.stringify(snapshot),
+    );
   } catch {
     // Ignore storage failures so handoff workflows remain usable.
   }
@@ -448,20 +525,30 @@ export function buildQueueHandoffDelta(
     };
   }
 
-  const previousOwners = new Map(previous.ownerWorkload.map((owner) => [owner.owner, owner]));
-  const currentOwners = new Map(current.ownerWorkload.map((owner) => [owner.owner, owner]));
-  const ownerKeys = new Set([...previousOwners.keys(), ...currentOwners.keys()]);
+  const previousOwners = new Map(
+    previous.ownerWorkload.map((owner) => [owner.owner, owner]),
+  );
+  const currentOwners = new Map(
+    current.ownerWorkload.map((owner) => [owner.owner, owner]),
+  );
+  const ownerKeys = new Set([
+    ...previousOwners.keys(),
+    ...currentOwners.keys(),
+  ]);
 
   const ownerDelta = Array.from(ownerKeys)
     .map((owner) => {
       const previousOwner = previousOwners.get(owner);
       const currentOwner = currentOwners.get(owner);
-      const previousWorkload = (previousOwner?.openCount ?? 0) + (previousOwner?.inProgressCount ?? 0);
-      const currentWorkload = (currentOwner?.openCount ?? 0) + (currentOwner?.inProgressCount ?? 0);
+      const previousWorkload =
+        (previousOwner?.openCount ?? 0) + (previousOwner?.inProgressCount ?? 0);
+      const currentWorkload =
+        (currentOwner?.openCount ?? 0) + (currentOwner?.inProgressCount ?? 0);
       return {
         owner,
         workloadDelta: currentWorkload - previousWorkload,
-        atRiskDelta: (currentOwner?.atRiskCount ?? 0) - (previousOwner?.atRiskCount ?? 0),
+        atRiskDelta:
+          (currentOwner?.atRiskCount ?? 0) - (previousOwner?.atRiskCount ?? 0),
       };
     })
     .filter((entry) => entry.workloadDelta !== 0 || entry.atRiskDelta !== 0)

@@ -277,6 +277,14 @@
   gap: var(--as-space-6);
   padding: var(--as-space-6);
   max-width: 920px;
+  background:
+    radial-gradient(
+      900px 520px at 18% -6%,
+      rgba(79, 209, 197, 0.1),
+      transparent 58%
+    ),
+    linear-gradient(180deg, rgba(11, 13, 16, 0.72), rgba(17, 24, 39, 0.48));
+  border-radius: var(--as-radius-3);
 }
 
 .app-shell-revamp .settings-error {

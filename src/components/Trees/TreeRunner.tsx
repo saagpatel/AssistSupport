@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import type { TreeStructure } from '../../types';
-import './TreeRunner.css';
+import { useState } from "react";
+import type { TreeStructure } from "../../types/llm";
+import "./TreeRunner.css";
 
 interface TreeRunnerProps {
   tree: TreeStructure;
@@ -20,7 +20,7 @@ export function TreeRunner({ tree, onComplete, onReset }: TreeRunnerProps) {
       return;
     }
     setCurrentNodeId(nextNodeId);
-    setPath(prev => [...prev, nextNodeId]);
+    setPath((prev) => [...prev, nextNodeId]);
   }
 
   function handleBack() {
@@ -64,14 +64,18 @@ export function TreeRunner({ tree, onComplete, onReset }: TreeRunnerProps) {
 
         {currentNode.content && (
           <div className="node-content">
-            {currentNode.content.split('\n').map((line, i) => (
+            {currentNode.content.split("\n").map((line, i) => (
               <p key={i}>{line}</p>
             ))}
           </div>
         )}
 
         {currentNode.options && currentNode.options.length > 0 && (
-          <div className="node-options" role="group" aria-label="Decision options">
+          <div
+            className="node-options"
+            role="group"
+            aria-label="Decision options"
+          >
             {currentNode.options.map((opt, i) => (
               <button
                 key={i}
@@ -85,12 +89,20 @@ export function TreeRunner({ tree, onComplete, onReset }: TreeRunnerProps) {
           </div>
         )}
 
-        {currentNode.type === 'terminal' && (
+        {currentNode.type === "terminal" && (
           <div className="terminal-actions">
-            <button className="tree-complete" onClick={() => onComplete(path)} aria-label="Complete decision tree and use results">
+            <button
+              className="tree-complete"
+              onClick={() => onComplete(path)}
+              aria-label="Complete decision tree and use results"
+            >
               Done
             </button>
-            <button className="tree-restart" onClick={handleRestart} aria-label="Restart from the beginning">
+            <button
+              className="tree-restart"
+              onClick={handleRestart}
+              aria-label="Restart from the beginning"
+            >
               Start Over
             </button>
           </div>
@@ -99,11 +111,19 @@ export function TreeRunner({ tree, onComplete, onReset }: TreeRunnerProps) {
 
       <div className="tree-controls">
         {path.length > 1 && (
-          <button className="tree-back" onClick={handleBack} aria-label="Go back to previous step">
+          <button
+            className="tree-back"
+            onClick={handleBack}
+            aria-label="Go back to previous step"
+          >
             ← Back
           </button>
         )}
-        <button className="tree-close" onClick={onReset} aria-label="Close decision tree">
+        <button
+          className="tree-close"
+          onClick={onReset}
+          aria-label="Close decision tree"
+        >
           Close Tree
         </button>
       </div>

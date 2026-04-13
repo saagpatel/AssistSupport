@@ -516,7 +516,7 @@
 }
 
 .variable-name {
-  font-family: 'SF Mono', Monaco, monospace;
+  font-family: "SF Mono", Monaco, monospace;
   font-size: 13px;
   font-weight: 500;
   color: var(--accent-primary);

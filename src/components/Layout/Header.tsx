@@ -3,11 +3,11 @@
  * Shows current context, breadcrumbs, and quick actions
  */
 
-import { useState } from 'react';
-import { Icon, IconName } from '../shared/Icon';
-import { useAppStatus } from '../../contexts/AppStatusContext';
-import type { Tab } from '../../types';
-import './Header.css';
+import { useState } from "react";
+import { Icon, IconName } from "../shared/Icon";
+import { useAppStatus } from "../../contexts/AppStatusContext";
+import type { Tab } from "../../types/app";
+import "./Header.css";
 
 interface HeaderProps {
   activeTab: Tab;
@@ -23,58 +23,42 @@ interface TabInfo {
 
 const tabInfo: Record<Tab, TabInfo> = {
   draft: {
-    title: 'Draft',
-    description: 'Compose AI-assisted responses',
-    icon: 'draft'
+    title: "Workspace",
+    description: "Compose AI-assisted responses",
+    icon: "draft",
   },
   followups: {
-    title: 'Follow-ups',
-    description: 'Saved drafts and history',
-    icon: 'followups'
-  },
-  sources: {
-    title: 'Sources',
-    description: 'Knowledge base files',
-    icon: 'sources'
-  },
-  ingest: {
-    title: 'Ingest',
-    description: 'Add new content',
-    icon: 'ingest'
+    title: "Queue",
+    description: "Queue triage, history, and templates",
+    icon: "followups",
   },
   knowledge: {
-    title: 'Knowledge',
-    description: 'Search and explore',
-    icon: 'knowledge'
+    title: "Knowledge",
+    description: "Documents, library inspection, and search diagnostics",
+    icon: "knowledge",
   },
   analytics: {
-    title: 'Analytics',
-    description: 'Usage analytics and statistics',
-    icon: 'sparkles'
-  },
-  pilot: {
-    title: 'Pilot',
-    description: 'Feedback dashboard',
-    icon: 'list'
-  },
-  search: {
-    title: 'Hybrid Search',
-    description: 'PostgreSQL BM25 + HNSW search',
-    icon: 'database'
+    title: "Analytics",
+    description: "Admin analytics and pilot diagnostics",
+    icon: "sparkles",
   },
   ops: {
-    title: 'Operations',
-    description: 'Deployment, eval harness, triage, and runbooks',
-    icon: 'terminal'
+    title: "Operations",
+    description: "Deployment and integration diagnostics",
+    icon: "terminal",
   },
   settings: {
-    title: 'Settings',
-    description: 'App configuration',
-    icon: 'settings'
-  }
+    title: "Settings",
+    description: "App configuration",
+    icon: "settings",
+  },
 };
 
-export function Header({ activeTab, onOpenCommandPalette, onOpenShortcuts }: HeaderProps) {
+export function Header({
+  activeTab,
+  onOpenCommandPalette,
+  onOpenShortcuts,
+}: HeaderProps) {
   const info = tabInfo[activeTab];
   const appStatus = useAppStatus();
   const [showStatusPanel, setShowStatusPanel] = useState(false);
@@ -82,7 +66,9 @@ export function Header({ activeTab, onOpenCommandPalette, onOpenShortcuts }: Hea
     ? appStatus.memoryKernelCommitSha.slice(0, 12)
     : null;
   const memoryKernelTrace = [
-    appStatus.memoryKernelReleaseTag ? `tag ${appStatus.memoryKernelReleaseTag}` : null,
+    appStatus.memoryKernelReleaseTag
+      ? `tag ${appStatus.memoryKernelReleaseTag}`
+      : null,
     memoryKernelCommitShort ? `sha ${memoryKernelCommitShort}` : null,
     appStatus.memoryKernelServiceContract && appStatus.memoryKernelApiContract
       ? `${appStatus.memoryKernelServiceContract}/${appStatus.memoryKernelApiContract}`
@@ -92,10 +78,12 @@ export function Header({ activeTab, onOpenCommandPalette, onOpenShortcuts }: Hea
       : null,
   ]
     .filter(Boolean)
-    .join(' · ');
+    .join(" · ");
   const memoryKernelDetail = appStatus.memoryKernelFeatureEnabled
-    ? [appStatus.memoryKernelDetail, memoryKernelTrace].filter(Boolean).join(' · ')
-    : 'Feature disabled';
+    ? [appStatus.memoryKernelDetail, memoryKernelTrace]
+        .filter(Boolean)
+        .join(" · ")
+    : "Feature disabled";
 
   // Compute overall health
   const checks = [
@@ -108,7 +96,12 @@ export function Header({ activeTab, onOpenCommandPalette, onOpenShortcuts }: Hea
   }
   const healthyCount = checks.filter(Boolean).length;
   const totalChecks = checks.length;
-  const overallHealth = healthyCount === totalChecks ? 'good' : healthyCount > 0 ? 'partial' : 'none';
+  const overallHealth =
+    healthyCount === totalChecks
+      ? "good"
+      : healthyCount > 0
+        ? "partial"
+        : "none";
 
   return (
     <header className="app-header">
@@ -129,7 +122,9 @@ export function Header({ activeTab, onOpenCommandPalette, onOpenShortcuts }: Hea
           title="Open command palette (Cmd+K)"
         >
           <Icon name="search" size={16} />
-          <span className="command-placeholder">Search or type a command...</span>
+          <span className="command-placeholder">
+            Search or type a command...
+          </span>
           <div className="command-shortcut">
             <kbd>&#8984;</kbd>
             <kbd>K</kbd>
@@ -154,16 +149,26 @@ export function Header({ activeTab, onOpenCommandPalette, onOpenShortcuts }: Hea
         >
           <span className="status-dot" />
           <span className="status-text">
-            {appStatus.llmLoaded ? (appStatus.llmModelName || 'Ready') : 'Setup required'}
+            {appStatus.llmLoaded
+              ? appStatus.llmModelName || "Ready"
+              : "Setup required"}
           </span>
-          <Icon name="chevron-down" size={14} className={`status-chevron ${showStatusPanel ? 'open' : ''}`} />
+          <Icon
+            name="chevron-down"
+            size={14}
+            className={`status-chevron ${showStatusPanel ? "open" : ""}`}
+          />
         </button>
 
         {showStatusPanel && (
           <div className="status-panel">
             <div className="status-panel-header">
               <span className="status-panel-title">System Status</span>
-              <button className="status-refresh" onClick={() => appStatus.refresh()} title="Refresh">
+              <button
+                className="status-refresh"
+                onClick={() => appStatus.refresh()}
+                title="Refresh"
+              >
                 <Icon name="refresh" size={14} />
               </button>
             </div>
@@ -171,18 +176,18 @@ export function Header({ activeTab, onOpenCommandPalette, onOpenShortcuts }: Hea
               <StatusItem
                 label="LLM Engine"
                 status={appStatus.llmLoaded}
-                detail={appStatus.llmModelName || 'Not loaded'}
+                detail={appStatus.llmModelName || "Not loaded"}
                 loading={appStatus.llmLoading}
               />
               <StatusItem
                 label="Embeddings"
                 status={appStatus.embeddingsLoaded}
-                detail={appStatus.embeddingsLoaded ? 'Loaded' : 'Not loaded'}
+                detail={appStatus.embeddingsLoaded ? "Loaded" : "Not loaded"}
               />
               <StatusItem
                 label="Vector Store"
                 status={appStatus.vectorEnabled}
-                detail={appStatus.vectorEnabled ? 'Enabled' : 'Disabled'}
+                detail={appStatus.vectorEnabled ? "Enabled" : "Disabled"}
               />
               <StatusItem
                 label="Knowledge Base"
@@ -213,10 +218,14 @@ function StatusItem({ label, status, detail, loading }: StatusItemProps) {
   return (
     <div className="status-item">
       <div className="status-item-left">
-        <span className={`status-item-dot ${status ? 'active' : 'inactive'} ${loading ? 'loading' : ''}`} />
+        <span
+          className={`status-item-dot ${status ? "active" : "inactive"} ${loading ? "loading" : ""}`}
+        />
         <span className="status-item-label">{label}</span>
       </div>
-      <span className="status-item-detail">{loading ? 'Loading...' : detail}</span>
+      <span className="status-item-detail">
+        {loading ? "Loading..." : detail}
+      </span>
     </div>
   );
 }

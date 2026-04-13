@@ -1,39 +1,58 @@
-import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { Button } from '../shared/Button';
-import { Dialog } from '../shared/Dialog';
-import { Skeleton } from '../shared/Skeleton';
-import { useKb } from '../../hooks/useKb';
-import { useToastContext } from '../../contexts/ToastContext';
-import type { IndexedFile, SearchResult, Namespace } from '../../types';
-import './SourcesTab.css';
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Button } from "../shared/Button";
+import { Dialog } from "../shared/Dialog";
+import { Skeleton } from "../shared/Skeleton";
+import { useKb } from "../../hooks/useKb";
+import { useToastContext } from "../../contexts/ToastContext";
+import type {
+  IndexedFile,
+  Namespace,
+  SearchResult,
+} from "../../types/knowledge";
+import "./SourcesTab.css";
 
-type SearchMode = 'files' | 'content';
+type SearchMode = "files" | "content";
 
 interface SourcesTabProps {
   initialSearchQuery?: string | null;
   onSearchQueryConsumed?: () => void;
 }
 
-export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: SourcesTabProps = {}) {
-  const { getKbFolder, listFiles, rebuildIndex, getIndexStats, search, removeDocument } = useKb();
+export function SourcesTab({
+  initialSearchQuery,
+  onSearchQueryConsumed,
+}: SourcesTabProps = {}) {
+  const {
+    getKbFolder,
+    listFiles,
+    rebuildIndex,
+    getIndexStats,
+    search,
+    removeDocument,
+  } = useKb();
   const { success: showSuccess, error: showError } = useToastContext();
 
-  const [kbFolder, setKbFolder] = useState<string | null | undefined>(undefined);
+  const [kbFolder, setKbFolder] = useState<string | null | undefined>(
+    undefined,
+  );
   const [files, setFiles] = useState<IndexedFile[]>([]);
-  const [stats, setStats] = useState<{ total_chunks: number; total_files: number } | null>(null);
+  const [stats, setStats] = useState<{
+    total_chunks: number;
+    total_files: number;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchMode, setSearchMode] = useState<SearchMode>('files');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMode, setSearchMode] = useState<SearchMode>("files");
   const [contentResults, setContentResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [namespaces, setNamespaces] = useState<Namespace[]>([]);
-  const [filterNamespace, setFilterNamespace] = useState<string>('');
-  const [filterSourceType, setFilterSourceType] = useState<string>('');
+  const [filterNamespace, setFilterNamespace] = useState<string>("");
+  const [filterSourceType, setFilterSourceType] = useState<string>("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -43,7 +62,7 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
         getKbFolder(),
         listFiles().catch(() => []),
         getIndexStats().catch(() => null),
-        invoke<Namespace[]>('list_namespaces').catch(() => []),
+        invoke<Namespace[]>("list_namespaces").catch(() => []),
       ]);
       setKbFolder(folder);
       setFiles(fileList);
@@ -65,7 +84,7 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
   useEffect(() => {
     if (initialSearchQuery) {
       setSearchQuery(initialSearchQuery);
-      setSearchMode('content');
+      setSearchMode("content");
       setHighlightResults(true);
       onSearchQueryConsumed?.();
       // Clear highlight after animation
@@ -87,70 +106,84 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
     }
   }
 
-  const handleRemoveFile = useCallback(async (filePath: string) => {
-    setRemoving(true);
-    try {
-      const removed = await removeDocument(filePath);
-      if (removed) {
-        showSuccess('File removed from knowledge base');
-        await loadData();
+  const handleRemoveFile = useCallback(
+    async (filePath: string) => {
+      setRemoving(true);
+      try {
+        const removed = await removeDocument(filePath);
+        if (removed) {
+          showSuccess("File removed from knowledge base");
+          await loadData();
+        }
+      } catch (err) {
+        showError(`Failed to remove file: ${err}`);
+      } finally {
+        setRemoving(false);
+        setRemoveConfirm(null);
       }
-    } catch (err) {
-      showError(`Failed to remove file: ${err}`);
-    } finally {
-      setRemoving(false);
-      setRemoveConfirm(null);
-    }
-  }, [removeDocument, loadData, showSuccess, showError]);
-
-  const filteredFiles = files.filter(file =>
-    file.file_path.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (file.title && file.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    },
+    [removeDocument, loadData, showSuccess, showError],
   );
 
-  const handleContentSearch = useCallback(async (query: string) => {
-    if (query.length < 3) {
-      setContentResults([]);
-      return;
-    }
-    setSearching(true);
-    try {
-      const nsFilter = filterNamespace || undefined;
-      const results = await search(query, 20, nsFilter);
-      // Client-side filter by source type if set
-      const filtered = filterSourceType
-        ? results.filter(r => r.source_type === filterSourceType)
-        : results;
-      setContentResults(filtered);
-    } catch (err) {
-      setError(`Search failed: ${err}`);
-    } finally {
-      setSearching(false);
-    }
-  }, [search, filterNamespace, filterSourceType]);
+  const filteredFiles = files.filter(
+    (file) =>
+      file.file_path.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (file.title &&
+        file.title.toLowerCase().includes(searchQuery.toLowerCase())),
+  );
+
+  const handleContentSearch = useCallback(
+    async (query: string) => {
+      if (query.length < 3) {
+        setContentResults([]);
+        return;
+      }
+      setSearching(true);
+      try {
+        const nsFilter = filterNamespace || undefined;
+        const results = await search(query, 20, nsFilter);
+        // Client-side filter by source type if set
+        const filtered = filterSourceType
+          ? results.filter((r) => r.source_type === filterSourceType)
+          : results;
+        setContentResults(filtered);
+      } catch (err) {
+        setError(`Search failed: ${err}`);
+      } finally {
+        setSearching(false);
+      }
+    },
+    [search, filterNamespace, filterSourceType],
+  );
 
   // Debounced content search
   useEffect(() => {
-    if (searchMode !== 'content') return;
+    if (searchMode !== "content") return;
 
     const timeout = setTimeout(() => {
       handleContentSearch(searchQuery);
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [searchQuery, searchMode, handleContentSearch, filterNamespace, filterSourceType]);
+  }, [
+    searchQuery,
+    searchMode,
+    handleContentSearch,
+    filterNamespace,
+    filterSourceType,
+  ]);
 
   function formatDate(isoString: string): string {
-    return new Date(isoString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return new Date(isoString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   }
 
   function formatPath(path: string): string {
     if (!kbFolder) return path;
-    return path.replace(kbFolder, '').replace(/^\//, '');
+    return path.replace(kbFolder, "").replace(/^\//, "");
   }
 
   if (kbFolder === undefined) {
@@ -188,7 +221,7 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
             onClick={handleRebuild}
             disabled={rebuilding}
           >
-            {rebuilding ? 'Rebuilding...' : 'Rebuild Index'}
+            {rebuilding ? "Rebuilding..." : "Rebuild Index"}
           </Button>
           <Button variant="ghost" onClick={loadData} disabled={loading}>
             Refresh
@@ -228,9 +261,9 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
         <div className="search-mode-toggle">
           <button
             type="button"
-            className={`toggle-btn ${searchMode === 'files' ? 'active' : ''}`}
+            className={`toggle-btn ${searchMode === "files" ? "active" : ""}`}
             onClick={() => {
-              setSearchMode('files');
+              setSearchMode("files");
               setContentResults([]);
             }}
           >
@@ -238,34 +271,38 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
           </button>
           <button
             type="button"
-            className={`toggle-btn ${searchMode === 'content' ? 'active' : ''}`}
-            onClick={() => setSearchMode('content')}
+            className={`toggle-btn ${searchMode === "content" ? "active" : ""}`}
+            onClick={() => setSearchMode("content")}
           >
             Search Content
           </button>
         </div>
         <input
           type="text"
-          placeholder={searchMode === 'files' ? 'Filter files...' : 'Search content...'}
+          placeholder={
+            searchMode === "files" ? "Filter files..." : "Search content..."
+          }
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="search-input"
         />
-        {searchMode === 'content' && (
+        {searchMode === "content" && (
           <div className="sources-filters">
             <select
               value={filterNamespace}
-              onChange={e => setFilterNamespace(e.target.value)}
+              onChange={(e) => setFilterNamespace(e.target.value)}
               className="filter-select"
             >
               <option value="">All Namespaces</option>
-              {namespaces.map(ns => (
-                <option key={ns.id} value={ns.id}>{ns.name}</option>
+              {namespaces.map((ns) => (
+                <option key={ns.id} value={ns.id}>
+                  {ns.name}
+                </option>
               ))}
             </select>
             <select
               value={filterSourceType}
-              onChange={e => setFilterSourceType(e.target.value)}
+              onChange={(e) => setFilterSourceType(e.target.value)}
               className="filter-select"
             >
               <option value="">All Types</option>
@@ -278,37 +315,53 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
         )}
       </div>
 
-      {searchMode === 'content' ? (
+      {searchMode === "content" ? (
         // Content search results
         searching ? (
           <div className="sources-empty-list">Searching...</div>
         ) : searchQuery.length < 3 ? (
-          <div className="sources-empty-list">Type at least 3 characters to search content.</div>
+          <div className="sources-empty-list">
+            Type at least 3 characters to search content.
+          </div>
         ) : contentResults.length === 0 ? (
-          <div className="sources-empty-list">No content matches your search.</div>
+          <div className="sources-empty-list">
+            No content matches your search.
+          </div>
         ) : (
           <div className="content-results">
             {contentResults.map((result, index) => (
-              <div key={result.chunk_id} className={`content-result-item${highlightResults && index === 0 ? ' highlighted' : ''}`}>
+              <div
+                key={result.chunk_id}
+                className={`content-result-item${highlightResults && index === 0 ? " highlighted" : ""}`}
+              >
                 <div className="result-header">
-                  <span className="result-title">{result.title || formatPath(result.file_path)}</span>
+                  <span className="result-title">
+                    {result.title || formatPath(result.file_path)}
+                  </span>
                   <div className="result-header-right">
                     {result.source_type && (
-                      <span className="result-badge result-badge-type">{result.source_type}</span>
+                      <span className="result-badge result-badge-type">
+                        {result.source_type}
+                      </span>
                     )}
                     {result.namespace_id && namespaces.length > 0 && (
                       <span className="result-badge result-badge-ns">
-                        {namespaces.find(ns => ns.id === result.namespace_id)?.name ?? result.namespace_id}
+                        {namespaces.find((ns) => ns.id === result.namespace_id)
+                          ?.name ?? result.namespace_id}
                       </span>
                     )}
-                    <span className="result-score">{Math.round(result.score * 100)}%</span>
+                    <span className="result-score">
+                      {Math.round(result.score * 100)}%
+                    </span>
                   </div>
                 </div>
                 {result.heading_path && (
                   <span className="result-heading">{result.heading_path}</span>
                 )}
                 <p className="result-snippet">{result.snippet}</p>
-                <span className="result-path">{formatPath(result.file_path)}</span>
+                <span className="result-path">
+                  {formatPath(result.file_path)}
+                </span>
               </div>
             ))}
           </div>
@@ -333,7 +386,9 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
         </div>
       ) : filteredFiles.length === 0 ? (
         <div className="sources-empty-list">
-          {searchQuery ? 'No files match your search.' : 'No files indexed yet.'}
+          {searchQuery
+            ? "No files match your search."
+            : "No files indexed yet."}
         </div>
       ) : (
         <div className="file-list">
@@ -343,12 +398,16 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
             <span className="col-date">Indexed</span>
             <span className="col-actions"></span>
           </div>
-          {filteredFiles.map(file => (
+          {filteredFiles.map((file) => (
             <div key={file.file_path} className="file-item">
               <div className="col-name">
-                <span className="file-title">{file.title || formatPath(file.file_path)}</span>
+                <span className="file-title">
+                  {file.title || formatPath(file.file_path)}
+                </span>
                 {file.title && (
-                  <span className="file-path">{formatPath(file.file_path)}</span>
+                  <span className="file-path">
+                    {formatPath(file.file_path)}
+                  </span>
                 )}
               </div>
               <span className="col-chunks">{file.chunk_count}</span>
@@ -382,11 +441,18 @@ export function SourcesTab({ initialSearchQuery, onSearchQueryConsumed }: Source
         <div className="modal-content modal-confirm">
           <h3 id="sources-remove-title">Remove from Knowledge Base</h3>
           <p id="sources-remove-description">
-            Are you sure you want to remove this file from the index? The original file will not be deleted.
+            Are you sure you want to remove this file from the index? The
+            original file will not be deleted.
           </p>
-          {removeConfirm && <p className="modal-file-path">{formatPath(removeConfirm)}</p>}
+          {removeConfirm && (
+            <p className="modal-file-path">{formatPath(removeConfirm)}</p>
+          )}
           <div className="modal-actions">
-            <Button variant="ghost" onClick={() => setRemoveConfirm(null)} disabled={removing}>
+            <Button
+              variant="ghost"
+              onClick={() => setRemoveConfirm(null)}
+              disabled={removing}
+            >
               Cancel
             </Button>
             {removeConfirm && (

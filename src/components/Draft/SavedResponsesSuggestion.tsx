@@ -1,5 +1,5 @@
-import type { SavedResponseTemplate } from '../../types';
-import './SavedResponsesSuggestion.css';
+import type { SavedResponseTemplate } from "../../types/workspace";
+import "./SavedResponsesSuggestion.css";
 
 interface SavedResponsesSuggestionProps {
   suggestions: SavedResponseTemplate[];
@@ -7,7 +7,11 @@ interface SavedResponsesSuggestionProps {
   onDismiss: () => void;
 }
 
-export function SavedResponsesSuggestion({ suggestions, onApply, onDismiss }: SavedResponsesSuggestionProps) {
+export function SavedResponsesSuggestion({
+  suggestions,
+  onApply,
+  onDismiss,
+}: SavedResponsesSuggestionProps) {
   if (suggestions.length === 0) return null;
 
   return (
@@ -15,7 +19,8 @@ export function SavedResponsesSuggestion({ suggestions, onApply, onDismiss }: Sa
       <span className="suggestion-banner-icon">&#128161;</span>
       <div className="suggestion-banner-content">
         <span className="suggestion-banner-text">
-          You've responded to similar tickets before ({suggestions.length} saved template{suggestions.length > 1 ? 's' : ''})
+          You've responded to similar tickets before ({suggestions.length} saved
+          template{suggestions.length > 1 ? "s" : ""})
         </span>
         <div className="suggestion-banner-items">
           {suggestions.slice(0, 3).map((s) => (
@@ -27,13 +32,21 @@ export function SavedResponsesSuggestion({ suggestions, onApply, onDismiss }: Sa
             >
               <span className="suggestion-item-name">{s.name}</span>
               {s.use_count > 0 && (
-                <span className="suggestion-item-count">used {s.use_count}x</span>
+                <span className="suggestion-item-count">
+                  used {s.use_count}x
+                </span>
               )}
             </button>
           ))}
         </div>
       </div>
-      <button className="suggestion-dismiss" onClick={onDismiss} title="Dismiss">&times;</button>
+      <button
+        className="suggestion-dismiss"
+        onClick={onDismiss}
+        title="Dismiss"
+      >
+        &times;
+      </button>
     </div>
   );
 }

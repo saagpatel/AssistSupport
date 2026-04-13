@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useDecisionTrees } from '../../hooks/useDecisionTrees';
-import { TreeRunner } from '../Trees/TreeRunner';
-import { Button } from '../shared/Button';
-import type { TreeStructure, ChecklistItem, SearchResult, ContextSource } from '../../types';
-import './DiagnosisPanel.css';
+import { useState, useEffect } from "react";
+import { useDecisionTrees } from "../../hooks/useDecisionTrees";
+import { TreeRunner } from "../Trees/TreeRunner";
+import { Button } from "../shared/Button";
+import type { ChecklistItem, TreeStructure } from "../../types/llm";
+import type { ContextSource, SearchResult } from "../../types/knowledge";
+import "./DiagnosisPanel.css";
 
 export interface TreeResult {
   treeId: string;
@@ -100,10 +101,10 @@ export function DiagnosisPanel({
   function handleTreeComplete(path: string[]) {
     if (activeTree && selectedTreeId) {
       const pathSummary = path
-        .map(nodeId => activeTree.nodes[nodeId]?.title || nodeId)
-        .join(' → ');
-      const tree = trees.find(t => t.id === selectedTreeId);
-      const treeName = tree?.name || 'Decision Tree';
+        .map((nodeId) => activeTree.nodes[nodeId]?.title || nodeId)
+        .join(" → ");
+      const tree = trees.find((t) => t.id === selectedTreeId);
+      const treeName = tree?.name || "Decision Tree";
 
       // Return structured result
       onTreeComplete({
@@ -131,7 +132,9 @@ export function DiagnosisPanel({
     return checklistCompleted[item.id] ? count + 1 : count;
   }, 0);
   const hasChecklist = checklistItems.length > 0;
-  const hasChecklistInput = Boolean(input.trim() || ocrText?.trim() || hasTicket);
+  const hasChecklistInput = Boolean(
+    input.trim() || ocrText?.trim() || hasTicket,
+  );
 
   if (collapsed) {
     return (
@@ -183,14 +186,18 @@ export function DiagnosisPanel({
           {!activeTree ? (
             <div className="tree-selector">
               <select
-                value={selectedTreeId || ''}
-                onChange={e => handleTreeSelect(e.target.value)}
+                value={selectedTreeId || ""}
+                onChange={(e) => handleTreeSelect(e.target.value)}
                 disabled={loading}
                 className="tree-dropdown"
                 aria-label="Troubleshooting tree"
               >
-                <option value="">{treeResult ? 'Run another tree...' : 'Select a troubleshooting tree...'}</option>
-                {trees.map(tree => (
+                <option value="">
+                  {treeResult
+                    ? "Run another tree..."
+                    : "Select a troubleshooting tree..."}
+                </option>
+                {trees.map((tree) => (
                   <option key={tree.id} value={tree.id}>
                     {tree.name}
                     {tree.category && ` (${tree.category})`}
@@ -234,11 +241,7 @@ export function DiagnosisPanel({
                 </Button>
               )}
               {hasChecklist && (
-                <Button
-                  variant="ghost"
-                  size="small"
-                  onClick={onChecklistClear}
-                >
+                <Button variant="ghost" size="small" onClick={onChecklistClear}>
                   Clear
                 </Button>
               )}
@@ -254,11 +257,14 @@ export function DiagnosisPanel({
               <fieldset className="check-fieldset">
                 <legend className="check-legend">Checklist</legend>
                 <ul className="check-list">
-                  {checklistItems.map(item => {
+                  {checklistItems.map((item) => {
                     const checkboxId = `check-${item.id}`;
                     const isChecked = !!checklistCompleted[item.id];
                     return (
-                      <li key={item.id} className={isChecked ? 'check-item done' : 'check-item'}>
+                      <li
+                        key={item.id}
+                        className={isChecked ? "check-item done" : "check-item"}
+                      >
                         <input
                           type="checkbox"
                           id={checkboxId}
@@ -269,8 +275,18 @@ export function DiagnosisPanel({
                           <span className="check-text">{item.text}</span>
                           {(item.category || item.priority) && (
                             <span className="check-meta">
-                              {item.category && <span className="check-category">{item.category}</span>}
-                              {item.priority && <span className={`check-priority priority-${item.priority}`}>{item.priority}</span>}
+                              {item.category && (
+                                <span className="check-category">
+                                  {item.category}
+                                </span>
+                              )}
+                              {item.priority && (
+                                <span
+                                  className={`check-priority priority-${item.priority}`}
+                                >
+                                  {item.priority}
+                                </span>
+                              )}
                             </span>
                           )}
                         </label>
@@ -319,28 +335,35 @@ export function DiagnosisPanel({
             className="approval-input"
             placeholder="Search for approval steps, owners, or app name..."
             value={approvalQuery}
-            onChange={e => onApprovalQueryChange(e.target.value)}
+            onChange={(e) => onApprovalQueryChange(e.target.value)}
           />
 
-          {approvalSearching && <div className="approval-loading">Searching...</div>}
-          {approvalError && <div className="approval-error">{approvalError}</div>}
+          {approvalSearching && (
+            <div className="approval-loading">Searching...</div>
+          )}
+          {approvalError && (
+            <div className="approval-error">{approvalError}</div>
+          )}
 
           {approvalResults.length > 0 && (
             <ul className="approval-results">
-              {approvalResults.map(result => {
+              {approvalResults.map((result) => {
                 const snippet = result.snippet || result.content;
-                const snippetText = snippet.length > 240 ? `${snippet.slice(0, 240)}...` : snippet;
+                const snippetText =
+                  snippet.length > 240
+                    ? `${snippet.slice(0, 240)}...`
+                    : snippet;
                 return (
                   <li key={result.chunk_id} className="approval-result">
                     <div className="approval-result-title">
                       {result.title || result.file_path}
                     </div>
                     {result.heading_path && (
-                      <div className="approval-result-heading">{result.heading_path}</div>
+                      <div className="approval-result-heading">
+                        {result.heading_path}
+                      </div>
                     )}
-                    <div className="approval-result-snippet">
-                      {snippetText}
-                    </div>
+                    <div className="approval-result-snippet">{snippetText}</div>
                   </li>
                 );
               })}
@@ -355,7 +378,9 @@ export function DiagnosisPanel({
                 <ul className="approval-sources">
                   {approvalSources.map((source, index) => (
                     <li key={source.chunk_id} className="approval-source">
-                      <span className="approval-source-number">[{index + 1}]</span>
+                      <span className="approval-source-number">
+                        [{index + 1}]
+                      </span>
                       <span className="approval-source-title">
                         {source.title || source.file_path}
                       </span>
@@ -379,7 +404,7 @@ export function DiagnosisPanel({
             className="notes-textarea"
             placeholder="Add your diagnostic notes here..."
             value={notes}
-            onChange={e => onNotesChange(e.target.value)}
+            onChange={(e) => onNotesChange(e.target.value)}
           />
         </div>
       </div>

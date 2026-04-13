@@ -1,6 +1,6 @@
-import { Button } from '../shared/Button';
-import type { SavedDraft } from '../../types';
-import './VersionTimeline.css';
+import { Button } from "../shared/Button";
+import type { SavedDraft } from "../../types/workspace";
+import "./VersionTimeline.css";
 
 interface VersionTimelineProps {
   versions: SavedDraft[];
@@ -12,20 +12,26 @@ interface VersionTimelineProps {
 
 function formatTimelineDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
 function truncatePreview(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
+  return text.substring(0, maxLength) + "...";
 }
 
-export function VersionTimeline({ versions, currentDraft, onRestore, onCompare, loading }: VersionTimelineProps) {
+export function VersionTimeline({
+  versions,
+  currentDraft,
+  onRestore,
+  onCompare,
+  loading,
+}: VersionTimelineProps) {
   if (loading) {
     return (
       <div className="version-timeline">
@@ -51,14 +57,16 @@ export function VersionTimeline({ versions, currentDraft, onRestore, onCompare, 
         <div className="timeline-dot current" />
         <div className="timeline-content">
           <div className="timeline-meta">
-            <span className="timeline-date">{formatTimelineDate(currentDraft.created_at)}</span>
+            <span className="timeline-date">
+              {formatTimelineDate(currentDraft.created_at)}
+            </span>
             <span className="timeline-badge current-badge">Current</span>
             {currentDraft.model_name && (
               <span className="timeline-model">{currentDraft.model_name}</span>
             )}
           </div>
           <div className="timeline-preview">
-            {truncatePreview(currentDraft.response_text || 'No response', 120)}
+            {truncatePreview(currentDraft.response_text || "No response", 120)}
           </div>
         </div>
       </div>
@@ -69,13 +77,15 @@ export function VersionTimeline({ versions, currentDraft, onRestore, onCompare, 
           <div className="timeline-dot" />
           <div className="timeline-content">
             <div className="timeline-meta">
-              <span className="timeline-date">{formatTimelineDate(version.created_at)}</span>
+              <span className="timeline-date">
+                {formatTimelineDate(version.created_at)}
+              </span>
               {version.model_name && (
                 <span className="timeline-model">{version.model_name}</span>
               )}
             </div>
             <div className="timeline-preview">
-              {truncatePreview(version.response_text || 'No response', 120)}
+              {truncatePreview(version.response_text || "No response", 120)}
             </div>
             <div className="timeline-actions">
               <Button

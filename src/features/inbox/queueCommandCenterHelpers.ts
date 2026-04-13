@@ -1,6 +1,16 @@
-import type { TriageClusterOutput, TriageTicketInput } from '../../hooks/useFeatureOps';
-import type { CollaborationDispatchPreview, SavedDraft, TriageClusterRecord } from '../../types';
-import { parseCaseIntake } from '../workspace/workspaceAssistant';
+import type {
+  TriageClusterOutput,
+  TriageTicketInput,
+} from "../../hooks/useQueueOps";
+import type {
+  DispatchHistoryRecord,
+  TriageClusterRecord,
+} from "../../types/queue";
+import type {
+  CollaborationDispatchPreview,
+  SavedDraft,
+} from "../../types/workspace";
+import { parseCaseIntake } from "../workspace/workspaceAssistant";
 import {
   buildQueueHandoffDelta,
   formatQueueTimestamp,
@@ -8,20 +18,20 @@ import {
   summarizeQueueByOwner,
   type QueueHandoffSnapshot,
   type QueueItem,
-} from './queueModel';
+} from "./queueModel";
 
 export type QueueFocusFilter =
-  | 'all'
-  | 'policy-heavy'
-  | 'approval-heavy'
-  | 'repeated-incidents'
-  | 'missing-context';
+  | "all"
+  | "policy-heavy"
+  | "approval-heavy"
+  | "repeated-incidents"
+  | "missing-context";
 
 export interface QueueCoachingSignal {
   id: string;
   label: string;
   detail: string;
-  severity: 'info' | 'watch' | 'action';
+  severity: "info" | "watch" | "action";
 }
 
 export interface QueueCoachingSnapshot {
@@ -35,24 +45,24 @@ export interface QueueCoachingSnapshot {
   signals: QueueCoachingSignal[];
 }
 
-export interface QueueDispatchHistoryEntry {
-  id: string;
-  integration_type: CollaborationDispatchPreview['integration_type'];
-  title: string;
-  destination_label: string;
+export interface QueueDispatchHistoryEntry extends Omit<
+  DispatchHistoryRecord,
+  "draft_id" | "metadata_json" | "status" | "updated_at"
+> {
   draft_id: string;
   ticket_label: string;
-  payload_preview: string;
-  created_at: string;
 }
 
-const POLICY_REGEX = /\b(policy|security|forbidden|allowed|compliance|governance|approval|approve|access request)\b/i;
-const APPROVAL_REGEX = /\b(approval|approve|approver|manager approval|sign-off|entitlement|access request)\b/i;
-const REPEATED_REGEX = /\b(repeat|recurr|again|every morning|same issue|same problem|intermittent)\b/i;
-const DISPATCH_HISTORY_STORAGE_KEY = 'assistsupport.queue.dispatch-history.v1';
+const POLICY_REGEX =
+  /\b(policy|security|forbidden|allowed|compliance|governance|approval|approve|access request)\b/i;
+const APPROVAL_REGEX =
+  /\b(approval|approve|approver|manager approval|sign-off|entitlement|access request)\b/i;
+const REPEATED_REGEX =
+  /\b(repeat|recurr|again|every morning|same issue|same problem|intermittent)\b/i;
+const DISPATCH_HISTORY_STORAGE_KEY = "assistsupport.queue.dispatch-history.v1";
 
 function normalizeText(value: string | null | undefined): string {
-  return (value ?? '').trim();
+  return (value ?? "").trim();
 }
 
 function tokenize(value: string): string[] {
@@ -76,10 +86,13 @@ function getDraftSearchText(draft: SavedDraft): string {
     draft.handoff_summary,
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 }
 
-function matchesRepeatedCluster(draft: SavedDraft, triageHistory: TriageClusterRecord[]): boolean {
+function matchesRepeatedCluster(
+  draft: SavedDraft,
+  triageHistory: TriageClusterRecord[],
+): boolean {
   const draftTokens = tokenize(getDraftSearchText(draft));
   if (draftTokens.length === 0) {
     return false;
@@ -100,12 +113,15 @@ function getMissingContextCount(draft: SavedDraft): number {
   return Array.isArray(intake.missing_data) ? intake.missing_data.length : 0;
 }
 
-function buildScore(summary: ReturnType<typeof summarizeQueue>, signals: QueueCoachingSignal[]): number {
+function buildScore(
+  summary: ReturnType<typeof summarizeQueue>,
+  signals: QueueCoachingSignal[],
+): number {
   const penalty = signals.reduce((sum, signal) => {
-    if (signal.severity === 'action') {
+    if (signal.severity === "action") {
       return sum + 16;
     }
-    if (signal.severity === 'watch') {
+    if (signal.severity === "watch") {
       return sum + 8;
     }
     return sum + 2;
@@ -116,11 +132,11 @@ function buildScore(summary: ReturnType<typeof summarizeQueue>, signals: QueueCo
 
 export function parseBatchTriageInput(input: string): TriageTicketInput[] {
   return input
-    .split('\n')
+    .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line, index) => {
-      const [id, summary] = line.split('|').map((value) => value?.trim());
+      const [id, summary] = line.split("|").map((value) => value?.trim());
       if (summary) {
         return {
           id: id || `ticket-${index + 1}`,
@@ -135,19 +151,21 @@ export function parseBatchTriageInput(input: string): TriageTicketInput[] {
     });
 }
 
-export function formatBatchTriageOutput(clusters: TriageClusterOutput[]): string {
+export function formatBatchTriageOutput(
+  clusters: TriageClusterOutput[],
+): string {
   if (clusters.length === 0) {
-    return 'No triage clusters produced.';
+    return "No triage clusters produced.";
   }
 
   return clusters
     .map((cluster) => {
       return [
         `${cluster.cluster_key}: ${cluster.summary}`,
-        `Tickets: ${cluster.ticket_ids.join(', ')}`,
-      ].join('\n');
+        `Tickets: ${cluster.ticket_ids.join(", ")}`,
+      ].join("\n");
     })
-    .join('\n\n');
+    .join("\n\n");
 }
 
 export function matchesQueueFocusFilter(
@@ -155,22 +173,25 @@ export function matchesQueueFocusFilter(
   filter: QueueFocusFilter,
   triageHistory: TriageClusterRecord[] = [],
 ): boolean {
-  if (filter === 'all') {
+  if (filter === "all") {
     return true;
   }
 
   const haystack = getDraftSearchText(item.draft);
 
-  if (filter === 'policy-heavy') {
+  if (filter === "policy-heavy") {
     return POLICY_REGEX.test(haystack);
   }
 
-  if (filter === 'approval-heavy') {
+  if (filter === "approval-heavy") {
     return APPROVAL_REGEX.test(haystack);
   }
 
-  if (filter === 'repeated-incidents') {
-    return REPEATED_REGEX.test(haystack) || matchesRepeatedCluster(item.draft, triageHistory);
+  if (filter === "repeated-incidents") {
+    return (
+      REPEATED_REGEX.test(haystack) ||
+      matchesRepeatedCluster(item.draft, triageHistory)
+    );
   }
 
   return getMissingContextCount(item.draft) > 0;
@@ -182,62 +203,70 @@ export function buildQueueCoachingSnapshot(
 ): QueueCoachingSnapshot {
   const summary = summarizeQueue(items);
   const topOwners = summarizeQueueByOwner(items).slice(0, 3);
-  const policyHeavyCount = items.filter((item) => matchesQueueFocusFilter(item, 'policy-heavy', triageHistory)).length;
-  const approvalHeavyCount = items.filter((item) => matchesQueueFocusFilter(item, 'approval-heavy', triageHistory)).length;
-  const repeatedIncidentCount = items.filter((item) => matchesQueueFocusFilter(item, 'repeated-incidents', triageHistory)).length;
-  const missingContextCount = items.filter((item) => matchesQueueFocusFilter(item, 'missing-context', triageHistory)).length;
+  const policyHeavyCount = items.filter((item) =>
+    matchesQueueFocusFilter(item, "policy-heavy", triageHistory),
+  ).length;
+  const approvalHeavyCount = items.filter((item) =>
+    matchesQueueFocusFilter(item, "approval-heavy", triageHistory),
+  ).length;
+  const repeatedIncidentCount = items.filter((item) =>
+    matchesQueueFocusFilter(item, "repeated-incidents", triageHistory),
+  ).length;
+  const missingContextCount = items.filter((item) =>
+    matchesQueueFocusFilter(item, "missing-context", triageHistory),
+  ).length;
 
   const signals: QueueCoachingSignal[] = [];
 
   if (summary.atRisk > 0) {
     signals.push({
-      id: 'at-risk-load',
-      label: 'At-risk queue load',
+      id: "at-risk-load",
+      label: "At-risk queue load",
       detail: `${summary.atRisk} tickets are at risk right now. Prioritize the visible urgent path before taking new work.`,
-      severity: summary.atRisk >= 3 ? 'action' : 'watch',
+      severity: summary.atRisk >= 3 ? "action" : "watch",
     });
   }
 
   if (summary.unassigned > 0) {
     signals.push({
-      id: 'unassigned-load',
-      label: 'Unassigned backlog',
+      id: "unassigned-load",
+      label: "Unassigned backlog",
       detail: `${summary.unassigned} tickets still have no owner. Use batch triage or claim flow before shift handoff.`,
-      severity: summary.unassigned >= 4 ? 'action' : 'watch',
+      severity: summary.unassigned >= 4 ? "action" : "watch",
     });
   }
 
   if (missingContextCount > 0) {
     signals.push({
-      id: 'missing-context',
-      label: 'Missing context in active queue',
+      id: "missing-context",
+      label: "Missing context in active queue",
       detail: `${missingContextCount} tickets are missing structured intake context. Run intake analysis before drafting replies.`,
-      severity: missingContextCount >= 3 ? 'watch' : 'info',
+      severity: missingContextCount >= 3 ? "watch" : "info",
     });
   }
 
   if (repeatedIncidentCount > 0) {
     signals.push({
-      id: 'repeated-incidents',
-      label: 'Repeated issue families detected',
+      id: "repeated-incidents",
+      label: "Repeated issue families detected",
       detail: `${repeatedIncidentCount} tickets resemble repeated incidents. Consider a resolution kit or KB promotion after closure.`,
-      severity: repeatedIncidentCount >= 3 ? 'watch' : 'info',
+      severity: repeatedIncidentCount >= 3 ? "watch" : "info",
     });
   }
 
   if (policyHeavyCount > 0 || approvalHeavyCount > 0) {
     signals.push({
-      id: 'policy-approval-load',
-      label: 'Policy and approval-heavy workload',
+      id: "policy-approval-load",
+      label: "Policy and approval-heavy workload",
       detail: `${policyHeavyCount + approvalHeavyCount} tickets require policy or approval context. Route these intentionally to reduce risky replies.`,
-      severity: policyHeavyCount + approvalHeavyCount >= 4 ? 'watch' : 'info',
+      severity: policyHeavyCount + approvalHeavyCount >= 4 ? "watch" : "info",
     });
   }
 
   const score = buildScore(summary, signals);
   const summaryText =
     signals.length === 0
-      ? 'Queue is stable. Keep ownership current and use batch triage only as new work arrives.'
+      ? "Queue is stable. Keep ownership current and use batch triage only as new work arrives."
       : `${signals[0].label}: ${signals[0].detail}`;
 
   return {
@@ -252,43 +281,53 @@ export function buildQueueCoachingSnapshot(
   };
 }
 
-export function buildQueueHandoffPackText(snapshot: QueueHandoffSnapshot, previous: QueueHandoffSnapshot | null): string {
+export function buildQueueHandoffPackText(
+  snapshot: QueueHandoffSnapshot,
+  previous: QueueHandoffSnapshot | null,
+): string {
   const delta = buildQueueHandoffDelta(snapshot, previous);
 
-  const ownerSection = snapshot.ownerWorkload.length > 0
-    ? snapshot.ownerWorkload
-        .map((owner) => {
-          return `- ${owner.owner}: open ${owner.openCount}, in progress ${owner.inProgressCount}, at risk ${owner.atRiskCount}`;
-        })
-        .join('\n')
-    : '- No active owner workload.';
+  const ownerSection =
+    snapshot.ownerWorkload.length > 0
+      ? snapshot.ownerWorkload
+          .map((owner) => {
+            return `- ${owner.owner}: open ${owner.openCount}, in progress ${owner.inProgressCount}, at risk ${owner.atRiskCount}`;
+          })
+          .join("\n")
+      : "- No active owner workload.";
 
   const deltaSection = [
-    `Open: ${delta.summaryDelta.open >= 0 ? '+' : ''}${delta.summaryDelta.open}`,
-    `In progress: ${delta.summaryDelta.inProgress >= 0 ? '+' : ''}${delta.summaryDelta.inProgress}`,
-    `Resolved: ${delta.summaryDelta.resolved >= 0 ? '+' : ''}${delta.summaryDelta.resolved}`,
-    `At risk: ${delta.summaryDelta.atRisk >= 0 ? '+' : ''}${delta.summaryDelta.atRisk}`,
-    `Unassigned: ${delta.summaryDelta.unassigned >= 0 ? '+' : ''}${delta.summaryDelta.unassigned}`,
-  ].join(' · ');
+    `Open: ${delta.summaryDelta.open >= 0 ? "+" : ""}${delta.summaryDelta.open}`,
+    `In progress: ${delta.summaryDelta.inProgress >= 0 ? "+" : ""}${delta.summaryDelta.inProgress}`,
+    `Resolved: ${delta.summaryDelta.resolved >= 0 ? "+" : ""}${delta.summaryDelta.resolved}`,
+    `At risk: ${delta.summaryDelta.atRisk >= 0 ? "+" : ""}${delta.summaryDelta.atRisk}`,
+    `Unassigned: ${delta.summaryDelta.unassigned >= 0 ? "+" : ""}${delta.summaryDelta.unassigned}`,
+  ].join(" · ");
 
-  const riskSection = snapshot.topAtRisk.length > 0
-    ? snapshot.topAtRisk
-        .map((item) => `- ${item.ticketLabel} · ${item.priority} · owner ${item.owner} · due ${formatQueueTimestamp(item.slaDueAt)}`)
-        .join('\n')
-    : '- No at-risk tickets right now.';
+  const riskSection =
+    snapshot.topAtRisk.length > 0
+      ? snapshot.topAtRisk
+          .map(
+            (item) =>
+              `- ${item.ticketLabel} · ${item.priority} · owner ${item.owner} · due ${formatQueueTimestamp(item.slaDueAt)}`,
+          )
+          .join("\n")
+      : "- No at-risk tickets right now.";
 
   return [
     `Shift Handoff · ${formatQueueTimestamp(snapshot.generatedAt)}`,
-    '',
+    "",
     `Queue summary: ${snapshot.summary.total} total · ${snapshot.summary.unassigned} unassigned · ${snapshot.summary.inProgress} in progress · ${snapshot.summary.resolved} resolved · ${snapshot.summary.atRisk} at risk`,
-    delta.previousGeneratedAt ? `Change since last snapshot: ${deltaSection}` : 'Change since last snapshot: first snapshot captured.',
-    '',
-    'Owner workload',
+    delta.previousGeneratedAt
+      ? `Change since last snapshot: ${deltaSection}`
+      : "Change since last snapshot: first snapshot captured.",
+    "",
+    "Owner workload",
     ownerSection,
-    '',
-    'Top at-risk tickets',
+    "",
+    "Top at-risk tickets",
     riskSection,
-  ].join('\n');
+  ].join("\n");
 }
 
 function buildTicketLabel(draft: SavedDraft): string {
@@ -297,9 +336,9 @@ function buildTicketLabel(draft: SavedDraft): string {
 
 export function buildQueueDispatchPreview(
   item: QueueItem,
-  integrationType: CollaborationDispatchPreview['integration_type'],
+  integrationType: CollaborationDispatchPreview["integration_type"],
 ): CollaborationDispatchPreview {
-  const title = `${buildTicketLabel(item.draft)} · ${item.draft.summary_text || 'Support update'}`;
+  const title = `${buildTicketLabel(item.draft)} · ${item.draft.summary_text || "Support update"}`;
   const payload = {
     ticket: buildTicketLabel(item.draft),
     summary: item.draft.summary_text || item.draft.input_text.slice(0, 200),
@@ -307,14 +346,18 @@ export function buildQueueDispatchPreview(
     priority: item.meta.priority,
     state: item.meta.state,
     handoff_summary: item.draft.handoff_summary ?? null,
-    response_preview: normalizeText(item.draft.response_text).slice(0, 280) || null,
+    response_preview:
+      normalizeText(item.draft.response_text).slice(0, 280) || null,
   };
 
-  const destinationLabelMap: Record<CollaborationDispatchPreview['integration_type'], string> = {
-    jira: 'Jira escalation comment',
-    servicenow: 'ServiceNow work note',
-    slack: 'Slack incident update',
-    teams: 'Teams shift handoff note',
+  const destinationLabelMap: Record<
+    CollaborationDispatchPreview["integration_type"],
+    string
+  > = {
+    jira: "Jira escalation comment",
+    servicenow: "ServiceNow work note",
+    slack: "Slack incident update",
+    teams: "Teams shift handoff note",
   };
 
   return {
@@ -339,7 +382,9 @@ function parseDispatchHistory(raw: string | null): QueueDispatchHistoryEntry[] {
 }
 
 export function loadQueueDispatchHistory(
-  storage: Pick<Storage, 'getItem'> | null = typeof window !== 'undefined' ? window.localStorage : null,
+  storage: Pick<Storage, "getItem"> | null = typeof window !== "undefined"
+    ? window.localStorage
+    : null,
 ): QueueDispatchHistoryEntry[] {
   if (!storage) {
     return [];
@@ -354,7 +399,9 @@ export function loadQueueDispatchHistory(
 
 export function persistQueueDispatchHistory(
   history: QueueDispatchHistoryEntry[],
-  storage: Pick<Storage, 'setItem'> | null = typeof window !== 'undefined' ? window.localStorage : null,
+  storage: Pick<Storage, "setItem"> | null = typeof window !== "undefined"
+    ? window.localStorage
+    : null,
 ): void {
   if (!storage) {
     return;
@@ -370,12 +417,16 @@ export function persistQueueDispatchHistory(
 export function appendQueueDispatchHistory(
   preview: CollaborationDispatchPreview,
   item: QueueItem,
-  storage: Pick<Storage, 'getItem' | 'setItem'> | null = typeof window !== 'undefined' ? window.localStorage : null,
+  storage: Pick<Storage, "getItem" | "setItem"> | null = typeof window !==
+  "undefined"
+    ? window.localStorage
+    : null,
 ): QueueDispatchHistoryEntry[] {
   const nextEntry: QueueDispatchHistoryEntry = {
-    id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}`,
+    id:
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}`,
     integration_type: preview.integration_type,
     title: preview.title,
     destination_label: preview.destination_label,

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import type { SearchResult } from '../../types';
-import './AutoSuggest.css';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { SearchResult } from "../../types/knowledge";
+import "./AutoSuggest.css";
 
 interface AutoSuggestProps {
   query: string;
@@ -12,16 +12,16 @@ export function AutoSuggest({ query, onSelectSuggestion }: AutoSuggestProps) {
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [enabled, setEnabled] = useState<boolean>(() => {
-    const stored = localStorage.getItem('auto-suggest-enabled');
-    return stored === null ? true : stored === 'true';
+    const stored = localStorage.getItem("auto-suggest-enabled");
+    return stored === null ? true : stored === "true";
   });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastQueryRef = useRef<string>('');
+  const lastQueryRef = useRef<string>("");
 
   const handleToggle = useCallback(() => {
-    setEnabled(prev => {
+    setEnabled((prev) => {
       const next = !prev;
-      localStorage.setItem('auto-suggest-enabled', String(next));
+      localStorage.setItem("auto-suggest-enabled", String(next));
       if (!next) {
         setSuggestions([]);
       }
@@ -39,7 +39,7 @@ export function AutoSuggest({ query, onSelectSuggestion }: AutoSuggestProps) {
 
     if (!trimmedQuery) {
       setSuggestions([]);
-      lastQueryRef.current = '';
+      lastQueryRef.current = "";
       return;
     }
 
@@ -55,14 +55,14 @@ export function AutoSuggest({ query, onSelectSuggestion }: AutoSuggestProps) {
 
       setLoading(true);
       try {
-        const results = await invoke<SearchResult[]>('search_kb', {
+        const results = await invoke<SearchResult[]>("search_kb", {
           query: trimmedQuery,
           limit: 5,
           namespaceId: null,
         });
         setSuggestions(results);
       } catch (err) {
-        console.error('AutoSuggest search failed:', err);
+        console.error("AutoSuggest search failed:", err);
         setSuggestions([]);
       } finally {
         setLoading(false);
@@ -91,21 +91,22 @@ export function AutoSuggest({ query, onSelectSuggestion }: AutoSuggestProps) {
         onSelectSuggestion(result.title || result.file_path, result.content);
       }
     },
-    [onSelectSuggestion]
+    [onSelectSuggestion],
   );
 
   const trimmedQuery = query.trim();
-  const showNoResults = enabled && trimmedQuery.length > 20 && suggestions.length === 0 && !loading;
+  const showNoResults =
+    enabled && trimmedQuery.length > 20 && suggestions.length === 0 && !loading;
 
   return (
     <div className="auto-suggest">
       <div className="auto-suggest-header">
         <span className="auto-suggest-label">KB Suggestions</span>
         <button
-          className={`auto-suggest-toggle ${enabled ? 'active' : ''}`}
+          className={`auto-suggest-toggle ${enabled ? "active" : ""}`}
           onClick={handleToggle}
-          aria-label={enabled ? 'Disable auto-suggest' : 'Enable auto-suggest'}
-          title={enabled ? 'Disable auto-suggest' : 'Enable auto-suggest'}
+          aria-label={enabled ? "Disable auto-suggest" : "Enable auto-suggest"}
+          title={enabled ? "Disable auto-suggest" : "Enable auto-suggest"}
         >
           <span className="auto-suggest-toggle-track">
             <span className="auto-suggest-toggle-thumb" />
@@ -119,7 +120,7 @@ export function AutoSuggest({ query, onSelectSuggestion }: AutoSuggestProps) {
 
       {enabled && suggestions.length > 0 && (
         <div className="auto-suggest-chips">
-          {suggestions.map(result => (
+          {suggestions.map((result) => (
             <button
               key={result.chunk_id}
               className="auto-suggest-chip"

@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import type { DecisionTree, TreeStructure } from '../types';
+import { useState, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { DecisionTree, TreeStructure } from "../types/llm";
 
 export function useDecisionTrees() {
   const [trees, setTrees] = useState<DecisionTree[]>([]);
@@ -11,7 +11,7 @@ export function useDecisionTrees() {
     setLoading(true);
     setError(null);
     try {
-      const result = await invoke<DecisionTree[]>('list_decision_trees');
+      const result = await invoke<DecisionTree[]>("list_decision_trees");
       setTrees(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -20,15 +20,20 @@ export function useDecisionTrees() {
     }
   }, []);
 
-  const getTree = useCallback(async (treeId: string): Promise<TreeStructure | null> => {
-    try {
-      const tree = await invoke<DecisionTree>('get_decision_tree', { treeId });
-      return JSON.parse(tree.tree_json) as TreeStructure;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return null;
-    }
-  }, []);
+  const getTree = useCallback(
+    async (treeId: string): Promise<TreeStructure | null> => {
+      try {
+        const tree = await invoke<DecisionTree>("get_decision_tree", {
+          treeId,
+        });
+        return JSON.parse(tree.tree_json) as TreeStructure;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        return null;
+      }
+    },
+    [],
+  );
 
   return { trees, loading, error, loadTrees, getTree };
 }

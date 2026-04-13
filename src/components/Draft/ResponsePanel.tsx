@@ -1,20 +1,19 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { Button } from '../shared/Button';
-import { RatingPanel } from './RatingPanel';
-import { JiraPostPanel } from './JiraPostPanel';
-import { useToastContext } from '../../contexts/ToastContext';
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Button } from "../shared/Button";
+import { RatingPanel } from "./RatingPanel";
+import { JiraPostPanel } from "./JiraPostPanel";
+import { useToastContext } from "../../contexts/ToastContext";
 import type {
-  ContextSource,
   ConfidenceAssessment,
-  DocumentChunk,
   GenerationMetrics,
   GroundedClaim,
-} from '../../types';
-import './ResponsePanel.css';
+} from "../../types/llm";
+import type { ContextSource, DocumentChunk } from "../../types/knowledge";
+import "./ResponsePanel.css";
 
-type ExportFormat = 'Markdown' | 'PlainText' | 'Html';
-type ResponseSection = 'output' | 'instructions';
+type ExportFormat = "Markdown" | "PlainText" | "Html";
+type ResponseSection = "output" | "instructions";
 
 interface ParsedResponse {
   output: string;
@@ -24,26 +23,33 @@ interface ParsedResponse {
 
 /** Parse LLM response into OUTPUT and IT SUPPORT INSTRUCTIONS sections */
 function parseResponseSections(text: string): ParsedResponse {
-  if (!text) return { output: '', instructions: '', hasSections: false };
+  if (!text) return { output: "", instructions: "", hasSections: false };
 
   // Match "### OUTPUT" and "### IT SUPPORT INSTRUCTIONS" headers (case-insensitive)
   const outputMatch = text.match(/^###\s+OUTPUT\s*$/im);
-  const instructionsMatch = text.match(/^###\s+IT\s+SUPPORT\s+INSTRUCTIONS\s*$/im);
+  const instructionsMatch = text.match(
+    /^###\s+IT\s+SUPPORT\s+INSTRUCTIONS\s*$/im,
+  );
 
   if (!outputMatch || !instructionsMatch) {
     // Legacy response — no section headers found
-    return { output: text, instructions: '', hasSections: false };
+    return { output: text, instructions: "", hasSections: false };
   }
 
   const outputStart = outputMatch.index! + outputMatch[0].length;
-  const instructionsStart = instructionsMatch.index! + instructionsMatch[0].length;
+  const instructionsStart =
+    instructionsMatch.index! + instructionsMatch[0].length;
 
   // OUTPUT section: from after its header to the start of INSTRUCTIONS header
   const outputText = text.slice(outputStart, instructionsMatch.index!).trim();
   // INSTRUCTIONS section: from after its header to end
   const instructionsText = text.slice(instructionsStart).trim();
 
-  return { output: outputText, instructions: instructionsText, hasSections: true };
+  return {
+    output: outputText,
+    instructions: instructionsText,
+    hasSections: true,
+  };
 }
 
 interface ResponsePanelProps {
@@ -68,49 +74,74 @@ interface ResponsePanelProps {
   onSaveAsTemplate?: (rating: number) => void;
 }
 
-function getModeLabel(mode: ConfidenceAssessment['mode']): string {
-  if (mode === 'answer') return 'Ready to answer';
-  if (mode === 'clarify') return 'Needs clarification';
-  return 'Abstain suggested';
+function getModeLabel(mode: ConfidenceAssessment["mode"]): string {
+  if (mode === "answer") return "Ready to answer";
+  if (mode === "clarify") return "Needs clarification";
+  return "Abstain suggested";
 }
 
-function getConfidenceLevel(avgScore: number): { label: string; className: string; explanation: string } {
+function getConfidenceLevel(avgScore: number): {
+  label: string;
+  className: string;
+  explanation: string;
+} {
   const pct = avgScore * 100;
   if (pct > 80) {
-    return { label: `${pct.toFixed(0)}% confidence`, className: 'confidence-high', explanation: 'Strong match' };
+    return {
+      label: `${pct.toFixed(0)}% confidence`,
+      className: "confidence-high",
+      explanation: "Strong match",
+    };
   } else if (pct >= 50) {
-    return { label: `${pct.toFixed(0)}% confidence`, className: 'confidence-medium', explanation: 'Moderate — review suggested' };
+    return {
+      label: `${pct.toFixed(0)}% confidence`,
+      className: "confidence-medium",
+      explanation: "Moderate — review suggested",
+    };
   } else {
-    return { label: `${pct.toFixed(0)}% confidence`, className: 'confidence-low', explanation: 'Weak — verify manually' };
+    return {
+      label: `${pct.toFixed(0)}% confidence`,
+      className: "confidence-low",
+      explanation: "Weak — verify manually",
+    };
   }
 }
 
 function getSearchMethodLabel(method: string | null): string {
-  if (!method) return 'Search';
+  if (!method) return "Search";
   switch (method) {
-    case 'Fts5': return 'Keyword';
-    case 'Vector': return 'Semantic';
-    case 'Hybrid': return 'Hybrid';
-    default: return method;
+    case "Fts5":
+      return "Keyword";
+    case "Vector":
+      return "Semantic";
+    case "Hybrid":
+      return "Hybrid";
+    default:
+      return method;
   }
 }
 
 function getSourceTypeLabel(sourceType: string | null): string {
-  if (!sourceType) return '';
+  if (!sourceType) return "";
   switch (sourceType) {
-    case 'file': return 'File';
-    case 'url': return 'URL';
-    case 'youtube': return 'YouTube';
-    case 'github': return 'GitHub';
-    default: return sourceType;
+    case "file":
+      return "File";
+    case "url":
+      return "URL";
+    case "youtube":
+      return "YouTube";
+    case "github":
+      return "GitHub";
+    default:
+      return sourceType;
   }
 }
 
 function getScoreBarClassName(score: number): string {
   const pct = score * 100;
-  if (pct > 80) return 'score-fill-high';
-  if (pct >= 50) return 'score-fill-medium';
-  return 'score-fill-low';
+  if (pct > 80) return "score-fill-high";
+  if (pct >= 50) return "score-fill-medium";
+  return "score-fill-low";
 }
 
 export function ResponsePanel({
@@ -136,24 +167,34 @@ export function ResponsePanel({
 }: ResponsePanelProps) {
   const [copied, setCopied] = useState(false);
   const [showCopyOverride, setShowCopyOverride] = useState(false);
-  const [copyOverrideReason, setCopyOverrideReason] = useState('');
+  const [copyOverrideReason, setCopyOverrideReason] = useState("");
   const [copyOverrideSubmitting, setCopyOverrideSubmitting] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
-  const [sourcePreviewContent, setSourcePreviewContent] = useState<Record<string, string>>({});
-  const [sourcePreviewLoading, setSourcePreviewLoading] = useState<Record<string, boolean>>({});
-  const [activeSection, setActiveSection] = useState<ResponseSection>('output');
+  const [sourcePreviewContent, setSourcePreviewContent] = useState<
+    Record<string, string>
+  >({});
+  const [sourcePreviewLoading, setSourcePreviewLoading] = useState<
+    Record<string, boolean>
+  >({});
+  const [activeSection, setActiveSection] = useState<ResponseSection>("output");
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const { success: showSuccess, error: showError } = useToastContext();
-  const prevResponseRef = useRef<string>('');
+  const prevResponseRef = useRef<string>("");
 
   // Parse response into sections
   const parsed = useMemo(() => parseResponseSections(response), [response]);
 
   // Auto-show sources when a new response completes with sources available
   useEffect(() => {
-    if (response && response !== prevResponseRef.current && sources.length > 0 && !generating && !isStreaming) {
+    if (
+      response &&
+      response !== prevResponseRef.current &&
+      sources.length > 0 &&
+      !generating &&
+      !isStreaming
+    ) {
       setShowSources(true);
     }
     prevResponseRef.current = response;
@@ -162,37 +203,44 @@ export function ResponsePanel({
   // Close export menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+      if (
+        exportMenuRef.current &&
+        !exportMenuRef.current.contains(event.target as Node)
+      ) {
         setShowExportMenu(false);
       }
     }
     if (showExportMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showExportMenu]);
 
-  const handleExport = useCallback(async (format: ExportFormat) => {
-    if (!response) return;
-    try {
-      const saved = await invoke<boolean>('export_draft', {
-        responseText: response,
-        format,
-      });
-      if (saved) {
-        showSuccess('Response exported successfully');
+  const handleExport = useCallback(
+    async (format: ExportFormat) => {
+      if (!response) return;
+      try {
+        const saved = await invoke<boolean>("export_draft", {
+          responseText: response,
+          format,
+        });
+        if (saved) {
+          showSuccess("Response exported successfully");
+        }
+      } catch (err) {
+        showError(`Export failed: ${err}`);
       }
-    } catch (err) {
-      showError(`Export failed: ${err}`);
-    }
-    setShowExportMenu(false);
-  }, [response, showSuccess, showError]);
+      setShowExportMenu(false);
+    },
+    [response, showSuccess, showError],
+  );
 
   const handleCopy = useCallback(async () => {
     if (!response) return;
-    const mode = confidence?.mode ?? 'answer';
+    const mode = confidence?.mode ?? "answer";
     const hasCitations = sources.length > 0;
-    const copyAllowed = mode === 'answer' && hasCitations;
+    const copyAllowed = mode === "answer" && hasCitations;
 
     if (!copyAllowed) {
       setShowCopyOverride(true);
@@ -213,13 +261,13 @@ export function ResponsePanel({
     if (!response) return;
     const reason = copyOverrideReason.trim();
     if (!reason) {
-      showError('Reason is required to override copy gating.');
+      showError("Reason is required to override copy gating.");
       return;
     }
 
     try {
       setCopyOverrideSubmitting(true);
-      await invoke('audit_response_copy_override', {
+      await invoke("audit_response_copy_override", {
         reason,
         confidenceMode: confidence?.mode ?? null,
         sourcesCount: sources.length,
@@ -230,8 +278,8 @@ export function ResponsePanel({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       setShowCopyOverride(false);
-      setCopyOverrideReason('');
-      showSuccess('Response copied (override logged)');
+      setCopyOverrideReason("");
+      showSuccess("Response copied (override logged)");
     } catch (err) {
       showError(`Copy override failed: ${err}`);
     } finally {
@@ -247,56 +295,69 @@ export function ResponsePanel({
     showSuccess,
   ]);
 
-  const handleSourceToggle = useCallback(async (source: ContextSource) => {
-    const chunkId = source.chunk_id;
+  const handleSourceToggle = useCallback(
+    async (source: ContextSource) => {
+      const chunkId = source.chunk_id;
 
-    if (expandedSourceId === chunkId) {
-      setExpandedSourceId(null);
-      return;
-    }
-
-    setExpandedSourceId(chunkId);
-
-    // Fetch preview content if not already cached
-    if (!sourcePreviewContent[chunkId]) {
-      setSourcePreviewLoading(prev => ({ ...prev, [chunkId]: true }));
-      try {
-        const chunks = await invoke<DocumentChunk[]>('get_document_chunks', {
-          documentId: source.document_id,
-        });
-        // Find the matching chunk by id, or fall back to first chunk
-        const matchingChunk = chunks.find(c => c.id === chunkId) ?? chunks[0];
-        const content = matchingChunk?.content ?? 'No content available.';
-        setSourcePreviewContent(prev => ({ ...prev, [chunkId]: content }));
-      } catch {
-        setSourcePreviewContent(prev => ({
-          ...prev,
-          [chunkId]: 'Failed to load content preview.',
-        }));
-      } finally {
-        setSourcePreviewLoading(prev => ({ ...prev, [chunkId]: false }));
+      if (expandedSourceId === chunkId) {
+        setExpandedSourceId(null);
+        return;
       }
-    }
-  }, [expandedSourceId, sourcePreviewContent]);
+
+      setExpandedSourceId(chunkId);
+
+      // Fetch preview content if not already cached
+      if (!sourcePreviewContent[chunkId]) {
+        setSourcePreviewLoading((prev) => ({ ...prev, [chunkId]: true }));
+        try {
+          const chunks = await invoke<DocumentChunk[]>("get_document_chunks", {
+            documentId: source.document_id,
+          });
+          // Find the matching chunk by id, or fall back to first chunk
+          const matchingChunk =
+            chunks.find((c) => c.id === chunkId) ?? chunks[0];
+          const content = matchingChunk?.content ?? "No content available.";
+          setSourcePreviewContent((prev) => ({ ...prev, [chunkId]: content }));
+        } catch {
+          setSourcePreviewContent((prev) => ({
+            ...prev,
+            [chunkId]: "Failed to load content preview.",
+          }));
+        } finally {
+          setSourcePreviewLoading((prev) => ({ ...prev, [chunkId]: false }));
+        }
+      }
+    },
+    [expandedSourceId, sourcePreviewContent],
+  );
 
   const outputText = parsed.hasSections ? parsed.output : response;
   const wordCount = outputText.trim().split(/\s+/).filter(Boolean).length;
 
   // Compute average confidence from sources
-  const avgScore = sources.length > 0
-    ? sources.reduce((sum, s) => sum + s.score, 0) / sources.length
-    : 0;
-  const sourceConfidence = sources.length > 0 ? getConfidenceLevel(avgScore) : null;
+  const avgScore =
+    sources.length > 0
+      ? sources.reduce((sum, s) => sum + s.score, 0) / sources.length
+      : 0;
+  const sourceConfidence =
+    sources.length > 0 ? getConfidenceLevel(avgScore) : null;
 
   return (
     <>
       {showCopyOverride && (
-        <div className="copy-override-modal" role="dialog" aria-modal="true" aria-label="Copy override">
+        <div
+          className="copy-override-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Copy override"
+        >
           <div className="copy-override-card">
             <h3>Copy override required</h3>
             <p>
-              This response is not eligible for copy because it is missing citations or is not in <strong>answer</strong> mode.
-              You can still copy, but the app will log an audit entry locally (no response text is logged).
+              This response is not eligible for copy because it is missing
+              citations or is not in <strong>answer</strong> mode. You can still
+              copy, but the app will log an audit entry locally (no response
+              text is logged).
             </p>
             <label className="copy-override-label">
               Reason (required)
@@ -313,7 +374,7 @@ export function ResponsePanel({
                 size="small"
                 onClick={() => {
                   setShowCopyOverride(false);
-                  setCopyOverrideReason('');
+                  setCopyOverrideReason("");
                 }}
                 disabled={copyOverrideSubmitting}
               >
@@ -325,7 +386,7 @@ export function ResponsePanel({
                 onClick={handleConfirmCopyOverride}
                 disabled={copyOverrideSubmitting}
               >
-                {copyOverrideSubmitting ? 'Copying...' : 'Copy with override'}
+                {copyOverrideSubmitting ? "Copying..." : "Copy with override"}
               </Button>
             </div>
           </div>
@@ -342,7 +403,7 @@ export function ResponsePanel({
               disabled={generatingAlternative}
               className="btn-hover-scale"
             >
-              {generatingAlternative ? 'Generating...' : 'Generate Alternative'}
+              {generatingAlternative ? "Generating..." : "Generate Alternative"}
             </Button>
           )}
           {sources.length > 0 && (
@@ -351,7 +412,7 @@ export function ResponsePanel({
               size="small"
               onClick={() => setShowSources(!showSources)}
             >
-              {showSources ? 'Hide Sources' : `Sources (${sources.length})`}
+              {showSources ? "Hide Sources" : `Sources (${sources.length})`}
             </Button>
           )}
           {onSaveDraft && (
@@ -370,7 +431,7 @@ export function ResponsePanel({
             onClick={handleCopy}
             disabled={!response}
           >
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? "Copied!" : "Copy"}
           </Button>
           <div className="export-dropdown-wrapper" ref={exportMenuRef}>
             <Button
@@ -383,13 +444,22 @@ export function ResponsePanel({
             </Button>
             {showExportMenu && (
               <div className="export-dropdown-menu">
-                <button className="export-option" onClick={() => handleExport('Markdown')}>
+                <button
+                  className="export-option"
+                  onClick={() => handleExport("Markdown")}
+                >
                   Markdown (.md)
                 </button>
-                <button className="export-option" onClick={() => handleExport('PlainText')}>
+                <button
+                  className="export-option"
+                  onClick={() => handleExport("PlainText")}
+                >
                   Plain Text (.txt)
                 </button>
-                <button className="export-option" onClick={() => handleExport('Html')}>
+                <button
+                  className="export-option"
+                  onClick={() => handleExport("Html")}
+                >
                   HTML (.html)
                 </button>
               </div>
@@ -398,7 +468,11 @@ export function ResponsePanel({
         </div>
       </div>
 
-      <div className="panel-content response-content" tabIndex={0} aria-label="Generated response panel">
+      <div
+        className="panel-content response-content"
+        tabIndex={0}
+        aria-label="Generated response panel"
+      >
         {generating && !streamingText ? (
           <div className="generating-indicator">
             <div className="generating-spinner" />
@@ -426,34 +500,38 @@ export function ResponsePanel({
         ) : response ? (
           <>
             {confidence && (
-              <div className={`confidence-gate confidence-gate-${confidence.mode}`}>
+              <div
+                className={`confidence-gate confidence-gate-${confidence.mode}`}
+              >
                 <div className="confidence-gate-main">
                   <strong>{getModeLabel(confidence.mode)}</strong>
                   <span>{Math.round(confidence.score * 100)}% confidence</span>
                 </div>
-                <div className="confidence-gate-rationale">{confidence.rationale}</div>
+                <div className="confidence-gate-rationale">
+                  {confidence.rationale}
+                </div>
               </div>
             )}
 
             {parsed.hasSections && (
               <div className="response-section-tabs">
                 <button
-                  className={`response-section-tab${activeSection === 'output' ? ' active' : ''}`}
-                  onClick={() => setActiveSection('output')}
+                  className={`response-section-tab${activeSection === "output" ? " active" : ""}`}
+                  onClick={() => setActiveSection("output")}
                 >
                   Output
                   <span className="section-tab-hint">Copy &amp; Send</span>
                 </button>
                 <button
-                  className={`response-section-tab${activeSection === 'instructions' ? ' active' : ''}`}
-                  onClick={() => setActiveSection('instructions')}
+                  className={`response-section-tab${activeSection === "instructions" ? " active" : ""}`}
+                  onClick={() => setActiveSection("instructions")}
                 >
                   IT Support Instructions
                 </button>
               </div>
             )}
 
-            {(!parsed.hasSections || activeSection === 'output') && (
+            {(!parsed.hasSections || activeSection === "output") && (
               <textarea
                 className="response-textarea"
                 value={parsed.hasSections ? parsed.output : response}
@@ -471,10 +549,8 @@ export function ResponsePanel({
               />
             )}
 
-            {parsed.hasSections && activeSection === 'instructions' && (
-              <div className="instructions-content">
-                {parsed.instructions}
-              </div>
+            {parsed.hasSections && activeSection === "instructions" && (
+              <div className="instructions-content">{parsed.instructions}</div>
             )}
 
             {showSources && sources.length > 0 && (
@@ -483,16 +559,21 @@ export function ResponsePanel({
                   <h4>Knowledge Base Sources</h4>
                   {sourceConfidence && (
                     <div className="confidence-group">
-                      <span className={`confidence-badge ${sourceConfidence.className}`}>
+                      <span
+                        className={`confidence-badge ${sourceConfidence.className}`}
+                      >
                         {sourceConfidence.label}
                       </span>
-                      <span className="confidence-explanation">{sourceConfidence.explanation}</span>
+                      <span className="confidence-explanation">
+                        {sourceConfidence.explanation}
+                      </span>
                     </div>
                   )}
                 </div>
                 {avgScore < 0.5 && avgScore > 0 && (
                   <div className="low-confidence-warning">
-                    Low source confidence — response may need manual verification
+                    Low source confidence — response may need manual
+                    verification
                   </div>
                 )}
 
@@ -501,12 +582,15 @@ export function ResponsePanel({
                     <h5>Source Grounding</h5>
                     <ul className="grounding-list">
                       {grounding.slice(0, 8).map((item, idx) => (
-                        <li key={`${idx}-${item.claim.slice(0, 24)}`} className={`grounding-item grounding-${item.support_level}`}>
+                        <li
+                          key={`${idx}-${item.claim.slice(0, 24)}`}
+                          className={`grounding-item grounding-${item.support_level}`}
+                        >
                           <span className="grounding-claim">{item.claim}</span>
                           <span className="grounding-meta">
                             {item.source_indexes.length > 0
-                              ? `Sources: ${item.source_indexes.map(i => i + 1).join(', ')}`
-                              : 'No citation'}
+                              ? `Sources: ${item.source_indexes.map((i) => i + 1).join(", ")}`
+                              : "No citation"}
                           </span>
                         </li>
                       ))}
@@ -516,20 +600,26 @@ export function ResponsePanel({
                 <ul className="sources-list">
                   {sources.map((source, i) => {
                     const isExpanded = expandedSourceId === source.chunk_id;
-                    const isLoading = sourcePreviewLoading[source.chunk_id] ?? false;
+                    const isLoading =
+                      sourcePreviewLoading[source.chunk_id] ?? false;
                     const preview = sourcePreviewContent[source.chunk_id];
                     const scorePct = (source.score * 100).toFixed(0);
 
                     return (
-                      <li key={source.chunk_id} className="source-item-expandable">
+                      <li
+                        key={source.chunk_id}
+                        className="source-item-expandable"
+                      >
                         <button
                           className="source-expand-toggle"
                           onClick={() => handleSourceToggle(source)}
                           aria-expanded={isExpanded}
-                          title={isExpanded ? 'Collapse preview' : 'Expand preview'}
+                          title={
+                            isExpanded ? "Collapse preview" : "Expand preview"
+                          }
                         >
                           <span className="source-expand-icon">
-                            {isExpanded ? '\u25BE' : '\u25B8'}
+                            {isExpanded ? "\u25BE" : "\u25B8"}
                           </span>
                           <span className="source-number">[{i + 1}]</span>
                           <div className="source-info">
@@ -544,28 +634,41 @@ export function ResponsePanel({
                           </div>
                           <div className="source-badges">
                             {source.search_method && (
-                              <span className="search-method-badge">{getSearchMethodLabel(source.search_method)}</span>
+                              <span className="search-method-badge">
+                                {getSearchMethodLabel(source.search_method)}
+                              </span>
                             )}
                             {source.source_type && (
-                              <span className="source-type-badge">{getSourceTypeLabel(source.source_type)}</span>
+                              <span className="source-type-badge">
+                                {getSourceTypeLabel(source.source_type)}
+                              </span>
                             )}
                           </div>
-                          <div className="source-score-bar" title={`Relevance: ${scorePct}%`}>
+                          <div
+                            className="source-score-bar"
+                            title={`Relevance: ${scorePct}%`}
+                          >
                             <div className="source-score-bar-track">
                               <div
                                 className={`source-score-bar-fill ${getScoreBarClassName(source.score)}`}
                                 style={{ width: `${scorePct}%` }}
                               />
                             </div>
-                            <span className="source-score-label">{scorePct}%</span>
+                            <span className="source-score-label">
+                              {scorePct}%
+                            </span>
                           </div>
                         </button>
                         {isExpanded && (
                           <div className="source-preview">
                             {isLoading ? (
-                              <div className="source-preview-loading">Loading preview...</div>
+                              <div className="source-preview-loading">
+                                Loading preview...
+                              </div>
                             ) : (
-                              <pre className="source-preview-content">{preview}</pre>
+                              <pre className="source-preview-content">
+                                {preview}
+                              </pre>
                             )}
                           </div>
                         )}
@@ -575,13 +678,22 @@ export function ResponsePanel({
                 </ul>
                 {metrics && (
                   <div className="sources-metrics">
-                    <span className="metrics-item" title="Tokens generated per second">
+                    <span
+                      className="metrics-item"
+                      title="Tokens generated per second"
+                    >
                       {metrics.tokens_per_second.toFixed(1)} tok/s
                     </span>
-                    <span className="metrics-item" title="Number of KB sources used">
+                    <span
+                      className="metrics-item"
+                      title="Number of KB sources used"
+                    >
                       {metrics.sources_used} sources
                     </span>
-                    <span className="metrics-item" title="Context window utilization">
+                    <span
+                      className="metrics-item"
+                      title="Context window utilization"
+                    >
                       {(metrics.context_utilization * 100).toFixed(0)}% ctx
                     </span>
                   </div>
@@ -603,7 +715,10 @@ export function ResponsePanel({
             </div>
             {modelName && (
               <div className="response-footer-right">
-                <span className="model-info" title={`Generated by ${modelName}`}>
+                <span
+                  className="model-info"
+                  title={`Generated by ${modelName}`}
+                >
                   {modelName}
                 </span>
               </div>
@@ -613,7 +728,10 @@ export function ResponsePanel({
 
         {response && !generating && !isStreaming && (
           <>
-            <RatingPanel draftId={draftId ?? null} onSaveAsTemplate={onSaveAsTemplate} />
+            <RatingPanel
+              draftId={draftId ?? null}
+              onSaveAsTemplate={onSaveAsTemplate}
+            />
             {ticketKey && (
               <JiraPostPanel
                 ticketKey={ticketKey}

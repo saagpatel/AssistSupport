@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { InputPanel } from "./InputPanel";
 import { DiagnosisPanel } from "./DiagnosisPanel";
-import type { ChecklistItem } from "../../types";
+import type { ChecklistItem } from "../../types/llm";
 
 vi.mock("../../hooks/useJira", () => ({
   useJira: () => ({
@@ -86,7 +86,7 @@ describe("Draft panel accessibility labels", () => {
         onCopyFirstResponse={vi.fn()}
         onClearFirstResponse={vi.fn()}
         firstResponseGenerating={false}
-      />
+      />,
     );
 
     expect(screen.getByLabelText("Ticket task preset")).toBeTruthy();
@@ -129,7 +129,7 @@ describe("Draft panel accessibility labels", () => {
         hasTicket={false}
         collapsed={false}
         onToggleCollapse={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByLabelText("Troubleshooting tree")).toBeTruthy();

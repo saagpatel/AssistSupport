@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { Button } from '../shared/Button';
-import type { ArticleAnalytics } from '../../types';
-import './ArticleDetailPanel.css';
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Button } from "../shared/Button";
+import type { ArticleAnalytics } from "../../types/insights";
+import "./ArticleDetailPanel.css";
 
 interface ArticleDetailPanelProps {
   documentId: string;
@@ -10,7 +10,11 @@ interface ArticleDetailPanelProps {
   onEditArticle?: (documentId: string) => void;
 }
 
-export function ArticleDetailPanel({ documentId, onClose, onEditArticle }: ArticleDetailPanelProps) {
+export function ArticleDetailPanel({
+  documentId,
+  onClose,
+  onEditArticle,
+}: ArticleDetailPanelProps) {
   const [analytics, setAnalytics] = useState<ArticleAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +23,9 @@ export function ArticleDetailPanel({ documentId, onClose, onEditArticle }: Artic
     setLoading(true);
     setError(null);
     try {
-      const data = await invoke<ArticleAnalytics>('get_analytics_for_article', { documentId });
+      const data = await invoke<ArticleAnalytics>("get_analytics_for_article", {
+        documentId,
+      });
       setAnalytics(data);
     } catch (err) {
       setError(String(err));
@@ -37,7 +43,9 @@ export function ArticleDetailPanel({ documentId, onClose, onEditArticle }: Artic
       <div className="article-detail-panel">
         <div className="article-detail-header">
           <h3>Article Analytics</h3>
-          <Button variant="ghost" size="small" onClick={onClose}>Close</Button>
+          <Button variant="ghost" size="small" onClick={onClose}>
+            Close
+          </Button>
         </div>
         <div className="article-detail-loading">Loading analytics...</div>
       </div>
@@ -49,9 +57,13 @@ export function ArticleDetailPanel({ documentId, onClose, onEditArticle }: Artic
       <div className="article-detail-panel">
         <div className="article-detail-header">
           <h3>Article Analytics</h3>
-          <Button variant="ghost" size="small" onClick={onClose}>Close</Button>
+          <Button variant="ghost" size="small" onClick={onClose}>
+            Close
+          </Button>
         </div>
-        <div className="article-detail-error">{error || 'No data available'}</div>
+        <div className="article-detail-error">
+          {error || "No data available"}
+        </div>
       </div>
     );
   }
@@ -65,11 +77,17 @@ export function ArticleDetailPanel({ documentId, onClose, onEditArticle }: Artic
         </div>
         <div className="article-detail-actions">
           {onEditArticle && (
-            <Button variant="secondary" size="small" onClick={() => onEditArticle(documentId)}>
+            <Button
+              variant="secondary"
+              size="small"
+              onClick={() => onEditArticle(documentId)}
+            >
               Edit KB
             </Button>
           )}
-          <Button variant="ghost" size="small" onClick={onClose}>Close</Button>
+          <Button variant="ghost" size="small" onClick={onClose}>
+            Close
+          </Button>
         </div>
       </div>
 
@@ -80,7 +98,9 @@ export function ArticleDetailPanel({ documentId, onClose, onEditArticle }: Artic
         </div>
         <div className="article-stat">
           <span className="article-stat-value">
-            {analytics.average_rating != null ? analytics.average_rating.toFixed(1) : '--'}
+            {analytics.average_rating != null
+              ? analytics.average_rating.toFixed(1)
+              : "--"}
           </span>
           <span className="article-stat-label">Avg Rating</span>
         </div>
@@ -89,7 +109,9 @@ export function ArticleDetailPanel({ documentId, onClose, onEditArticle }: Artic
       <div className="article-detail-drafts">
         <h4>Responses Using This Article</h4>
         {analytics.draft_references.length === 0 ? (
-          <div className="article-detail-empty">No responses have used this article yet.</div>
+          <div className="article-detail-empty">
+            No responses have used this article yet.
+          </div>
         ) : (
           <div className="article-drafts-list">
             {analytics.draft_references.map((ref) => (
@@ -97,18 +119,25 @@ export function ArticleDetailPanel({ documentId, onClose, onEditArticle }: Artic
                 <div className="article-draft-header">
                   <span className="article-draft-date">
                     {new Date(ref.created_at).toLocaleDateString(undefined, {
-                      month: 'short', day: 'numeric', year: 'numeric',
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
                     })}
                   </span>
                   {ref.rating != null && (
                     <span className="article-draft-rating">
-                      {'★'.repeat(ref.rating)}{'☆'.repeat(5 - ref.rating)}
+                      {"★".repeat(ref.rating)}
+                      {"☆".repeat(5 - ref.rating)}
                     </span>
                   )}
                 </div>
-                <div className="article-draft-input">{ref.input_text.slice(0, 120)}...</div>
+                <div className="article-draft-input">
+                  {ref.input_text.slice(0, 120)}...
+                </div>
                 {ref.feedback_text && (
-                  <div className="article-draft-feedback">"{ref.feedback_text}"</div>
+                  <div className="article-draft-feedback">
+                    "{ref.feedback_text}"
+                  </div>
                 )}
               </div>
             ))}

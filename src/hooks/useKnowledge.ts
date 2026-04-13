@@ -1,12 +1,12 @@
-import { useState, useCallback, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { useState, useCallback, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type {
   Namespace,
   NamespaceWithCounts as BackendNamespaceWithCounts,
   IngestSource,
   KbDocumentInfo,
   DocumentChunk,
-} from '../types';
+} from "../types/knowledge";
 
 // Frontend type with camelCase properties
 export interface NamespaceWithCounts extends Namespace {
@@ -26,11 +26,15 @@ export interface KnowledgeState {
 }
 
 // Simple cache for expensive operations
-let namespacesCache: { data: NamespaceWithCounts[]; timestamp: number } | null = null;
+let namespacesCache: { data: NamespaceWithCounts[]; timestamp: number } | null =
+  null;
 const CACHE_TTL = 30000; // 30 seconds
 
 function isCacheValid(): boolean {
-  return namespacesCache !== null && (Date.now() - namespacesCache.timestamp) < CACHE_TTL;
+  return (
+    namespacesCache !== null &&
+    Date.now() - namespacesCache.timestamp < CACHE_TTL
+  );
 }
 
 function invalidateCache() {
@@ -53,7 +57,7 @@ export function useKnowledge() {
   const loadNamespaces = useCallback(async (forceRefresh = false) => {
     // Use cache if valid and not forcing refresh
     if (!forceRefresh && isCacheValid()) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         namespaces: namespacesCache!.data,
         loading: false,
@@ -61,17 +65,21 @@ export function useKnowledge() {
       return namespacesCache!.data;
     }
 
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
       // Use optimized backend command that returns counts in single query
-      const backendNamespaces = await invoke<BackendNamespaceWithCounts[]>('list_namespaces_with_counts');
+      const backendNamespaces = await invoke<BackendNamespaceWithCounts[]>(
+        "list_namespaces_with_counts",
+      );
 
       // Map snake_case to camelCase for frontend consistency
-      const namespacesWithCounts: NamespaceWithCounts[] = backendNamespaces.map(ns => ({
-        ...ns,
-        documentCount: ns.document_count,
-        sourceCount: ns.source_count,
-      }));
+      const namespacesWithCounts: NamespaceWithCounts[] = backendNamespaces.map(
+        (ns) => ({
+          ...ns,
+          documentCount: ns.document_count,
+          sourceCount: ns.source_count,
+        }),
+      );
 
       // Update cache
       namespacesCache = {
@@ -79,21 +87,21 @@ export function useKnowledge() {
         timestamp: Date.now(),
       };
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         namespaces: namespacesWithCounts,
         loading: false,
       }));
       return namespacesWithCounts;
     } catch (e) {
-      setState(prev => ({ ...prev, loading: false, error: String(e) }));
+      setState((prev) => ({ ...prev, loading: false, error: String(e) }));
       throw e;
     }
   }, []);
 
   // Select a namespace and load its content
   const selectNamespace = useCallback(async (namespaceId: string | null) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       selectedNamespace: namespaceId,
       selectedDocument: null,
@@ -103,7 +111,7 @@ export function useKnowledge() {
     }));
 
     if (!namespaceId) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         sources: [],
         documents: [],
@@ -115,153 +123,187 @@ export function useKnowledge() {
     try {
       // Parallel fetch for sources and documents
       const [sources, documents] = await Promise.all([
-        invoke<IngestSource[]>('list_ingest_sources', { namespaceId }),
-        invoke<KbDocumentInfo[]>('list_kb_documents', {
+        invoke<IngestSource[]>("list_ingest_sources", { namespaceId }),
+        invoke<KbDocumentInfo[]>("list_kb_documents", {
           namespaceId,
           sourceId: null,
         }),
       ]);
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         sources,
         documents,
         loading: false,
       }));
     } catch (e) {
-      setState(prev => ({ ...prev, loading: false, error: String(e) }));
+      setState((prev) => ({ ...prev, loading: false, error: String(e) }));
     }
   }, []);
 
   // Select a document and load its chunks
-  const selectDocument = useCallback(async (document: KbDocumentInfo | null) => {
-    setState(prev => ({
-      ...prev,
-      selectedDocument: document,
-      chunks: [],
-      loading: document !== null,
-    }));
+  const selectDocument = useCallback(
+    async (document: KbDocumentInfo | null) => {
+      setState((prev) => ({
+        ...prev,
+        selectedDocument: document,
+        chunks: [],
+        loading: document !== null,
+      }));
 
-    if (!document) return;
+      if (!document) return;
 
-    try {
-      const chunks = await invoke<DocumentChunk[]>('get_document_chunks', {
-        documentId: document.id,
-      });
-      setState(prev => ({ ...prev, chunks, loading: false }));
-    } catch (e) {
-      setState(prev => ({ ...prev, loading: false, error: String(e) }));
-    }
-  }, []);
+      try {
+        const chunks = await invoke<DocumentChunk[]>("get_document_chunks", {
+          documentId: document.id,
+        });
+        setState((prev) => ({ ...prev, chunks, loading: false }));
+      } catch (e) {
+        setState((prev) => ({ ...prev, loading: false, error: String(e) }));
+      }
+    },
+    [],
+  );
 
   // Delete a namespace
-  const deleteNamespace = useCallback(async (namespaceId: string): Promise<void> => {
-    try {
-      await invoke('delete_namespace', { name: namespaceId });
-      invalidateCache(); // Invalidate cache on mutation
-      setState(prev => ({
-        ...prev,
-        namespaces: prev.namespaces.filter(ns => ns.id !== namespaceId),
-        selectedNamespace: prev.selectedNamespace === namespaceId ? null : prev.selectedNamespace,
-      }));
-    } catch (e) {
-      setState(prev => ({ ...prev, error: String(e) }));
-      throw e;
-    }
-  }, []);
+  const deleteNamespace = useCallback(
+    async (namespaceId: string): Promise<void> => {
+      try {
+        await invoke("delete_namespace", { name: namespaceId });
+        invalidateCache(); // Invalidate cache on mutation
+        setState((prev) => ({
+          ...prev,
+          namespaces: prev.namespaces.filter((ns) => ns.id !== namespaceId),
+          selectedNamespace:
+            prev.selectedNamespace === namespaceId
+              ? null
+              : prev.selectedNamespace,
+        }));
+      } catch (e) {
+        setState((prev) => ({ ...prev, error: String(e) }));
+        throw e;
+      }
+    },
+    [],
+  );
 
   // Delete a source
   const deleteSource = useCallback(async (sourceId: string): Promise<void> => {
     try {
-      await invoke('delete_ingest_source', { sourceId });
+      await invoke("delete_ingest_source", { sourceId });
       invalidateCache(); // Invalidate cache on mutation
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        sources: prev.sources.filter(s => s.id !== sourceId),
-        documents: prev.documents.filter(d => d.source_id !== sourceId),
+        sources: prev.sources.filter((s) => s.id !== sourceId),
+        documents: prev.documents.filter((d) => d.source_id !== sourceId),
       }));
     } catch (e) {
-      setState(prev => ({ ...prev, error: String(e) }));
+      setState((prev) => ({ ...prev, error: String(e) }));
       throw e;
     }
   }, []);
 
   // Delete a document
-  const deleteDocument = useCallback(async (documentId: string): Promise<void> => {
-    try {
-      await invoke('delete_kb_document', { documentId });
-      invalidateCache(); // Invalidate cache on mutation
-      setState(prev => ({
-        ...prev,
-        documents: prev.documents.filter(d => d.id !== documentId),
-        selectedDocument: prev.selectedDocument?.id === documentId ? null : prev.selectedDocument,
-        chunks: prev.selectedDocument?.id === documentId ? [] : prev.chunks,
-      }));
-    } catch (e) {
-      setState(prev => ({ ...prev, error: String(e) }));
-      throw e;
-    }
-  }, []);
+  const deleteDocument = useCallback(
+    async (documentId: string): Promise<void> => {
+      try {
+        await invoke("delete_kb_document", { documentId });
+        invalidateCache(); // Invalidate cache on mutation
+        setState((prev) => ({
+          ...prev,
+          documents: prev.documents.filter((d) => d.id !== documentId),
+          selectedDocument:
+            prev.selectedDocument?.id === documentId
+              ? null
+              : prev.selectedDocument,
+          chunks: prev.selectedDocument?.id === documentId ? [] : prev.chunks,
+        }));
+      } catch (e) {
+        setState((prev) => ({ ...prev, error: String(e) }));
+        throw e;
+      }
+    },
+    [],
+  );
 
   // Update a chunk's content
-  const updateChunkContent = useCallback(async (chunkId: string, content: string): Promise<void> => {
-    try {
-      await invoke('update_chunk_content', { chunkId, content });
-      invalidateCache();
-    } catch (e) {
-      setState(prev => ({ ...prev, error: String(e) }));
-      throw e;
-    }
-  }, []);
+  const updateChunkContent = useCallback(
+    async (chunkId: string, content: string): Promise<void> => {
+      try {
+        await invoke("update_chunk_content", { chunkId, content });
+        invalidateCache();
+      } catch (e) {
+        setState((prev) => ({ ...prev, error: String(e) }));
+        throw e;
+      }
+    },
+    [],
+  );
 
   // Get KB health statistics
   const getKbHealthStats = useCallback(async () => {
     try {
-      return await invoke('get_kb_health_stats');
+      return await invoke("get_kb_health_stats");
     } catch (e) {
-      setState(prev => ({ ...prev, error: String(e) }));
+      setState((prev) => ({ ...prev, error: String(e) }));
       throw e;
     }
   }, []);
 
   // Clear all knowledge data
-  const clearAll = useCallback(async (namespaceId?: string): Promise<void> => {
-    try {
-      await invoke('clear_knowledge_data', { namespaceId });
-      invalidateCache(); // Invalidate cache on mutation
-      if (namespaceId) {
-        // Reload the specific namespace
-        await selectNamespace(namespaceId);
-        await loadNamespaces(true);
-      } else {
-        // Clear everything
-        setState(prev => ({
-          ...prev,
-          documents: [],
-          sources: [],
-          selectedDocument: null,
-          chunks: [],
-        }));
-        await loadNamespaces(true);
+  const clearAll = useCallback(
+    async (namespaceId?: string): Promise<void> => {
+      try {
+        await invoke("clear_knowledge_data", { namespaceId });
+        invalidateCache(); // Invalidate cache on mutation
+        if (namespaceId) {
+          // Reload the specific namespace
+          await selectNamespace(namespaceId);
+          await loadNamespaces(true);
+        } else {
+          // Clear everything
+          setState((prev) => ({
+            ...prev,
+            documents: [],
+            sources: [],
+            selectedDocument: null,
+            chunks: [],
+          }));
+          await loadNamespaces(true);
+        }
+      } catch (e) {
+        setState((prev) => ({ ...prev, error: String(e) }));
+        throw e;
       }
-    } catch (e) {
-      setState(prev => ({ ...prev, error: String(e) }));
-      throw e;
-    }
-  }, [loadNamespaces, selectNamespace]);
+    },
+    [loadNamespaces, selectNamespace],
+  );
 
   // Memoize the return value to prevent unnecessary re-renders
-  const actions = useMemo(() => ({
-    loadNamespaces,
-    selectNamespace,
-    selectDocument,
-    deleteNamespace,
-    deleteSource,
-    deleteDocument,
-    updateChunkContent,
-    getKbHealthStats,
-    clearAll,
-  }), [loadNamespaces, selectNamespace, selectDocument, deleteNamespace, deleteSource, deleteDocument, updateChunkContent, getKbHealthStats, clearAll]);
+  const actions = useMemo(
+    () => ({
+      loadNamespaces,
+      selectNamespace,
+      selectDocument,
+      deleteNamespace,
+      deleteSource,
+      deleteDocument,
+      updateChunkContent,
+      getKbHealthStats,
+      clearAll,
+    }),
+    [
+      loadNamespaces,
+      selectNamespace,
+      selectDocument,
+      deleteNamespace,
+      deleteSource,
+      deleteDocument,
+      updateChunkContent,
+      getKbHealthStats,
+      clearAll,
+    ],
+  );
 
   return {
     ...state,

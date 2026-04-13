@@ -1,11 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Icon } from '../../../components/shared/Icon';
-import { useToastContext } from '../../../contexts/ToastContext';
-import { useAnalytics } from '../../../hooks/useAnalytics';
-import { useDrafts } from '../../../hooks/useDrafts';
-import { useFeatureOps } from '../../../hooks/useFeatureOps';
-import type { CollaborationDispatchPreview, DispatchHistoryRecord, SavedDraft, TriageClusterRecord } from '../../../types';
-import { resolveRevampFlags } from '../../revamp';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Icon } from "../../../components/shared/Icon";
+import { useToastContext } from "../../../contexts/ToastContext";
+import { useAnalytics } from "../../../hooks/useAnalytics";
+import { useDrafts } from "../../../hooks/useDrafts";
+import { useQueueOps } from "../../../hooks/useQueueOps";
+import type {
+  CollaborationDispatchPreview,
+  SavedDraft,
+} from "../../../types/workspace";
+import type {
+  DispatchHistoryRecord,
+  TriageClusterRecord,
+} from "../../../types/queue";
+import {
+  QueueHistoryTemplatesPanel,
+  type QueueHistoryTemplatesSection,
+} from "./QueueHistoryTemplatesPanel";
+import { resolveRevampFlags } from "../../revamp";
 import {
   buildQueueHandoffSnapshot,
   buildQueueItems,
@@ -21,7 +32,7 @@ import {
   type QueuePriority,
   type QueueState,
   type QueueView,
-} from '../../inbox/queueModel';
+} from "../../inbox/queueModel";
 import {
   buildQueueCoachingSnapshot,
   buildQueueDispatchPreview,
@@ -30,10 +41,10 @@ import {
   matchesQueueFocusFilter,
   parseBatchTriageInput,
   type QueueFocusFilter,
-} from '../../inbox/queueCommandCenterHelpers';
-import { AsButton, Badge, EmptyState, Panel, Skeleton } from '../ui';
-import '../../../styles/revamp/index.css';
-import './queueCommandCenter.css';
+} from "../../inbox/queueCommandCenterHelpers";
+import { AsButton, Badge, EmptyState, Panel, Skeleton } from "../ui";
+import "../../../styles/revamp/index.css";
+import "./queueCommandCenter.css";
 
 interface QueueCommandCenterPageProps {
   onLoadDraft: (draft: SavedDraft) => void;
@@ -41,26 +52,33 @@ interface QueueCommandCenterPageProps {
   onQueueViewConsumed?: () => void;
 }
 
-const QUEUE_OPERATOR_STORAGE_KEY = 'assistsupport.queue.operator';
-const QUEUE_VIEW_STORAGE_KEY = 'assistsupport.queue.favorite-view';
+type QueueSection = "triage" | QueueHistoryTemplatesSection;
+
+const QUEUE_OPERATOR_STORAGE_KEY = "assistsupport.queue.operator";
+const QUEUE_VIEW_STORAGE_KEY = "assistsupport.queue.favorite-view";
 
 const QUEUE_VIEWS: Array<{ id: QueueView; label: string }> = [
-  { id: 'all', label: 'All' },
-  { id: 'unassigned', label: 'Unassigned' },
-  { id: 'at_risk', label: 'At Risk' },
-  { id: 'in_progress', label: 'In Progress' },
-  { id: 'resolved', label: 'Resolved' },
+  { id: "all", label: "All" },
+  { id: "unassigned", label: "Unassigned" },
+  { id: "at_risk", label: "At Risk" },
+  { id: "in_progress", label: "In Progress" },
+  { id: "resolved", label: "Resolved" },
 ];
 
 const QUEUE_FOCUS_FILTERS: Array<{ id: QueueFocusFilter; label: string }> = [
-  { id: 'all', label: 'All tickets' },
-  { id: 'policy-heavy', label: 'Policy heavy' },
-  { id: 'approval-heavy', label: 'Approval heavy' },
-  { id: 'repeated-incidents', label: 'Repeated incidents' },
-  { id: 'missing-context', label: 'Missing context' },
+  { id: "all", label: "All tickets" },
+  { id: "policy-heavy", label: "Policy heavy" },
+  { id: "approval-heavy", label: "Approval heavy" },
+  { id: "repeated-incidents", label: "Repeated incidents" },
+  { id: "missing-context", label: "Missing context" },
 ];
 
-const DISPATCH_TARGETS: CollaborationDispatchPreview['integration_type'][] = ['jira', 'servicenow', 'slack', 'teams'];
+const DISPATCH_TARGETS: CollaborationDispatchPreview["integration_type"][] = [
+  "jira",
+  "servicenow",
+  "slack",
+  "teams",
+];
 
 function formatTicketLabel(draft: SavedDraft): string {
   return draft.ticket_id?.trim() || `Draft ${draft.id.slice(0, 8)}`;
@@ -72,33 +90,43 @@ function truncate(value: string, limit: number): string {
 }
 
 function loadOperatorName(): string {
-  if (typeof window === 'undefined') return 'current-operator';
+  if (typeof window === "undefined") return "current-operator";
   try {
-    return localStorage.getItem(QUEUE_OPERATOR_STORAGE_KEY) || 'current-operator';
+    return (
+      localStorage.getItem(QUEUE_OPERATOR_STORAGE_KEY) || "current-operator"
+    );
   } catch {
-    return 'current-operator';
+    return "current-operator";
   }
 }
 
 function loadPreferredQueueView(): QueueView {
-  if (typeof window === 'undefined') return 'all';
+  if (typeof window === "undefined") return "all";
   try {
     const stored = localStorage.getItem(QUEUE_VIEW_STORAGE_KEY);
-    if (stored === 'all' || stored === 'unassigned' || stored === 'at_risk' || stored === 'in_progress' || stored === 'resolved') {
+    if (
+      stored === "all" ||
+      stored === "unassigned" ||
+      stored === "at_risk" ||
+      stored === "in_progress" ||
+      stored === "resolved"
+    ) {
       return stored;
     }
   } catch {
     // Keep queue usable even when storage is unavailable.
   }
-  return 'all';
+  return "all";
 }
 
-function bandLabel(item: QueueItem): 'At Risk' | 'Unassigned' | 'In Progress' | 'Open' | 'Resolved' {
-  if (item.meta.state === 'resolved') return 'Resolved';
-  if (item.isAtRisk) return 'At Risk';
-  if (item.meta.owner === 'unassigned') return 'Unassigned';
-  if (item.meta.state === 'in_progress') return 'In Progress';
-  return 'Open';
+function bandLabel(
+  item: QueueItem,
+): "At Risk" | "Unassigned" | "In Progress" | "Open" | "Resolved" {
+  if (item.meta.state === "resolved") return "Resolved";
+  if (item.isAtRisk) return "At Risk";
+  if (item.meta.owner === "unassigned") return "Unassigned";
+  if (item.meta.state === "in_progress") return "In Progress";
+  return "Open";
 }
 
 export function QueueCommandCenterPage({
@@ -108,7 +136,24 @@ export function QueueCommandCenterPage({
 }: QueueCommandCenterPageProps) {
   const { success: showSuccess, error: showError } = useToastContext();
   const { logEvent } = useAnalytics();
-  const { drafts, loading, error: draftsError, loadDrafts } = useDrafts();
+  const draftStore = useDrafts();
+  const {
+    drafts,
+    templates,
+    loading,
+    error: draftsError,
+    loadDrafts,
+    searchDrafts,
+    loadTemplates,
+    deleteDraft,
+    saveTemplate,
+    updateTemplate,
+    deleteTemplate,
+    getDraft,
+    getDraftVersions,
+    restoreDraftVersion,
+    computeInputHash,
+  } = draftStore;
   const {
     clusterTicketsForTriage,
     listRecentTriageClusters,
@@ -116,24 +161,36 @@ export function QueueCommandCenterPage({
     confirmCollaborationDispatch,
     cancelCollaborationDispatch,
     listDispatchHistory,
-  } = useFeatureOps();
+  } = useQueueOps();
   const queueFlags = useMemo(() => resolveRevampFlags(), []);
-  const [queueMetaMap, setQueueMetaMap] = useState<QueueMetaMap>(() => loadQueueMeta());
-  const [previousHandoffSnapshot, setPreviousHandoffSnapshot] = useState(() => loadQueueHandoffSnapshot());
+  const [queueMetaMap, setQueueMetaMap] = useState<QueueMetaMap>(() =>
+    loadQueueMeta(),
+  );
+  const [previousHandoffSnapshot, setPreviousHandoffSnapshot] = useState(() =>
+    loadQueueHandoffSnapshot(),
+  );
   const [queueView, setQueueView] = useState<QueueView>(loadPreferredQueueView);
-  const [queueFocusFilter, setQueueFocusFilter] = useState<QueueFocusFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [queueSection, setQueueSection] = useState<QueueSection>("triage");
+  const [queueFocusFilter, setQueueFocusFilter] =
+    useState<QueueFocusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [operatorName, setOperatorName] = useState(loadOperatorName);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [batchTriageInput, setBatchTriageInput] = useState('');
-  const [batchTriageOutput, setBatchTriageOutput] = useState('');
+  const [batchTriageInput, setBatchTriageInput] = useState("");
+  const [batchTriageOutput, setBatchTriageOutput] = useState("");
   const [batchTriageBusy, setBatchTriageBusy] = useState(false);
   const [triageHistory, setTriageHistory] = useState<TriageClusterRecord[]>([]);
   const [handoffStatus, setHandoffStatus] = useState<string | null>(null);
-  const [dispatchTarget, setDispatchTarget] = useState<CollaborationDispatchPreview['integration_type']>('jira');
-  const [dispatchPreview, setDispatchPreview] = useState<CollaborationDispatchPreview | null>(null);
-  const [dispatchHistory, setDispatchHistory] = useState<DispatchHistoryRecord[]>([]);
-  const [pendingDispatchId, setPendingDispatchId] = useState<string | null>(null);
+  const [dispatchTarget, setDispatchTarget] =
+    useState<CollaborationDispatchPreview["integration_type"]>("jira");
+  const [dispatchPreview, setDispatchPreview] =
+    useState<CollaborationDispatchPreview | null>(null);
+  const [dispatchHistory, setDispatchHistory] = useState<
+    DispatchHistoryRecord[]
+  >([]);
+  const [pendingDispatchId, setPendingDispatchId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     loadDrafts(100);
@@ -158,6 +215,7 @@ export function QueueCommandCenterPage({
 
   useEffect(() => {
     if (!initialQueueView) return;
+    setQueueSection("triage");
     setQueueView(initialQueueView);
     onQueueViewConsumed?.();
   }, [initialQueueView, onQueueViewConsumed]);
@@ -178,23 +236,69 @@ export function QueueCommandCenterPage({
     }
   }, [queueView]);
 
-  const queueItems = useMemo(() => buildQueueItems(drafts, queueMetaMap), [drafts, queueMetaMap]);
+  const queueItems = useMemo(
+    () => buildQueueItems(drafts, queueMetaMap),
+    [drafts, queueMetaMap],
+  );
+  const followUpsDataSource = useMemo(
+    () => ({
+      drafts,
+      templates,
+      loading,
+      loadDrafts,
+      searchDrafts,
+      loadTemplates,
+      deleteDraft,
+      saveTemplate,
+      updateTemplate,
+      deleteTemplate,
+      getDraft,
+      getDraftVersions,
+      restoreDraftVersion,
+      computeInputHash,
+    }),
+    [
+      computeInputHash,
+      deleteDraft,
+      deleteTemplate,
+      drafts,
+      getDraft,
+      getDraftVersions,
+      loadDrafts,
+      loadTemplates,
+      loading,
+      restoreDraftVersion,
+      saveTemplate,
+      searchDrafts,
+      templates,
+      updateTemplate,
+    ],
+  );
   const queueSummary = useMemo(() => summarizeQueue(queueItems), [queueItems]);
-  const queueCoaching = useMemo(() => buildQueueCoachingSnapshot(queueItems, triageHistory), [queueItems, triageHistory]);
-  const queueHandoffSnapshot = useMemo(() => buildQueueHandoffSnapshot(queueItems), [queueItems]);
+  const queueCoaching = useMemo(
+    () => buildQueueCoachingSnapshot(queueItems, triageHistory),
+    [queueItems, triageHistory],
+  );
+  const queueHandoffSnapshot = useMemo(
+    () => buildQueueHandoffSnapshot(queueItems),
+    [queueItems],
+  );
   const queueHandoffPackText = useMemo(
-    () => buildQueueHandoffPackText(queueHandoffSnapshot, previousHandoffSnapshot),
+    () =>
+      buildQueueHandoffPackText(queueHandoffSnapshot, previousHandoffSnapshot),
     [queueHandoffSnapshot, previousHandoffSnapshot],
   );
 
   const filteredItems = useMemo(() => {
     const scoped = filterQueueItems(queueItems, queueView);
-    const focused = scoped.filter((item) => matchesQueueFocusFilter(item, queueFocusFilter, triageHistory));
+    const focused = scoped.filter((item) =>
+      matchesQueueFocusFilter(item, queueFocusFilter, triageHistory),
+    );
     const q = searchQuery.trim().toLowerCase();
     if (!q) return focused;
     return focused.filter((item) => {
-      const ticket = item.draft.ticket_id?.toLowerCase() ?? '';
-      const summary = item.draft.summary_text?.toLowerCase() ?? '';
+      const ticket = item.draft.ticket_id?.toLowerCase() ?? "";
+      const summary = item.draft.summary_text?.toLowerCase() ?? "";
       const input = item.draft.input_text.toLowerCase();
       return ticket.includes(q) || summary.includes(q) || input.includes(q);
     });
@@ -208,12 +312,19 @@ export function QueueCommandCenterPage({
   }, [filteredItems]);
 
   const updateQueueMeta = useCallback(
-    (draftId: string, updates: Partial<{ owner: string; state: QueueState; priority: QueuePriority }>) => {
+    (
+      draftId: string,
+      updates: Partial<{
+        owner: string;
+        state: QueueState;
+        priority: QueuePriority;
+      }>,
+    ) => {
       setQueueMetaMap((prev) => {
         const existing = prev[draftId] ?? {
-          owner: 'unassigned',
-          state: 'open' as QueueState,
-          priority: 'normal' as QueuePriority,
+          owner: "unassigned",
+          state: "open" as QueueState,
+          priority: "normal" as QueuePriority,
           updatedAt: new Date().toISOString(),
         };
 
@@ -235,24 +346,33 @@ export function QueueCommandCenterPage({
 
   const handleClaim = useCallback(
     (draftId: string) => {
-      updateQueueMeta(draftId, { owner: operatorName, state: 'in_progress' });
-      void logEvent('queue_item_claimed', { draft_id: draftId, operator: operatorName });
+      updateQueueMeta(draftId, { owner: operatorName, state: "in_progress" });
+      void logEvent("queue_item_claimed", {
+        draft_id: draftId,
+        operator: operatorName,
+      });
     },
     [logEvent, operatorName, updateQueueMeta],
   );
 
   const handleResolve = useCallback(
     (draftId: string) => {
-      updateQueueMeta(draftId, { state: 'resolved' });
-      void logEvent('queue_item_resolved', { draft_id: draftId, operator: operatorName });
+      updateQueueMeta(draftId, { state: "resolved" });
+      void logEvent("queue_item_resolved", {
+        draft_id: draftId,
+        operator: operatorName,
+      });
     },
     [logEvent, operatorName, updateQueueMeta],
   );
 
   const handleReopen = useCallback(
     (draftId: string) => {
-      updateQueueMeta(draftId, { state: 'open' });
-      void logEvent('queue_item_reopened', { draft_id: draftId, operator: operatorName });
+      updateQueueMeta(draftId, { state: "open" });
+      void logEvent("queue_item_reopened", {
+        draft_id: draftId,
+        operator: operatorName,
+      });
     },
     [logEvent, operatorName, updateQueueMeta],
   );
@@ -260,7 +380,7 @@ export function QueueCommandCenterPage({
   const handlePriorityChange = useCallback(
     (draftId: string, priority: QueuePriority) => {
       updateQueueMeta(draftId, { priority });
-      void logEvent('queue_item_priority_changed', {
+      void logEvent("queue_item_priority_changed", {
         draft_id: draftId,
         operator: operatorName,
         priority,
@@ -287,15 +407,18 @@ export function QueueCommandCenterPage({
   const handleSeedBatchTriage = useCallback(() => {
     const nextInput = filteredItems
       .slice(0, 25)
-      .map((item) => `${formatTicketLabel(item.draft)}|${item.draft.summary_text || item.draft.input_text}`)
-      .join('\n');
+      .map(
+        (item) =>
+          `${formatTicketLabel(item.draft)}|${item.draft.summary_text || item.draft.input_text}`,
+      )
+      .join("\n");
     setBatchTriageInput(nextInput);
   }, [filteredItems]);
 
   const handleRunBatchTriage = useCallback(async () => {
     const tickets = parseBatchTriageInput(batchTriageInput);
     if (tickets.length === 0) {
-      showError('Add at least one ticket before running batch triage');
+      showError("Add at least one ticket before running batch triage");
       return;
     }
 
@@ -304,22 +427,30 @@ export function QueueCommandCenterPage({
       const clusters = await clusterTicketsForTriage(tickets);
       setBatchTriageOutput(formatBatchTriageOutput(clusters));
       await refreshTriageHistory();
-      void logEvent('queue_batch_triage_ran', {
+      void logEvent("queue_batch_triage_ran", {
         operator: operatorName,
         ticket_count: tickets.length,
         cluster_count: clusters.length,
       });
-      showSuccess('Batch triage completed');
+      showSuccess("Batch triage completed");
     } catch (error) {
       showError(`Batch triage failed: ${error}`);
     } finally {
       setBatchTriageBusy(false);
     }
-  }, [batchTriageInput, clusterTicketsForTriage, refreshTriageHistory, logEvent, operatorName, showSuccess, showError]);
+  }, [
+    batchTriageInput,
+    clusterTicketsForTriage,
+    refreshTriageHistory,
+    logEvent,
+    operatorName,
+    showSuccess,
+    showError,
+  ]);
 
   const handleCopyHandoffPack = useCallback(async () => {
-    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
-      setHandoffStatus('Clipboard not available in this environment.');
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      setHandoffStatus("Clipboard not available in this environment.");
       return;
     }
 
@@ -327,22 +458,30 @@ export function QueueCommandCenterPage({
       await navigator.clipboard.writeText(queueHandoffPackText);
       persistQueueHandoffSnapshot(queueHandoffSnapshot);
       setPreviousHandoffSnapshot(queueHandoffSnapshot);
-      setHandoffStatus('Shift handoff pack copied.');
-      void logEvent('queue_handoff_pack_copied', {
+      setHandoffStatus("Shift handoff pack copied.");
+      void logEvent("queue_handoff_pack_copied", {
         operator: operatorName,
         queue_view: queueView,
         at_risk: queueHandoffSnapshot.summary.atRisk,
       });
-      showSuccess('Shift handoff pack copied');
+      showSuccess("Shift handoff pack copied");
     } catch {
-      setHandoffStatus('Failed to copy shift handoff pack.');
-      showError('Failed to copy shift handoff pack');
+      setHandoffStatus("Failed to copy shift handoff pack.");
+      showError("Failed to copy shift handoff pack");
     }
-  }, [queueHandoffPackText, queueHandoffSnapshot, logEvent, operatorName, queueView, showSuccess, showError]);
+  }, [
+    queueHandoffPackText,
+    queueHandoffSnapshot,
+    logEvent,
+    operatorName,
+    queueView,
+    showSuccess,
+    showError,
+  ]);
 
   const handlePreviewDispatch = useCallback(() => {
     if (!currentItem) {
-      showError('Select a work item before previewing a dispatch');
+      showError("Select a work item before previewing a dispatch");
       return;
     }
 
@@ -362,7 +501,7 @@ export function QueueCommandCenterPage({
         setDispatchPreview(preview);
         setPendingDispatchId(record.id);
         setDispatchHistory(await listDispatchHistory(20).catch(() => []));
-        void logEvent('queue_dispatch_previewed', {
+        void logEvent("queue_dispatch_previewed", {
           operator: operatorName,
           draft_id: currentItem.draft.id,
           integration_type: dispatchTarget,
@@ -371,11 +510,19 @@ export function QueueCommandCenterPage({
       .catch((error) => {
         showError(`Could not preview dispatch: ${error}`);
       });
-  }, [currentItem, dispatchTarget, operatorName, previewCollaborationDispatch, listDispatchHistory, logEvent, showError]);
+  }, [
+    currentItem,
+    dispatchTarget,
+    operatorName,
+    previewCollaborationDispatch,
+    listDispatchHistory,
+    logEvent,
+    showError,
+  ]);
 
   const handleSendDispatch = useCallback(async () => {
     if (!pendingDispatchId || !dispatchPreview) {
-      showError('Preview a dispatch before confirming delivery');
+      showError("Preview a dispatch before confirming delivery");
       return;
     }
 
@@ -384,7 +531,7 @@ export function QueueCommandCenterPage({
       setDispatchHistory(await listDispatchHistory(20).catch(() => []));
       setDispatchPreview(null);
       setPendingDispatchId(null);
-      void logEvent('queue_dispatch_sent', {
+      void logEvent("queue_dispatch_sent", {
         operator: operatorName,
         integration_type: record.integration_type,
         dispatch_id: record.id,
@@ -393,7 +540,16 @@ export function QueueCommandCenterPage({
     } catch (error) {
       showError(`Failed to confirm dispatch: ${error}`);
     }
-  }, [pendingDispatchId, dispatchPreview, confirmCollaborationDispatch, listDispatchHistory, logEvent, operatorName, showSuccess, showError]);
+  }, [
+    pendingDispatchId,
+    dispatchPreview,
+    confirmCollaborationDispatch,
+    listDispatchHistory,
+    logEvent,
+    operatorName,
+    showSuccess,
+    showError,
+  ]);
 
   const handleCancelDispatch = useCallback(async () => {
     if (!pendingDispatchId) {
@@ -406,60 +562,74 @@ export function QueueCommandCenterPage({
       setDispatchHistory(await listDispatchHistory(20).catch(() => []));
       setDispatchPreview(null);
       setPendingDispatchId(null);
-      showSuccess('Dispatch preview cancelled');
+      showSuccess("Dispatch preview cancelled");
     } catch (error) {
       showError(`Failed to cancel dispatch: ${error}`);
     }
-  }, [pendingDispatchId, cancelCollaborationDispatch, listDispatchHistory, showSuccess, showError]);
+  }, [
+    pendingDispatchId,
+    cancelCollaborationDispatch,
+    listDispatchHistory,
+    showSuccess,
+    showError,
+  ]);
 
   const handleQueueKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
       const target = event.target as HTMLElement;
-      const isInputElement = target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA';
+      const isInputElement =
+        target.tagName === "INPUT" ||
+        target.tagName === "SELECT" ||
+        target.tagName === "TEXTAREA";
       if (isInputElement) return;
 
       switch (event.key.toLowerCase()) {
-        case 'arrowdown':
-        case 'j':
+        case "arrowdown":
+        case "j":
           event.preventDefault();
-          setSelectedIndex((prev) => Math.min(prev + 1, Math.max(filteredItems.length - 1, 0)));
+          setSelectedIndex((prev) =>
+            Math.min(prev + 1, Math.max(filteredItems.length - 1, 0)),
+          );
           break;
-        case 'arrowup':
-        case 'k':
+        case "arrowup":
+        case "k":
           event.preventDefault();
           setSelectedIndex((prev) => Math.max(prev - 1, 0));
           break;
-        case 'enter':
+        case "enter":
           event.preventDefault();
           withCurrentItem((item) => {
             onLoadDraft(item.draft);
-            void logEvent('queue_item_opened', {
+            void logEvent("queue_item_opened", {
               draft_id: item.draft.id,
               operator: operatorName,
-              entrypoint: 'keyboard',
+              entrypoint: "keyboard",
             });
           });
           break;
-        case 'c':
+        case "c":
           event.preventDefault();
           withCurrentItem((item) => {
-            if (item.meta.owner === 'unassigned' && item.meta.state !== 'resolved') {
+            if (
+              item.meta.owner === "unassigned" &&
+              item.meta.state !== "resolved"
+            ) {
               handleClaim(item.draft.id);
             }
           });
           break;
-        case 'x':
+        case "x":
           event.preventDefault();
           withCurrentItem((item) => {
-            if (item.meta.state !== 'resolved') {
+            if (item.meta.state !== "resolved") {
               handleResolve(item.draft.id);
             }
           });
           break;
-        case 'o':
+        case "o":
           event.preventDefault();
           withCurrentItem((item) => {
-            if (item.meta.state === 'resolved') {
+            if (item.meta.state === "resolved") {
               handleReopen(item.draft.id);
             }
           });
@@ -468,12 +638,21 @@ export function QueueCommandCenterPage({
           break;
       }
     },
-    [filteredItems.length, handleClaim, handleReopen, handleResolve, logEvent, onLoadDraft, operatorName, withCurrentItem],
+    [
+      filteredItems.length,
+      handleClaim,
+      handleReopen,
+      handleResolve,
+      logEvent,
+      onLoadDraft,
+      operatorName,
+      withCurrentItem,
+    ],
   );
 
   const listActions = (
     <div className="as-queue__count" aria-label="Visible work item count">
-      {loading ? 'Loading…' : `${filteredItems.length} shown`}
+      {loading ? "Loading…" : `${filteredItems.length} shown`}
     </div>
   );
 
@@ -517,7 +696,9 @@ export function QueueCommandCenterPage({
           tabIndex={0}
           role="listbox"
           aria-label="Work items"
-          aria-activedescendant={currentItem ? `as-queue-item-${currentItem.draft.id}` : undefined}
+          aria-activedescendant={
+            currentItem ? `as-queue-item-${currentItem.draft.id}` : undefined
+          }
           className="as-queue__items"
         >
           {filteredItems.map((item, index) => {
@@ -529,28 +710,53 @@ export function QueueCommandCenterPage({
 
             return (
               <li key={item.draft.id}>
-                {showSection && <div className="as-queue__sectionLabel">{label}</div>}
+                {showSection && (
+                  <div className="as-queue__sectionLabel">{label}</div>
+                )}
                 <div
                   id={`as-queue-item-${item.draft.id}`}
                   role="option"
                   aria-selected={selected}
-                  className={['as-queue__item', selected ? 'is-selected' : ''].filter(Boolean).join(' ')}
-                  data-selected={selected ? 'true' : 'false'}
+                  className={["as-queue__item", selected ? "is-selected" : ""]
+                    .filter(Boolean)
+                    .join(" ")}
+                  data-selected={selected ? "true" : "false"}
                   onClick={() => setSelectedIndex(index)}
                 >
                   <div className="as-queue__itemTop">
                     <div>
-                      <div className="as-queue__ticket">{formatTicketLabel(item.draft)}</div>
+                      <div className="as-queue__ticket">
+                        {formatTicketLabel(item.draft)}
+                      </div>
                       <p className="as-queue__summary">
-                        {truncate(item.draft.summary_text || item.draft.input_text, 140)}
+                        {truncate(
+                          item.draft.summary_text || item.draft.input_text,
+                          140,
+                        )}
                       </p>
                     </div>
                     <div className="as-queue__badges">
-                      <Badge tone={item.isAtRisk ? 'bad' : item.meta.priority === 'urgent' ? 'warn' : 'neutral'}>
+                      <Badge
+                        tone={
+                          item.isAtRisk
+                            ? "bad"
+                            : item.meta.priority === "urgent"
+                              ? "warn"
+                              : "neutral"
+                        }
+                      >
                         {item.meta.priority}
                       </Badge>
-                      <Badge tone={item.meta.state === 'resolved' ? 'info' : item.meta.state === 'in_progress' ? 'good' : 'neutral'}>
-                        {item.meta.state.replace('_', ' ')}
+                      <Badge
+                        tone={
+                          item.meta.state === "resolved"
+                            ? "info"
+                            : item.meta.state === "in_progress"
+                              ? "good"
+                              : "neutral"
+                        }
+                      >
+                        {item.meta.state.replace("_", " ")}
                       </Badge>
                       {item.isAtRisk && <Badge tone="bad">at risk</Badge>}
                     </div>
@@ -559,7 +765,9 @@ export function QueueCommandCenterPage({
                   <div className="as-queue__metaRow">
                     <span>Owner: {item.meta.owner}</span>
                     <span>SLA due: {formatQueueTimestamp(item.slaDueAt)}</span>
-                    <span>Updated: {formatQueueTimestamp(item.meta.updatedAt)}</span>
+                    <span>
+                      Updated: {formatQueueTimestamp(item.meta.updatedAt)}
+                    </span>
                   </div>
 
                   <div className="as-queue__actions">
@@ -568,26 +776,38 @@ export function QueueCommandCenterPage({
                       size="small"
                       onClick={() => {
                         onLoadDraft(item.draft);
-                        void logEvent('queue_item_opened', {
+                        void logEvent("queue_item_opened", {
                           draft_id: item.draft.id,
                           operator: operatorName,
-                          entrypoint: 'button',
+                          entrypoint: "button",
                         });
                       }}
                     >
                       Open Draft
                     </AsButton>
-                    {item.meta.owner === 'unassigned' && item.meta.state !== 'resolved' && (
-                      <AsButton size="small" onClick={() => handleClaim(item.draft.id)}>
-                        Claim
-                      </AsButton>
-                    )}
-                    {item.meta.state !== 'resolved' ? (
-                      <AsButton tone="ghost" size="small" onClick={() => handleResolve(item.draft.id)}>
+                    {item.meta.owner === "unassigned" &&
+                      item.meta.state !== "resolved" && (
+                        <AsButton
+                          size="small"
+                          onClick={() => handleClaim(item.draft.id)}
+                        >
+                          Claim
+                        </AsButton>
+                      )}
+                    {item.meta.state !== "resolved" ? (
+                      <AsButton
+                        tone="ghost"
+                        size="small"
+                        onClick={() => handleResolve(item.draft.id)}
+                      >
                         Resolve
                       </AsButton>
                     ) : (
-                      <AsButton tone="ghost" size="small" onClick={() => handleReopen(item.draft.id)}>
+                      <AsButton
+                        tone="ghost"
+                        size="small"
+                        onClick={() => handleReopen(item.draft.id)}
+                      >
                         Reopen
                       </AsButton>
                     )}
@@ -606,7 +826,19 @@ export function QueueCommandCenterPage({
       <Panel
         title="Team Scorecard"
         subtitle="Queue coaching for recurring issues, ownership risk, and missing context"
-        actions={<Badge tone={queueCoaching.score >= 85 ? 'good' : queueCoaching.score >= 70 ? 'warn' : 'bad'}>{queueCoaching.score}/100</Badge>}
+        actions={
+          <Badge
+            tone={
+              queueCoaching.score >= 85
+                ? "good"
+                : queueCoaching.score >= 70
+                  ? "warn"
+                  : "bad"
+            }
+          >
+            {queueCoaching.score}/100
+          </Badge>
+        }
       >
         <p className="as-queue__insightSummary">{queueCoaching.summary}</p>
         <div className="as-queue__coachMetrics">
@@ -637,7 +869,9 @@ export function QueueCommandCenterPage({
             ))}
           </ul>
         ) : (
-          <p className="as-queue__insightHint">No major queue coaching signals right now.</p>
+          <p className="as-queue__insightHint">
+            No major queue coaching signals right now.
+          </p>
         )}
         {queueCoaching.topOwners.length > 0 && (
           <div className="as-queue__ownerLoad">
@@ -647,7 +881,8 @@ export function QueueCommandCenterPage({
                 <li key={owner.owner}>
                   <strong>{owner.owner}</strong>
                   <span>
-                    {owner.openCount} open · {owner.inProgressCount} in progress · {owner.atRiskCount} at risk
+                    {owner.openCount} open · {owner.inProgressCount} in progress
+                    · {owner.atRiskCount} at risk
                   </span>
                 </li>
               ))}
@@ -660,16 +895,24 @@ export function QueueCommandCenterPage({
         <Panel
           title="Batch Triage"
           subtitle="Paste or seed tickets, cluster them, and surface repeated issue families"
-          actions={(
+          actions={
             <div className="as-queue__panelActions">
-              <AsButton tone="ghost" size="small" onClick={handleSeedBatchTriage}>
+              <AsButton
+                tone="ghost"
+                size="small"
+                onClick={handleSeedBatchTriage}
+              >
                 Use visible queue
               </AsButton>
-              <AsButton tone="primary" size="small" onClick={handleRunBatchTriage}>
-                {batchTriageBusy ? 'Running…' : 'Run triage'}
+              <AsButton
+                tone="primary"
+                size="small"
+                onClick={handleRunBatchTriage}
+              >
+                {batchTriageBusy ? "Running…" : "Run triage"}
               </AsButton>
             </div>
-          )}
+          }
         >
           <textarea
             className="as-queue__textarea"
@@ -681,7 +924,10 @@ export function QueueCommandCenterPage({
           {batchTriageOutput ? (
             <pre className="as-queue__pre">{batchTriageOutput}</pre>
           ) : (
-            <p className="as-queue__insightHint">No triage output yet. Seed from the visible queue or paste tickets manually.</p>
+            <p className="as-queue__insightHint">
+              No triage output yet. Seed from the visible queue or paste tickets
+              manually.
+            </p>
           )}
           {triageHistory.length > 0 && (
             <div className="as-queue__history">
@@ -690,7 +936,9 @@ export function QueueCommandCenterPage({
                 {triageHistory.slice(0, 3).map((cluster) => (
                   <li key={cluster.id}>
                     <strong>{cluster.cluster_key}</strong>
-                    <span>{cluster.summary} · {cluster.ticket_count} tickets</span>
+                    <span>
+                      {cluster.summary} · {cluster.ticket_count} tickets
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -706,7 +954,11 @@ export function QueueCommandCenterPage({
       <div className="as-queue__detailStack">
         <Panel
           title="Selected Item"
-          subtitle={currentItem ? 'Preview + quick edits' : 'Select a work item to preview'}
+          subtitle={
+            currentItem
+              ? "Preview + quick edits"
+              : "Select a work item to preview"
+          }
         >
           {!currentItem ? (
             <EmptyState
@@ -716,9 +968,12 @@ export function QueueCommandCenterPage({
             />
           ) : (
             <>
-              <h3 className="as-queue__detailTitle">{formatTicketLabel(currentItem.draft)}</h3>
+              <h3 className="as-queue__detailTitle">
+                {formatTicketLabel(currentItem.draft)}
+              </h3>
               <p className="as-queue__detailText">
-                {currentItem.draft.summary_text || truncate(currentItem.draft.input_text, 260)}
+                {currentItem.draft.summary_text ||
+                  truncate(currentItem.draft.input_text, 260)}
               </p>
 
               <div className="as-queue__detailGrid">
@@ -735,7 +990,12 @@ export function QueueCommandCenterPage({
                   <select
                     className="as-queue__select"
                     value={currentItem.meta.priority}
-                    onChange={(event) => handlePriorityChange(currentItem.draft.id, event.target.value as QueuePriority)}
+                    onChange={(event) =>
+                      handlePriorityChange(
+                        currentItem.draft.id,
+                        event.target.value as QueuePriority,
+                      )
+                    }
                   >
                     <option value="low">low</option>
                     <option value="normal">normal</option>
@@ -750,22 +1010,35 @@ export function QueueCommandCenterPage({
                   tone="primary"
                   onClick={() => {
                     onLoadDraft(currentItem.draft);
-                    void logEvent('queue_item_opened', {
+                    void logEvent("queue_item_opened", {
                       draft_id: currentItem.draft.id,
                       operator: operatorName,
-                      entrypoint: 'preview',
+                      entrypoint: "preview",
                     });
                   }}
                 >
                   Open In Draft
                 </AsButton>
-                {currentItem.meta.owner === 'unassigned' && currentItem.meta.state !== 'resolved' && (
-                  <AsButton onClick={() => handleClaim(currentItem.draft.id)}>Claim</AsButton>
-                )}
-                {currentItem.meta.state !== 'resolved' ? (
-                  <AsButton tone="ghost" onClick={() => handleResolve(currentItem.draft.id)}>Resolve</AsButton>
+                {currentItem.meta.owner === "unassigned" &&
+                  currentItem.meta.state !== "resolved" && (
+                    <AsButton onClick={() => handleClaim(currentItem.draft.id)}>
+                      Claim
+                    </AsButton>
+                  )}
+                {currentItem.meta.state !== "resolved" ? (
+                  <AsButton
+                    tone="ghost"
+                    onClick={() => handleResolve(currentItem.draft.id)}
+                  >
+                    Resolve
+                  </AsButton>
                 ) : (
-                  <AsButton tone="ghost" onClick={() => handleReopen(currentItem.draft.id)}>Reopen</AsButton>
+                  <AsButton
+                    tone="ghost"
+                    onClick={() => handleReopen(currentItem.draft.id)}
+                  >
+                    Reopen
+                  </AsButton>
                 )}
               </div>
             </>
@@ -775,13 +1048,19 @@ export function QueueCommandCenterPage({
         <Panel
           title="Shift Handoff"
           subtitle="Copy a clean shift summary with owner load, deltas, and the top at-risk work"
-          actions={(
-            <AsButton tone="primary" size="small" onClick={handleCopyHandoffPack}>
+          actions={
+            <AsButton
+              tone="primary"
+              size="small"
+              onClick={handleCopyHandoffPack}
+            >
               Copy handoff
             </AsButton>
-          )}
+          }
         >
-          <pre className="as-queue__pre as-queue__pre--compact">{queueHandoffPackText}</pre>
+          <pre className="as-queue__pre as-queue__pre--compact">
+            {queueHandoffPackText}
+          </pre>
           {handoffStatus && <p className="as-queue__status">{handoffStatus}</p>}
         </Panel>
 
@@ -796,7 +1075,12 @@ export function QueueCommandCenterPage({
                 <select
                   className="as-queue__select"
                   value={dispatchTarget}
-                  onChange={(event) => setDispatchTarget(event.target.value as CollaborationDispatchPreview['integration_type'])}
+                  onChange={(event) =>
+                    setDispatchTarget(
+                      event.target
+                        .value as CollaborationDispatchPreview["integration_type"],
+                    )
+                  }
                 >
                   {DISPATCH_TARGETS.map((target) => (
                     <option key={target} value={target}>
@@ -806,7 +1090,11 @@ export function QueueCommandCenterPage({
                 </select>
               </label>
               <div className="as-queue__actions">
-                <AsButton tone="primary" size="small" onClick={handlePreviewDispatch}>
+                <AsButton
+                  tone="primary"
+                  size="small"
+                  onClick={handlePreviewDispatch}
+                >
                   Preview payload
                 </AsButton>
                 {dispatchPreview && (
@@ -814,7 +1102,11 @@ export function QueueCommandCenterPage({
                     <AsButton size="small" onClick={handleSendDispatch}>
                       Confirm sent
                     </AsButton>
-                    <AsButton tone="ghost" size="small" onClick={handleCancelDispatch}>
+                    <AsButton
+                      tone="ghost"
+                      size="small"
+                      onClick={handleCancelDispatch}
+                    >
                       Cancel
                     </AsButton>
                   </>
@@ -828,10 +1120,15 @@ export function QueueCommandCenterPage({
                   <strong>{dispatchPreview.destination_label}</strong>
                   <span>{dispatchPreview.title}</span>
                 </div>
-                <pre className="as-queue__pre as-queue__pre--compact">{dispatchPreview.payload_preview}</pre>
+                <pre className="as-queue__pre as-queue__pre--compact">
+                  {dispatchPreview.payload_preview}
+                </pre>
               </>
             ) : (
-              <p className="as-queue__insightHint">Select a ticket, choose a destination, and preview the outbound payload here.</p>
+              <p className="as-queue__insightHint">
+                Select a ticket, choose a destination, and preview the outbound
+                payload here.
+              </p>
             )}
 
             {dispatchHistory.length > 0 && (
@@ -841,7 +1138,10 @@ export function QueueCommandCenterPage({
                   {dispatchHistory.slice(0, 3).map((entry) => (
                     <li key={entry.id}>
                       <strong>{entry.destination_label}</strong>
-                      <span>{entry.title} · {entry.status} · {formatQueueTimestamp(entry.created_at)}</span>
+                      <span>
+                        {entry.title} · {entry.status} ·{" "}
+                        {formatQueueTimestamp(entry.created_at)}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -854,23 +1154,63 @@ export function QueueCommandCenterPage({
   );
 
   return (
-    <div className="as-queue" data-testid="queue-first-inbox" onKeyDown={handleQueueKeyDown}>
+    <div
+      className="as-queue"
+      data-testid="queue-first-inbox"
+      onKeyDown={queueSection === "triage" ? handleQueueKeyDown : undefined}
+    >
       <div className="as-queue__header">
         <div>
           <h2 className="as-queue__title">Queue Command Center</h2>
           <p className="as-queue__subtitle">
-            Local-only queue triage. Open drafts, claim ownership, and resolve work without losing context.
+            Local-only queue triage. Open drafts, claim ownership, and resolve
+            work without losing context.
           </p>
         </div>
-        <div className="as-queue__operator" aria-label="Queue operator settings">
+        <div
+          className="as-queue__operator"
+          aria-label="Queue operator settings"
+        >
           <div className="as-queue__label">Operator</div>
           <input
             className="as-queue__input"
             value={operatorName}
-            onChange={(event) => setOperatorName(event.target.value || 'current-operator')}
+            onChange={(event) =>
+              setOperatorName(event.target.value || "current-operator")
+            }
             maxLength={64}
             aria-label="Operator name"
           />
+        </div>
+      </div>
+
+      <div className="as-queue__controls" aria-label="Queue sections">
+        <div
+          className="as-queue__viewButtons"
+          role="tablist"
+          aria-label="Queue sections"
+        >
+          <AsButton
+            tone={queueSection === "triage" ? "primary" : "ghost"}
+            size="small"
+            onClick={() => setQueueSection("triage")}
+          >
+            Triage
+          </AsButton>
+          <AsButton
+            tone={queueSection === "history" ? "primary" : "ghost"}
+            size="small"
+            onClick={() => setQueueSection("history")}
+          >
+            History
+          </AsButton>
+          <AsButton
+            tone={queueSection === "templates" ? "primary" : "ghost"}
+            size="small"
+            onClick={() => setQueueSection("templates")}
+          >
+            Templates
+          </AsButton>
         </div>
       </div>
 
@@ -893,56 +1233,91 @@ export function QueueCommandCenterPage({
         </Panel>
       </div>
 
-      <div className="as-queue__controls" aria-label="Queue controls">
-        <div className="as-queue__controlGroups">
-          <div className="as-queue__viewButtons" role="group" aria-label="Queue views">
-            {QUEUE_VIEWS.map((view) => (
-              <AsButton
-                key={view.id}
-                tone={queueView === view.id ? 'primary' : 'ghost'}
-                size="small"
-                onClick={() => {
-                  setQueueView(view.id);
-                  void logEvent('queue_view_changed', { queue_view: view.id, operator: operatorName });
-                }}
+      {queueSection === "triage" ? (
+        <>
+          <div className="as-queue__controls" aria-label="Queue controls">
+            <div className="as-queue__controlGroups">
+              <div
+                className="as-queue__viewButtons"
+                role="group"
+                aria-label="Queue views"
               >
-                {view.label}
-              </AsButton>
-            ))}
+                {QUEUE_VIEWS.map((view) => (
+                  <AsButton
+                    key={view.id}
+                    tone={queueView === view.id ? "primary" : "ghost"}
+                    size="small"
+                    onClick={() => {
+                      setQueueView(view.id);
+                      void logEvent("queue_view_changed", {
+                        queue_view: view.id,
+                        operator: operatorName,
+                      });
+                    }}
+                  >
+                    {view.label}
+                  </AsButton>
+                ))}
+              </div>
+
+              <div
+                className="as-queue__viewButtons"
+                role="group"
+                aria-label="Queue focus filters"
+              >
+                {QUEUE_FOCUS_FILTERS.map((filter) => (
+                  <AsButton
+                    key={filter.id}
+                    tone={queueFocusFilter === filter.id ? "primary" : "ghost"}
+                    size="small"
+                    onClick={() => {
+                      setQueueFocusFilter(filter.id);
+                      void logEvent("queue_focus_filter_changed", {
+                        queue_focus_filter: filter.id,
+                        operator: operatorName,
+                      });
+                    }}
+                  >
+                    {filter.label}
+                  </AsButton>
+                ))}
+              </div>
+            </div>
+
+            <input
+              className={["as-queue__input", "as-queue__search"].join(" ")}
+              placeholder="Search queue, ticket, or resolution..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              aria-label="Search queue"
+            />
           </div>
 
-          <div className="as-queue__viewButtons" role="group" aria-label="Queue focus filters">
-            {QUEUE_FOCUS_FILTERS.map((filter) => (
-              <AsButton
-                key={filter.id}
-                tone={queueFocusFilter === filter.id ? 'primary' : 'ghost'}
-                size="small"
-                onClick={() => {
-                  setQueueFocusFilter(filter.id);
-                  void logEvent('queue_focus_filter_changed', { queue_focus_filter: filter.id, operator: operatorName });
-                }}
-              >
-                {filter.label}
-              </AsButton>
-            ))}
+          <div className="as-queue__insightsGrid">{insightsContent}</div>
+
+          <div className="as-queue__grid" aria-label="Queue workspace">
+            <div className="as-queue__list">{listContent}</div>
+            {detailContent}
           </div>
-        </div>
-
-        <input
-          className={['as-queue__input', 'as-queue__search'].join(' ')}
-          placeholder="Search queue, ticket, or resolution..."
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          aria-label="Search queue"
-        />
-      </div>
-
-      <div className="as-queue__insightsGrid">{insightsContent}</div>
-
-      <div className="as-queue__grid" aria-label="Queue workspace">
-        <div className="as-queue__list">{listContent}</div>
-        {detailContent}
-      </div>
+        </>
+      ) : (
+        <Panel
+          title={queueSection === "history" ? "Draft History" : "Templates"}
+          subtitle={
+            queueSection === "history"
+              ? "Search saved drafts, inspect version history, and reopen work in the workspace."
+              : "Manage reusable templates without leaving Queue."
+          }
+        >
+          <QueueHistoryTemplatesPanel
+            dataSource={followUpsDataSource}
+            activeSection={queueSection}
+            onActiveSectionChange={setQueueSection}
+            hideSectionTabs
+            onLoadDraft={onLoadDraft}
+          />
+        </Panel>
+      )}
     </div>
   );
 }

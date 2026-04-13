@@ -1,23 +1,30 @@
-import { useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import type { MemoryKernelEnrichmentResult } from '../types';
+import { useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { MemoryKernelEnrichmentResult } from "../types/app";
 
-const ENRICHMENT_SECTION_HEADING = 'MemoryKernel Policy Context';
+const ENRICHMENT_SECTION_HEADING = "MemoryKernel Policy Context";
 const FALLBACK_HINTS: Record<string, string> = {
-  offline: 'MemoryKernel service is offline. Start the local service and retry.',
-  timeout: 'MemoryKernel query timed out. Retry or increase the integration timeout.',
-  'version-mismatch':
-    'MemoryKernel contract mismatch. Align pin/manifest versions before retrying.',
-  'schema-unavailable':
-    'MemoryKernel schema is unavailable. Run migration checks and retry.',
-  'malformed-payload':
-    'MemoryKernel returned malformed payload. Verify producer contract alignment.',
-  'non-2xx': 'MemoryKernel returned a non-success status. Inspect producer logs and handoff payload.',
-  'network-error': 'MemoryKernel network call failed. Validate localhost connectivity and retry.',
-  'query-error': 'MemoryKernel query failed. Inspect machine error code and provider logs.',
-  degraded: 'MemoryKernel is degraded. Continue in fallback mode until preflight recovers.',
-  'feature-disabled': 'MemoryKernel enrichment is disabled by configuration.',
-  'adapter-error': 'MemoryKernel adapter encountered an error. Check consumer logs and retry.',
+  offline:
+    "MemoryKernel service is offline. Start the local service and retry.",
+  timeout:
+    "MemoryKernel query timed out. Retry or increase the integration timeout.",
+  "version-mismatch":
+    "MemoryKernel contract mismatch. Align pin/manifest versions before retrying.",
+  "schema-unavailable":
+    "MemoryKernel schema is unavailable. Run migration checks and retry.",
+  "malformed-payload":
+    "MemoryKernel returned malformed payload. Verify producer contract alignment.",
+  "non-2xx":
+    "MemoryKernel returned a non-success status. Inspect producer logs and handoff payload.",
+  "network-error":
+    "MemoryKernel network call failed. Validate localhost connectivity and retry.",
+  "query-error":
+    "MemoryKernel query failed. Inspect machine error code and provider logs.",
+  degraded:
+    "MemoryKernel is degraded. Continue in fallback mode until preflight recovers.",
+  "feature-disabled": "MemoryKernel enrichment is disabled by configuration.",
+  "adapter-error":
+    "MemoryKernel adapter encountered an error. Check consumer logs and retry.",
 };
 
 export interface MemoryKernelEnrichmentOutcome {
@@ -29,8 +36,11 @@ export interface MemoryKernelEnrichmentOutcome {
   machineErrorCode: string | null;
 }
 
-function joinNotes(existing: string | undefined, enrichmentText: string): string {
-  const trimmedExisting = (existing ?? '').trim();
+function joinNotes(
+  existing: string | undefined,
+  enrichmentText: string,
+): string {
+  const trimmedExisting = (existing ?? "").trim();
   const section = `${ENRICHMENT_SECTION_HEADING}\n${enrichmentText}`;
   if (!trimmedExisting) {
     return section;
@@ -41,11 +51,13 @@ function joinNotes(existing: string | undefined, enrichmentText: string): string
 function buildFallbackMessage(
   baseMessage: string,
   fallbackReason: string | null,
-  machineErrorCode: string | null
+  machineErrorCode: string | null,
 ): string {
   const trimmed = baseMessage.trim();
-  const reasonKey = (fallbackReason ?? '').trim().toLowerCase();
-  const hint = FALLBACK_HINTS[reasonKey] ?? 'MemoryKernel fallback is active. Draft flow remains available.';
+  const reasonKey = (fallbackReason ?? "").trim().toLowerCase();
+  const hint =
+    FALLBACK_HINTS[reasonKey] ??
+    "MemoryKernel fallback is active. Draft flow remains available.";
   if (machineErrorCode) {
     return `${trimmed} | code=${machineErrorCode} | ${hint}`;
   }
@@ -54,11 +66,17 @@ function buildFallbackMessage(
 
 export function useMemoryKernelEnrichment() {
   const enrichDiagnosticNotes = useCallback(
-    async (userInput: string, diagnosticNotes?: string): Promise<MemoryKernelEnrichmentOutcome> => {
+    async (
+      userInput: string,
+      diagnosticNotes?: string,
+    ): Promise<MemoryKernelEnrichmentOutcome> => {
       try {
-        const result = await invoke<MemoryKernelEnrichmentResult>('memory_kernel_query_ask', {
-          userInput,
-        });
+        const result = await invoke<MemoryKernelEnrichmentResult>(
+          "memory_kernel_query_ask",
+          {
+            userInput,
+          },
+        );
 
         if (result.applied && result.enrichment_text) {
           return {
@@ -72,33 +90,37 @@ export function useMemoryKernelEnrichment() {
         }
 
         return {
-          diagnosticNotes: diagnosticNotes?.trim() ? diagnosticNotes : undefined,
+          diagnosticNotes: diagnosticNotes?.trim()
+            ? diagnosticNotes
+            : undefined,
           enrichmentApplied: false,
           status: result.status,
           message: buildFallbackMessage(
             result.message,
             result.fallback_reason,
-            result.machine_error_code
+            result.machine_error_code,
           ),
           fallbackReason: result.fallback_reason,
           machineErrorCode: result.machine_error_code,
         };
       } catch (err) {
         return {
-          diagnosticNotes: diagnosticNotes?.trim() ? diagnosticNotes : undefined,
+          diagnosticNotes: diagnosticNotes?.trim()
+            ? diagnosticNotes
+            : undefined,
           enrichmentApplied: false,
-          status: 'fallback',
+          status: "fallback",
           message: buildFallbackMessage(
             `MemoryKernel enrichment unavailable: ${String(err)}`,
-            'adapter-error',
-            null
+            "adapter-error",
+            null,
           ),
-          fallbackReason: 'adapter-error',
+          fallbackReason: "adapter-error",
           machineErrorCode: null,
         };
       }
     },
-    []
+    [],
   );
 
   return { enrichDiagnosticNotes };

@@ -1,14 +1,18 @@
-import { Button } from '../shared/Button';
-import type { ResponseAlternative } from '../../types';
-import './AlternativePanel.css';
+import { Button } from "../shared/Button";
+import type { ResponseAlternative } from "../../types/workspace";
+import "./AlternativePanel.css";
 
 interface AlternativePanelProps {
   alternatives: ResponseAlternative[];
-  onChoose: (alternativeId: string, choice: 'original' | 'alternative') => void;
+  onChoose: (alternativeId: string, choice: "original" | "alternative") => void;
   onUseAlternative: (text: string) => void;
 }
 
-export function AlternativePanel({ alternatives, onChoose, onUseAlternative }: AlternativePanelProps) {
+export function AlternativePanel({
+  alternatives,
+  onChoose,
+  onUseAlternative,
+}: AlternativePanelProps) {
   if (alternatives.length === 0) return null;
 
   const latest = alternatives[0];
@@ -17,10 +21,14 @@ export function AlternativePanel({ alternatives, onChoose, onUseAlternative }: A
     <div className="alternative-panel">
       <h4 className="alternative-panel-title">Response Comparison</h4>
       <div className="comparison-panel">
-        <div className={`comparison-column ${latest.chosen === 'original' ? 'chosen' : ''}`}>
+        <div
+          className={`comparison-column ${latest.chosen === "original" ? "chosen" : ""}`}
+        >
           <div className="comparison-column-header">
             <span className="comparison-label">Original</span>
-            {latest.chosen === 'original' && <span className="comparison-chosen-badge">Chosen</span>}
+            {latest.chosen === "original" && (
+              <span className="comparison-chosen-badge">Chosen</span>
+            )}
           </div>
           <div className="comparison-text">{latest.original_text}</div>
           {!latest.chosen && (
@@ -28,7 +36,7 @@ export function AlternativePanel({ alternatives, onChoose, onUseAlternative }: A
               <Button
                 variant="secondary"
                 size="small"
-                onClick={() => onChoose(latest.id, 'original')}
+                onClick={() => onChoose(latest.id, "original")}
               >
                 Use This One
               </Button>
@@ -36,10 +44,14 @@ export function AlternativePanel({ alternatives, onChoose, onUseAlternative }: A
           )}
         </div>
 
-        <div className={`comparison-column ${latest.chosen === 'alternative' ? 'chosen' : ''}`}>
+        <div
+          className={`comparison-column ${latest.chosen === "alternative" ? "chosen" : ""}`}
+        >
           <div className="comparison-column-header">
             <span className="comparison-label">Alternative</span>
-            {latest.chosen === 'alternative' && <span className="comparison-chosen-badge">Chosen</span>}
+            {latest.chosen === "alternative" && (
+              <span className="comparison-chosen-badge">Chosen</span>
+            )}
           </div>
           <div className="comparison-text">{latest.alternative_text}</div>
           {!latest.chosen && (
@@ -48,7 +60,7 @@ export function AlternativePanel({ alternatives, onChoose, onUseAlternative }: A
                 variant="primary"
                 size="small"
                 onClick={() => {
-                  onChoose(latest.id, 'alternative');
+                  onChoose(latest.id, "alternative");
                   onUseAlternative(latest.alternative_text);
                 }}
               >
@@ -62,7 +74,8 @@ export function AlternativePanel({ alternatives, onChoose, onUseAlternative }: A
       {alternatives.length > 1 && (
         <div className="alternative-history">
           <span className="alternative-history-label">
-            {alternatives.length - 1} previous alternative{alternatives.length > 2 ? 's' : ''}
+            {alternatives.length - 1} previous alternative
+            {alternatives.length > 2 ? "s" : ""}
           </span>
         </div>
       )}
