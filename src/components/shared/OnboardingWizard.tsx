@@ -6,7 +6,7 @@ import { Dialog } from "./Dialog";
 import { Icon } from "./Icon";
 import "./OnboardingWizard.css";
 
-function formatBytes(bytes: number): string {
+export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024)

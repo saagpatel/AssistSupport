@@ -6,7 +6,7 @@
   "scripts": {
     "prepare": "husky",
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "pnpm ui:typecheck && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "commit": "cz",
@@ -42,7 +42,7 @@
     "stylelint": "stylelint \"src/**/*.css\"",
     "typecheck": "tsc --noEmit",
     "version:sync": "node scripts/ci/check-version-parity.mjs --write",
-    "build:ui": "tsc && vite build",
+    "build:ui": "vite build",
     "perf:bundle": "node scripts/perf/vite-bundle-report.mjs",
     "perf:build": "node scripts/perf/measure-build-time.mjs",
     "perf:lhci": "lhci autorun",

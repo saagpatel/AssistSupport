@@ -1,5 +1,16 @@
 ## Definition of Done (Git + Performance)
 
+<!-- comm-contract:start -->
+
+## Communication Contract (Global)
+
+- Follow `/Users/d/.codex/policies/communication/BigPictureReportingV1.md` for all user-facing updates.
+- Use exact section labels from `BigPictureReportingV1.md` for default status/progress updates.
+- Keep default updates beginner-friendly, big-picture, and low-noise.
+- Keep technical details in internal artifacts unless explicitly requested by the user.
+- Honor toggles literally: `simple mode`, `show receipts`, `tech mode`, `debug mode`.
+<!-- comm-contract:end -->
+
 1. Every task runs on a non-main branch named `codex/<type>/<slug>`.
 2. Never commit directly to `main` or `master`.
 3. Commits must be atomic and follow Conventional Commits.
@@ -33,6 +44,7 @@
    - responsive parity checks (mobile + desktop)
    - Lighthouse CI thresholds
 5. Done-state is blocked if any required gate is `fail` or `not-run`.
+
 ## Definition of Done: Tests + Docs (Blocking)
 
 - Any production code change must include meaningful test updates in the same PR.

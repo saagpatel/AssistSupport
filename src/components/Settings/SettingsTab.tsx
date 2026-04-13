@@ -1,38 +1,23 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Button } from "../shared/Button";
-import { useLlm } from "../../hooks/useLlm";
-import { useKb } from "../../hooks/useKb";
-import { useDownload } from "../../hooks/useDownload";
-import { useJira } from "../../hooks/useJira";
-import { useEmbedding } from "../../hooks/useEmbedding";
-import { useSearchApiEmbedding } from "../../hooks/useSearchApiEmbedding";
-import { useCustomVariables } from "../../hooks/useCustomVariables";
-import { useFeatureOps } from "../../hooks/useFeatureOps";
-import {
-  getResponseQualityThresholds,
-  resetResponseQualityThresholds,
-  ResponseQualityThresholds,
-  saveResponseQualityThresholds,
-} from "../../features/analytics/qualityThresholds";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import appPackage from "../../../package.json";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useToastContext } from "../../contexts/ToastContext";
+import {
+  getResponseQualityThresholds,
+  type ResponseQualityThresholds,
+  resetResponseQualityThresholds,
+  saveResponseQualityThresholds,
+} from "../../features/analytics/qualityThresholds";
 import { resolveRevampFlags } from "../../features/revamp/flags";
-import {
-  AboutSection,
-  AppearanceSection,
-  MemoryKernelSection,
-  PolicyGatesSection,
-  SettingsHero,
-} from "./sections/SettingsOverviewSections";
-import {
-  AuditLogsSection,
-  BackupSection,
-  DeploymentSection,
-  QualityThresholdSection,
-} from "./sections/SettingsOpsSections";
-import appPackage from "../../../package.json";
-import { formatAppVersion } from "./versionLabel";
+import { useCustomVariables } from "../../hooks/useCustomVariables";
+import { useDownload } from "../../hooks/useDownload";
+import { useEmbedding } from "../../hooks/useEmbedding";
+import { useFeatureOps } from "../../hooks/useFeatureOps";
+import { useJira } from "../../hooks/useJira";
+import { useKb } from "../../hooks/useKb";
+import { useLlm } from "../../hooks/useLlm";
+import { useSearchApiEmbedding } from "../../hooks/useSearchApiEmbedding";
 import type {
   AuditEntry,
   CustomVariable,
@@ -42,6 +27,21 @@ import type {
   ModelInfo,
   SearchApiEmbeddingModelStatus,
 } from "../../types";
+import { Button } from "../shared/Button";
+import {
+  AuditLogsSection,
+  BackupSection,
+  DeploymentSection,
+  QualityThresholdSection,
+} from "./sections/SettingsOpsSections";
+import {
+  AboutSection,
+  AppearanceSection,
+  MemoryKernelSection,
+  PolicyGatesSection,
+  SettingsHero,
+} from "./sections/SettingsOverviewSections";
+import { formatAppVersion } from "./versionLabel";
 import "./SettingsTab.css";
 
 const RECOMMENDED_MODELS: ModelInfo[] = [
@@ -101,27 +101,29 @@ const CONTEXT_WINDOW_OPTIONS = [
 const AUDIT_PAGE_SIZE = 50;
 
 // Helper to format bytes for display
-function formatBytes(bytes: number): string {
+export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+  return `${(bytes / k ** i).toFixed(1)} ${sizes[i]}`;
 }
 
 // Helper to format download speed
-function formatSpeed(bps: number): string {
+export function formatSpeed(bps: number): string {
   if (bps === 0) return "";
   return `${formatBytes(bps)}/s`;
 }
 
-function formatVerificationStatus(status: string | null | undefined): string {
+export function formatVerificationStatus(
+  status: string | null | undefined,
+): string {
   if (status === "verified") return "Verified";
   if (status === "unverified") return "Unverified";
   return "Unknown";
 }
 
-function getSearchApiEmbeddingBadge(
+export function getSearchApiEmbeddingBadge(
   status: SearchApiEmbeddingModelStatus | null,
   installError: string | null,
 ): { label: string; className: string; detail: string } {
@@ -168,7 +170,7 @@ function getSearchApiEmbeddingBadge(
   };
 }
 
-function validateQualityThresholds(
+export function validateQualityThresholds(
   thresholds: ResponseQualityThresholds,
 ): string | null {
   if (thresholds.editRatioWatch >= thresholds.editRatioAction) {
@@ -396,6 +398,7 @@ export function SettingsTab() {
     Promise.resolve(loadAuditEntries()).catch((err) =>
       console.error("Audit load failed:", err),
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadVariables, loadAuditEntries]);
 
   async function loadInitialState() {
@@ -848,6 +851,7 @@ export function SettingsTab() {
     } finally {
       setBackupLoading(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showSuccess, showError, loadVariables]);
 
   const handleExportAuditLog = useCallback(async () => {
