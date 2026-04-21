@@ -111,11 +111,10 @@ fn has_data(path: &Path) -> bool {
 ///
 /// The migration is idempotent - it can be safely called multiple times.
 pub fn migrate_data_directories() -> Result<MigrationReport, MigrationError> {
-    let mut report = MigrationReport::default();
-
     let old_dir = match get_old_data_dir() {
         Some(d) => d,
         None => {
+            let mut report = MigrationReport::default();
             report.skipped.push(SkippedItem {
                 name: "all".to_string(),
                 reason: "Could not determine old data directory".to_string(),
@@ -127,6 +126,7 @@ pub fn migrate_data_directories() -> Result<MigrationReport, MigrationError> {
     let new_dir = match get_new_data_dir() {
         Some(d) => d,
         None => {
+            let mut report = MigrationReport::default();
             report.skipped.push(SkippedItem {
                 name: "all".to_string(),
                 reason: "Could not determine new data directory".to_string(),
@@ -134,6 +134,21 @@ pub fn migrate_data_directories() -> Result<MigrationReport, MigrationError> {
             return Ok(report);
         }
     };
+
+    migrate_between(&old_dir, &new_dir, MIGRATE_ITEMS)
+}
+
+/// Migrate a fixed set of item names from `old_dir` to `new_dir`.
+///
+/// Extracted from `migrate_data_directories` so tests can drive the
+/// conflict/skip/migrate branches against temp directories without touching
+/// the real user data dir.
+pub(crate) fn migrate_between(
+    old_dir: &Path,
+    new_dir: &Path,
+    items: &[&str],
+) -> Result<MigrationReport, MigrationError> {
+    let mut report = MigrationReport::default();
 
     // If old directory doesn't exist, nothing to migrate
     if !old_dir.exists() {
@@ -147,12 +162,12 @@ pub fn migrate_data_directories() -> Result<MigrationReport, MigrationError> {
 
     // Create new directory if needed
     if !new_dir.exists() {
-        fs::create_dir_all(&new_dir)?;
+        fs::create_dir_all(new_dir)?;
         tracing::info!("Created new data directory: {:?}", new_dir);
     }
 
     // Migrate each item
-    for item_name in MIGRATE_ITEMS {
+    for item_name in items {
         let old_path = old_dir.join(item_name);
         let new_path = new_dir.join(item_name);
 
@@ -346,6 +361,89 @@ mod tests {
     #[test]
     fn test_has_data_nonexistent() {
         assert!(!has_data(Path::new("/nonexistent/path")));
+    }
+
+    fn write_file(path: &Path, body: &[u8]) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        File::create(path).unwrap().write_all(body).unwrap();
+    }
+
+    #[test]
+    fn migrate_between_reports_conflict_when_both_sides_have_data() {
+        let temp = TempDir::new().unwrap();
+        let old_dir = temp.path().join("old");
+        let new_dir = temp.path().join("new");
+        write_file(&old_dir.join("assistsupport.db"), b"old-bytes");
+        write_file(&new_dir.join("assistsupport.db"), b"new-bytes");
+
+        let report =
+            migrate_between(&old_dir, &new_dir, &["assistsupport.db"]).expect("migration ok");
+
+        assert!(!report.migration_performed, "must not migrate on conflict");
+        assert_eq!(report.conflicts.len(), 1);
+        let conflict = &report.conflicts[0];
+        assert_eq!(conflict.name, "assistsupport.db");
+        assert_eq!(conflict.old_path, old_dir.join("assistsupport.db"));
+        assert_eq!(conflict.new_path, new_dir.join("assistsupport.db"));
+        assert!(old_dir.join("assistsupport.db").exists(), "old preserved");
+        assert!(new_dir.join("assistsupport.db").exists(), "new preserved");
+    }
+
+    #[test]
+    fn migrate_between_moves_when_only_old_has_data() {
+        let temp = TempDir::new().unwrap();
+        let old_dir = temp.path().join("old");
+        let new_dir = temp.path().join("new");
+        write_file(&old_dir.join("audit.log"), b"entry");
+
+        let report = migrate_between(&old_dir, &new_dir, &["audit.log"]).expect("migration ok");
+
+        assert!(report.migration_performed);
+        assert_eq!(report.migrated.len(), 1);
+        assert_eq!(report.conflicts.len(), 0);
+        assert!(!old_dir.join("audit.log").exists());
+        assert!(new_dir.join("audit.log").exists());
+    }
+
+    #[test]
+    fn migrate_between_skips_when_only_new_has_data() {
+        let temp = TempDir::new().unwrap();
+        let old_dir = temp.path().join("old");
+        let new_dir = temp.path().join("new");
+        fs::create_dir_all(&old_dir).unwrap();
+        write_file(&new_dir.join("audit.log"), b"entry");
+
+        let report = migrate_between(&old_dir, &new_dir, &["audit.log"]).expect("migration ok");
+
+        assert!(!report.migration_performed);
+        assert_eq!(report.conflicts.len(), 0);
+        assert_eq!(report.skipped.len(), 1);
+        assert_eq!(report.skipped[0].name, "audit.log");
+    }
+
+    #[test]
+    fn migrate_between_collects_multiple_conflicts_before_exiting() {
+        let temp = TempDir::new().unwrap();
+        let old_dir = temp.path().join("old");
+        let new_dir = temp.path().join("new");
+        write_file(&old_dir.join("assistsupport.db"), b"old-db");
+        write_file(&new_dir.join("assistsupport.db"), b"new-db");
+        write_file(&old_dir.join("audit.log"), b"old-log");
+        write_file(&new_dir.join("audit.log"), b"new-log");
+
+        let report = migrate_between(
+            &old_dir,
+            &new_dir,
+            &["assistsupport.db", "audit.log", "vectors"],
+        )
+        .expect("migration ok");
+
+        assert_eq!(report.conflicts.len(), 2);
+        let names: Vec<&str> = report.conflicts.iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"assistsupport.db"));
+        assert!(names.contains(&"audit.log"));
     }
 
     #[test]
