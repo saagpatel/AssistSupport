@@ -28,30 +28,21 @@ jobs:
           - language: javascript-typescript
             build-mode: none
           - language: rust
-            build-mode: manual
+            # Rust support in CodeQL only accepts build-mode: none at this time;
+            # the extractor runs from source without a project-specific build step.
+            build-mode: none
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-
-      - name: Setup pnpm
-        if: matrix.language == 'javascript-typescript'
-        uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c
-        with:
-          version: 10.28.1
 
       - name: Setup Node.js
         if: matrix.language == 'javascript-typescript'
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install Rust
-        if: matrix.language == 'rust'
-        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
-        with:
-          toolchain: stable
+          # Deliberately no `cache: "pnpm"` here: build-mode: none does not run
+          # `pnpm install`, so a cache-save step at teardown fails with "Path(s)
+          # specified ... do(es) not exist".
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@865f5f5c36632f18690a3d569fa0a764f2da0c3e
@@ -59,15 +50,6 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           queries: security-extended
-
-      - name: Build Rust (manual mode)
-        if: matrix.language == 'rust'
-        working-directory: src-tauri
-        # CodeQL's manual build mode needs compilation to extract Rust code.
-        # Skip the Tauri lib context requirement by building just cargo crates
-        # relevant to analysis.
-        run: |
-          cargo build --all-targets --locked || cargo build --locked
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@865f5f5c36632f18690a3d569fa0a764f2da0c3e
