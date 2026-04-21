@@ -14,6 +14,10 @@ import { ResponsePanel } from "./ResponsePanel";
 import { AlternativePanel } from "./AlternativePanel";
 import { SavedResponsesSuggestion } from "./SavedResponsesSuggestion";
 import { ConversationThread, ConversationEntry } from "./ConversationThread";
+import { useDraftApproval } from "./useDraftApproval";
+import { useDraftChecklist } from "./useDraftChecklist";
+import { useDraftFirstResponse } from "./useDraftFirstResponse";
+import { useDraftIntake } from "./useDraftIntake";
 import { ConversationInput } from "./ConversationInput";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 import { WorkspaceModeShell } from "./WorkspaceModeShell";
@@ -38,7 +42,6 @@ import { useWorkspaceCommandBridge } from "../../features/workspace/useWorkspace
 import { useWorkspaceDraftState } from "../../features/workspace/useWorkspaceDraftState";
 import {
   applyResolutionKit,
-  analyzeCaseIntake,
   buildResolutionKitFromWorkspace,
   buildSimilarCases,
   compactLines,
@@ -57,19 +60,14 @@ import {
 } from "../../features/analytics/qualityMetrics";
 import type { JiraTicket } from "../../hooks/useJira";
 import type {
-  ChecklistState,
   ConfidenceAssessment,
   GenerationMetrics,
   GroundedClaim,
-  ChecklistItem,
-  FirstResponseTone,
 } from "../../types/llm";
-import type { ContextSource, SearchResult } from "../../types/knowledge";
+import type { ContextSource } from "../../types/knowledge";
 import type {
-  CaseIntake,
   GuidedRunbookTemplate,
   NextActionRecommendation,
-  NoteAudience,
   ResolutionKit,
   ResponseLength,
   SavedDraft,
@@ -205,32 +203,6 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-const INTAKE_PRESETS: Record<
-  "incident" | "access" | "rollout" | "device",
-  Partial<CaseIntake>
-> = {
-  incident: {
-    likely_category: "incident",
-    urgency: "high",
-    note_audience: "internal-note",
-  },
-  access: {
-    likely_category: "access",
-    urgency: "normal",
-    note_audience: "internal-note",
-  },
-  rollout: {
-    likely_category: "change-rollout",
-    urgency: "normal",
-    note_audience: "internal-note",
-  },
-  device: {
-    likely_category: "device-environment",
-    urgency: "normal",
-    note_audience: "internal-note",
-  },
-};
-
 export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
   function DraftTab(
     { initialDraft, onNavigateToSource, revampModeEnabled = false },
@@ -293,29 +265,33 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     const modelLoaded = appStatus.llmLoaded;
     const loadedModelName = appStatus.llmModelName;
 
+    const {
+      approvalQuery,
+      setApprovalQuery,
+      approvalResults,
+      setApprovalResults,
+      approvalSearching,
+      approvalSummary,
+      setApprovalSummary,
+      approvalSummarizing,
+      approvalSources,
+      setApprovalSources,
+      approvalError,
+      setApprovalError,
+      handleApprovalSearch,
+      handleApprovalSummarize,
+      resetApproval,
+    } = useDraftApproval({
+      searchKb,
+      generateWithContextParams,
+      modelLoaded,
+      onShowError: showError,
+    });
+
     const [input, setInput] = useState("");
     const [ocrText, setOcrText] = useState<string | null>(null);
     const [diagnosticNotes, setDiagnosticNotes] = useState("");
     const [treeResult, setTreeResult] = useState<TreeResult | null>(null);
-    const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
-    const [checklistCompleted, setChecklistCompleted] = useState<
-      Record<string, boolean>
-    >({});
-    const [checklistGenerating, setChecklistGenerating] = useState(false);
-    const [checklistUpdating, setChecklistUpdating] = useState(false);
-    const [checklistError, setChecklistError] = useState<string | null>(null);
-    const [firstResponse, setFirstResponse] = useState("");
-    const [firstResponseTone, setFirstResponseTone] =
-      useState<FirstResponseTone>("slack");
-    const [firstResponseGenerating, setFirstResponseGenerating] =
-      useState(false);
-    const [approvalQuery, setApprovalQuery] = useState("");
-    const [approvalResults, setApprovalResults] = useState<SearchResult[]>([]);
-    const [approvalSearching, setApprovalSearching] = useState(false);
-    const [approvalSummary, setApprovalSummary] = useState("");
-    const [approvalSummarizing, setApprovalSummarizing] = useState(false);
-    const [approvalSources, setApprovalSources] = useState<ContextSource[]>([]);
-    const [approvalError, setApprovalError] = useState<string | null>(null);
     const [response, setResponse] = useState("");
     const [sources, setSources] = useState<ContextSource[]>([]);
     const [metrics, setMetrics] = useState<GenerationMetrics | null>(null);
@@ -361,10 +337,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       ConversationEntry[]
     >([]);
     const [handoffTouched, setHandoffTouched] = useState(false);
-    const [caseIntake, setCaseIntake] = useState<CaseIntake>(() => ({
-      ...parseCaseIntake(null),
-      note_audience: loadWorkspacePersonalization().preferred_note_audience,
-    }));
     const [similarCases, setSimilarCases] = useState<SimilarCase[]>([]);
     const [similarCasesLoading, setSimilarCasesLoading] = useState(false);
     const [compareCase, setCompareCase] = useState<SimilarCase | null>(null);
@@ -389,6 +361,52 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     >(undefined);
     const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
     const firstDraftStartMsRef = useRef<number | null>(null);
+
+    const {
+      firstResponse,
+      setFirstResponse,
+      firstResponseTone,
+      setFirstResponseTone,
+      firstResponseGenerating,
+      handleGenerateFirstResponse,
+      handleCopyFirstResponse,
+      handleClearFirstResponse,
+      resetFirstResponse,
+    } = useDraftFirstResponse({
+      input,
+      ocrText,
+      currentTicket,
+      modelLoaded,
+      generateFirstResponse,
+      onShowSuccess: showSuccess,
+      onShowError: showError,
+    });
+
+    const {
+      checklistItems,
+      setChecklistItems,
+      checklistCompleted,
+      setChecklistCompleted,
+      checklistGenerating,
+      checklistUpdating,
+      checklistError,
+      setChecklistError,
+      handleChecklistGenerate,
+      handleChecklistUpdate,
+      handleChecklistToggle,
+      handleChecklistClear,
+      resetChecklist,
+    } = useDraftChecklist({
+      input,
+      ocrText,
+      diagnosticNotes,
+      treeResult,
+      currentTicket,
+      modelLoaded,
+      generateChecklist,
+      updateChecklist,
+      onShowError: showError,
+    });
 
     const {
       resolutionKits,
@@ -421,52 +439,22 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       void refreshWorkspaceCatalog();
     }, [refreshWorkspaceCatalog]);
 
-    const handleIntakeFieldChange = useCallback(
-      (field: keyof CaseIntake, value: string) => {
-        setCaseIntake((prev) => ({
-          ...prev,
-          [field]: value,
-        }));
-      },
-      [],
-    );
-
-    const handleAnalyzeIntake = useCallback(() => {
-      setCaseIntake((prev) =>
-        analyzeCaseIntake(input, currentTicket ?? undefined, prev),
-      );
-      void logEvent("workspace_intake_analyzed", {
-        ticket_id: currentTicketId,
-        has_ticket: Boolean(currentTicketId),
-        has_response: Boolean(response.trim()),
-      });
-    }, [input, currentTicket, logEvent, currentTicketId, response]);
-
-    const handleApplyIntakePreset = useCallback(
-      (preset: "incident" | "access" | "rollout" | "device") => {
-        setCaseIntake((prev) => ({
-          ...prev,
-          ...INTAKE_PRESETS[preset],
-        }));
-        void logEvent("workspace_intake_preset_applied", { preset });
-      },
-      [logEvent],
-    );
-
-    const handleNoteAudienceChange = useCallback(
-      (audience: NoteAudience) => {
-        setCaseIntake((prev) => ({
-          ...prev,
-          note_audience: audience,
-        }));
-        setWorkspacePersonalization((prev) => ({
-          ...prev,
-          preferred_note_audience: audience,
-        }));
-        void logEvent("workspace_note_audience_changed", { audience });
-      },
-      [logEvent],
-    );
+    const {
+      caseIntake,
+      setCaseIntake,
+      handleIntakeFieldChange,
+      handleAnalyzeIntake,
+      handleApplyIntakePreset,
+      handleNoteAudienceChange,
+    } = useDraftIntake({
+      initialNoteAudience: workspacePersonalization.preferred_note_audience,
+      input,
+      currentTicket,
+      currentTicketId,
+      response,
+      logEvent,
+      setWorkspacePersonalization,
+    });
 
     const handleResponseLengthChange = useCallback((length: ResponseLength) => {
       setResponseLength(length);
@@ -658,263 +646,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       currentTicketId,
     ]);
 
-    const handleGenerateFirstResponse = useCallback(async () => {
-      if (firstResponseGenerating) return;
-
-      if (!modelLoaded) {
-        showError("No model loaded. Go to Settings to load a model.");
-        return;
-      }
-
-      const ticketFallback = currentTicket
-        ? `${currentTicket.summary}${currentTicket.description ? `\n\n${currentTicket.description}` : ""}`
-        : "";
-      const promptInput =
-        input.trim() || ticketFallback.trim() || ocrText?.trim() || "";
-      if (!promptInput) {
-        showError(
-          "Add ticket details or notes before generating a first response.",
-        );
-        return;
-      }
-
-      setFirstResponseGenerating(true);
-      try {
-        const result = await generateFirstResponse({
-          user_input: promptInput,
-          tone: firstResponseTone,
-          ocr_text: ocrText ?? undefined,
-          jira_ticket: currentTicket ?? undefined,
-        });
-        setFirstResponse(result.text);
-      } catch (e) {
-        console.error("First response generation failed:", e);
-        showError(`First response failed: ${e}`);
-      } finally {
-        setFirstResponseGenerating(false);
-      }
-    }, [
-      input,
-      firstResponseGenerating,
-      modelLoaded,
-      generateFirstResponse,
-      firstResponseTone,
-      ocrText,
-      currentTicket,
-      showError,
-    ]);
-
-    const handleCopyFirstResponse = useCallback(async () => {
-      if (!firstResponse.trim()) return;
-      try {
-        await navigator.clipboard.writeText(firstResponse);
-        showSuccess("First response copied to clipboard");
-      } catch {
-        showError("Failed to copy first response");
-      }
-    }, [firstResponse, showSuccess, showError]);
-
-    const handleClearFirstResponse = useCallback(() => {
-      setFirstResponse("");
-    }, []);
-
-    const handleChecklistGenerate = useCallback(async () => {
-      if (checklistGenerating) return;
-
-      if (!modelLoaded) {
-        showError("No model loaded. Go to Settings to load a model.");
-        return;
-      }
-
-      const ticketFallback = currentTicket
-        ? `${currentTicket.summary}${currentTicket.description ? `\n\n${currentTicket.description}` : ""}`
-        : "";
-      const promptInput =
-        input.trim() || ticketFallback.trim() || ocrText?.trim() || "";
-      if (!promptInput) {
-        setChecklistError(
-          "Add ticket details or notes before generating a checklist.",
-        );
-        return;
-      }
-
-      setChecklistGenerating(true);
-      setChecklistError(null);
-      try {
-        const treeDecisions = treeResult
-          ? {
-              tree_name: treeResult.treeName,
-              path_summary: treeResult.pathSummary,
-            }
-          : undefined;
-
-        const result = await generateChecklist({
-          user_input: promptInput,
-          ocr_text: ocrText ?? undefined,
-          diagnostic_notes: diagnosticNotes || undefined,
-          tree_decisions: treeDecisions,
-          jira_ticket: currentTicket ?? undefined,
-        });
-
-        setChecklistItems(result.items);
-        setChecklistCompleted({});
-      } catch (e) {
-        console.error("Checklist generation failed:", e);
-        setChecklistError(`Checklist failed: ${e}`);
-      } finally {
-        setChecklistGenerating(false);
-      }
-    }, [
-      input,
-      checklistGenerating,
-      modelLoaded,
-      treeResult,
-      ocrText,
-      diagnosticNotes,
-      currentTicket,
-      generateChecklist,
-      showError,
-    ]);
-
-    const handleChecklistUpdate = useCallback(async () => {
-      if (!checklistItems.length || checklistUpdating) return;
-
-      if (!modelLoaded) {
-        showError("No model loaded. Go to Settings to load a model.");
-        return;
-      }
-
-      const ticketFallback = currentTicket
-        ? `${currentTicket.summary}${currentTicket.description ? `\n\n${currentTicket.description}` : ""}`
-        : "";
-      const promptInput =
-        input.trim() || ticketFallback.trim() || ocrText?.trim() || "";
-      if (!promptInput) {
-        setChecklistError(
-          "Add ticket details or notes before updating the checklist.",
-        );
-        return;
-      }
-
-      setChecklistUpdating(true);
-      setChecklistError(null);
-      try {
-        const treeDecisions = treeResult
-          ? {
-              tree_name: treeResult.treeName,
-              path_summary: treeResult.pathSummary,
-            }
-          : undefined;
-
-        const completedIds = Object.keys(checklistCompleted).filter(
-          (id) => checklistCompleted[id],
-        );
-        const checklist: ChecklistState = {
-          items: checklistItems,
-          completed_ids: completedIds,
-        };
-
-        const result = await updateChecklist({
-          user_input: promptInput,
-          ocr_text: ocrText ?? undefined,
-          diagnostic_notes: diagnosticNotes || undefined,
-          tree_decisions: treeDecisions,
-          jira_ticket: currentTicket ?? undefined,
-          checklist,
-        });
-
-        const updatedCompleted: Record<string, boolean> = {};
-        for (const item of result.items) {
-          if (checklistCompleted[item.id]) {
-            updatedCompleted[item.id] = true;
-          }
-        }
-
-        setChecklistItems(result.items);
-        setChecklistCompleted(updatedCompleted);
-      } catch (e) {
-        console.error("Checklist update failed:", e);
-        setChecklistError(`Checklist update failed: ${e}`);
-      } finally {
-        setChecklistUpdating(false);
-      }
-    }, [
-      checklistItems,
-      checklistUpdating,
-      modelLoaded,
-      input,
-      ocrText,
-      diagnosticNotes,
-      treeResult,
-      currentTicket,
-      checklistCompleted,
-      updateChecklist,
-      showError,
-    ]);
-
-    const handleChecklistToggle = useCallback((id: string) => {
-      setChecklistCompleted((prev) => ({
-        ...prev,
-        [id]: !prev[id],
-      }));
-    }, []);
-
-    const handleChecklistClear = useCallback(() => {
-      setChecklistItems([]);
-      setChecklistCompleted({});
-      setChecklistError(null);
-    }, []);
-
-    const handleApprovalSearch = useCallback(async () => {
-      if (!approvalQuery.trim()) {
-        setApprovalError("Enter a search term to look up approvals.");
-        return;
-      }
-
-      setApprovalSearching(true);
-      setApprovalError(null);
-      try {
-        const results = await searchKb(approvalQuery.trim(), 5);
-        setApprovalResults(results);
-      } catch (e) {
-        console.error("Approval search failed:", e);
-        setApprovalError("Approval search failed.");
-      } finally {
-        setApprovalSearching(false);
-      }
-    }, [approvalQuery, searchKb]);
-
-    const handleApprovalSummarize = useCallback(async () => {
-      if (!approvalQuery.trim()) {
-        setApprovalError("Enter a search term to summarize approvals.");
-        return;
-      }
-
-      if (!modelLoaded) {
-        showError("No model loaded. Go to Settings to load a model.");
-        return;
-      }
-
-      setApprovalSummarizing(true);
-      setApprovalError(null);
-      try {
-        const prompt = `Summarize the approval steps and owner(s) for: ${approvalQuery.trim()}. Keep it concise. If sources do not mention it, say so.`;
-        const result = await generateWithContextParams({
-          user_input: prompt,
-          kb_limit: 5,
-          response_length: "Short",
-        });
-
-        setApprovalSummary(result.text);
-        setApprovalSources(result.sources);
-      } catch (e) {
-        console.error("Approval summary failed:", e);
-        setApprovalError("Approval summary failed.");
-      } finally {
-        setApprovalSummarizing(false);
-      }
-    }, [approvalQuery, modelLoaded, generateWithContextParams, showError]);
-
     const handleApplyTemplate = useCallback((content: string) => {
       setResponse(content);
     }, []);
@@ -1069,21 +800,9 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setOcrText(null);
       setDiagnosticNotes("");
       setTreeResult(null);
-      setChecklistItems([]);
-      setChecklistCompleted({});
-      setChecklistError(null);
-      setChecklistGenerating(false);
-      setChecklistUpdating(false);
-      setFirstResponse("");
-      setFirstResponseTone("slack");
-      setFirstResponseGenerating(false);
-      setApprovalQuery("");
-      setApprovalResults([]);
-      setApprovalSummary("");
-      setApprovalSources([]);
-      setApprovalError(null);
-      setApprovalSearching(false);
-      setApprovalSummarizing(false);
+      resetChecklist();
+      resetFirstResponse();
+      resetApproval();
       setResponse("");
       setOriginalResponse("");
       setIsResponseEdited(false);
@@ -2194,15 +1913,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     useEffect(() => {
       loadTemplates();
     }, [loadTemplates]);
-
-    useEffect(() => {
-      if (!approvalQuery.trim()) {
-        setApprovalResults([]);
-        setApprovalSummary("");
-        setApprovalSources([]);
-        setApprovalError(null);
-      }
-    }, [approvalQuery]);
 
     const handleCopyResponse = useCallback(async () => {
       if (!response) return;
