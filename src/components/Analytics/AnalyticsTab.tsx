@@ -1,41 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect } from "react";
+import type { ResponseQualityThresholds } from "../../features/analytics/qualityThresholds";
 import {
-  useAnalytics,
-  AnalyticsSummary,
-  ArticleUsage,
-  LowRatingAnalysis,
-  ResponseQualityDrilldownExamples,
-  ResponseQualitySummary,
-} from "../../hooks/useAnalytics";
-import { useInsightsOps } from "../../hooks/useInsightsOps";
-import { buildResponseQualityCoaching } from "../../features/analytics/qualityCoaching";
-import { buildOperatorScorecard } from "../../features/analytics/operatorScorecard";
-import { loadQueueHandoffSnapshot } from "../../features/inbox/queueModel";
-import {
-  getResponseQualityThresholds,
-  RESPONSE_QUALITY_THRESHOLDS_UPDATED_EVENT,
-  ResponseQualityThresholds,
-} from "../../features/analytics/qualityThresholds";
-import type { KbGapCandidate } from "../../types/insights";
+  readCurrentThresholds,
+  subscribeToQualityThresholds,
+} from "./qualityThresholdsState";
 import { ArticleDetailPanel } from "./ArticleDetailPanel";
-import { PilotDashboard, PilotQueryTester } from "../Pilot";
+import { PilotDiagnosticsSection } from "./PilotDiagnosticsSection";
+import { RatingDistribution } from "./RatingDistribution";
+import { KbUsageTable } from "./KbUsageTable";
+import { ResponseQualityPanel } from "./ResponseQualityPanel";
+import { useAnalyticsLoader, type AnalyticsPeriod } from "./useAnalyticsLoader";
 import "./AnalyticsTab.css";
 
-type Period = 7 | 30 | 90 | null; // null = all time
 type AnalyticsSection = "overview" | "pilot";
 
 interface AnalyticsTabProps {
   initialSection?: AnalyticsSection;
 }
 
-interface PilotLoggingPolicy {
-  enabled: boolean;
-  retention_days: number;
-  max_rows: number;
-}
-
-const PERIODS: { label: string; value: Period }[] = [
+const PERIODS: { label: string; value: AnalyticsPeriod }[] = [
   { label: "7 days", value: 7 },
   { label: "30 days", value: 30 },
   { label: "90 days", value: 90 },
@@ -46,30 +29,22 @@ export function AnalyticsTab({
   initialSection = "overview",
 }: AnalyticsTabProps) {
   const {
-    getSummary,
-    getKbUsage,
-    getLowRatingAnalysis,
-    getResponseQualitySummary,
-    getResponseQualityDrilldownExamples,
-  } = useAnalytics();
-  const { getKbGapCandidates, updateKbGapStatus } = useInsightsOps();
+    summary,
+    qualitySummary,
+    qualityDrilldown,
+    kbUsage,
+    lowRatingData,
+    gapCandidates,
+    loading,
+    error,
+    period,
+    setPeriod,
+    updateGapStatus,
+  } = useAnalyticsLoader();
   const [activeSection, setActiveSection] =
     useState<AnalyticsSection>(initialSection);
-  const [period, setPeriod] = useState<Period>(30);
-  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
-  const [qualitySummary, setQualitySummary] =
-    useState<ResponseQualitySummary | null>(null);
-  const [qualityDrilldown, setQualityDrilldown] =
-    useState<ResponseQualityDrilldownExamples | null>(null);
   const [qualityThresholds, setQualityThresholds] =
-    useState<ResponseQualityThresholds>(() => getResponseQualityThresholds());
-  const [kbUsage, setKbUsage] = useState<ArticleUsage[]>([]);
-  const [lowRatingData, setLowRatingData] = useState<LowRatingAnalysis | null>(
-    null,
-  );
-  const [gapCandidates, setGapCandidates] = useState<KbGapCandidate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+    useState<ResponseQualityThresholds>(() => readCurrentThresholds());
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(
     null,
   );
@@ -78,76 +53,9 @@ export function AnalyticsTab({
     setActiveSection(initialSection);
   }, [initialSection]);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [
-        summaryData,
-        kbData,
-        lowRating,
-        qualityData,
-        qualityDrilldownData,
-      ] = await Promise.all([
-        getSummary(period ?? undefined),
-        getKbUsage(period ?? undefined),
-        getLowRatingAnalysis(period ?? undefined).catch(() => null),
-        getResponseQualitySummary(period ?? undefined).catch(() => null),
-        getResponseQualityDrilldownExamples(period ?? undefined, 6).catch(
-          () => null,
-        ),
-      ]);
-      const gaps = await getKbGapCandidates(12, "open").catch(() => []);
-      setSummary(summaryData);
-      setQualitySummary(qualityData);
-      setQualityDrilldown(qualityDrilldownData);
-      setKbUsage(kbData);
-      setLowRatingData(lowRating);
-      setGapCandidates(gaps);
-    } catch (err) {
-      console.error("Failed to load analytics:", err);
-      setError(typeof err === "string" ? err : "Failed to load analytics data");
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    period,
-    getSummary,
-    getKbUsage,
-    getLowRatingAnalysis,
-    getResponseQualitySummary,
-    getResponseQualityDrilldownExamples,
-    getKbGapCandidates,
-  ]);
-
-  const handleGapStatus = useCallback(
-    async (id: string, status: "accepted" | "resolved" | "ignored") => {
-      await updateKbGapStatus(id, status);
-      setGapCandidates((prev) => prev.filter((g) => g.id !== id));
-    },
-    [updateKbGapStatus],
-  );
-
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  useEffect(() => {
-    const syncThresholds = () =>
-      setQualityThresholds(getResponseQualityThresholds());
-    syncThresholds();
-    window.addEventListener(
-      RESPONSE_QUALITY_THRESHOLDS_UPDATED_EVENT,
-      syncThresholds,
-    );
-    window.addEventListener("storage", syncThresholds);
-    return () => {
-      window.removeEventListener(
-        RESPONSE_QUALITY_THRESHOLDS_UPDATED_EVENT,
-        syncThresholds,
-      );
-      window.removeEventListener("storage", syncThresholds);
-    };
+    setQualityThresholds(readCurrentThresholds());
+    return subscribeToQualityThresholds(setQualityThresholds);
   }, []);
 
   const overviewContent = (() => {
@@ -359,19 +267,19 @@ export function AnalyticsTab({
                   <div className="kb-gap-actions">
                     <button
                       className="kb-gap-btn"
-                      onClick={() => handleGapStatus(gap.id, "accepted")}
+                      onClick={() => updateGapStatus(gap.id, "accepted")}
                     >
                       Accept
                     </button>
                     <button
                       className="kb-gap-btn"
-                      onClick={() => handleGapStatus(gap.id, "resolved")}
+                      onClick={() => updateGapStatus(gap.id, "resolved")}
                     >
                       Resolve
                     </button>
                     <button
                       className="kb-gap-btn kb-gap-btn-muted"
-                      onClick={() => handleGapStatus(gap.id, "ignored")}
+                      onClick={() => updateGapStatus(gap.id, "ignored")}
                     >
                       Ignore
                     </button>
@@ -438,382 +346,6 @@ export function AnalyticsTab({
       ) : (
         <PilotDiagnosticsSection />
       )}
-    </div>
-  );
-}
-
-function PilotDiagnosticsSection() {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [policy, setPolicy] = useState<PilotLoggingPolicy | null>(null);
-  const pilotLoggingEnabled = policy?.enabled ?? false;
-
-  useEffect(() => {
-    invoke<PilotLoggingPolicy>("get_pilot_logging_policy")
-      .then(setPolicy)
-      .catch(() =>
-        setPolicy({ enabled: false, retention_days: 14, max_rows: 500 }),
-      );
-  }, []);
-
-  const handleQueryLogged = useCallback(() => {
-    setRefreshKey((current) => current + 1);
-  }, []);
-
-  return (
-    <section
-      className="analytics-section-surface analytics-section-surface-pilot"
-      aria-label="Pilot diagnostics"
-    >
-      <div className="analytics-panel-card">
-        <div className="analytics-panel-header">
-          <div>
-            <div className="section-title">Pilot Diagnostics</div>
-            <p className="analytics-panel-subtitle">
-              Validate query quality, pilot logging posture, and raw-log
-              evidence without a separate Pilot tab.
-            </p>
-          </div>
-        </div>
-        <PilotQueryTester
-          pilotLoggingEnabled={pilotLoggingEnabled}
-          policy={policy}
-          onQueryLogged={handleQueryLogged}
-        />
-      </div>
-
-      <div className="analytics-panel-card">
-        <PilotDashboard
-          key={refreshKey}
-          pilotLoggingEnabled={pilotLoggingEnabled}
-          policy={policy}
-        />
-      </div>
-    </section>
-  );
-}
-
-function ResponseQualityPanel({
-  summary,
-  thresholds,
-  drilldown,
-}: {
-  summary: ResponseQualitySummary | null;
-  thresholds: ResponseQualityThresholds;
-  drilldown: ResponseQualityDrilldownExamples | null;
-}) {
-  if (!summary || summary.snapshots_count === 0) {
-    return (
-      <div className="response-quality-panel">
-        <div className="section-title">Response Quality Signals</div>
-        <div className="analytics-empty">
-          <div className="analytics-empty-description">
-            No response quality snapshots captured yet
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const avgTimeSeconds =
-    summary.avg_time_to_draft_ms != null
-      ? (summary.avg_time_to_draft_ms / 1000).toFixed(1)
-      : "--";
-  const medianTimeSeconds =
-    summary.median_time_to_draft_ms != null
-      ? (summary.median_time_to_draft_ms / 1000).toFixed(1)
-      : "--";
-  const coaching = buildResponseQualityCoaching(summary, thresholds);
-  const scorecard = buildOperatorScorecard(
-    coaching,
-    loadQueueHandoffSnapshot(),
-  );
-
-  return (
-    <div className="response-quality-panel">
-      <div className="response-quality-header">
-        <div className="section-title">Response Quality Signals</div>
-        {coaching && (
-          <span
-            className={`quality-severity-badge severity-${coaching.overallSeverity}`}
-          >
-            {coaching.overallSeverity === "healthy" && "Healthy"}
-            {coaching.overallSeverity === "watch" && "Watch"}
-            {coaching.overallSeverity === "action" && "Action"}
-          </span>
-        )}
-      </div>
-      <div className="response-quality-grid">
-        <div className="response-quality-card">
-          <span className="response-quality-label">Snapshots</span>
-          <strong className="response-quality-value">
-            {summary.snapshots_count}
-          </strong>
-        </div>
-        <div className="response-quality-card">
-          <span className="response-quality-label">Avg Words</span>
-          <strong className="response-quality-value">
-            {Math.round(summary.avg_word_count)}
-          </strong>
-        </div>
-        <div className="response-quality-card">
-          <span className="response-quality-label">Avg Edit Ratio</span>
-          <strong className="response-quality-value">
-            {(summary.avg_edit_ratio * 100).toFixed(1)}%
-          </strong>
-        </div>
-        <div className="response-quality-card">
-          <span className="response-quality-label">Edited Save Rate</span>
-          <strong className="response-quality-value">
-            {(summary.edited_save_rate * 100).toFixed(1)}%
-          </strong>
-        </div>
-        <div className="response-quality-card">
-          <span className="response-quality-label">Avg Time to Draft</span>
-          <strong className="response-quality-value">{avgTimeSeconds}s</strong>
-        </div>
-        <div className="response-quality-card">
-          <span className="response-quality-label">Median Time to Draft</span>
-          <strong className="response-quality-value">
-            {medianTimeSeconds}s
-          </strong>
-        </div>
-        <div className="response-quality-card">
-          <span className="response-quality-label">Copy per Save</span>
-          <strong className="response-quality-value">
-            {(summary.copy_per_saved_ratio * 100).toFixed(1)}%
-          </strong>
-        </div>
-        <div className="response-quality-card">
-          <span className="response-quality-label">Save Events</span>
-          <strong className="response-quality-value">
-            {summary.saved_count}
-          </strong>
-        </div>
-      </div>
-      {scorecard && (
-        <div
-          className={`operator-scorecard operator-scorecard-${scorecard.posture}`}
-        >
-          <div className="operator-scorecard-header">
-            <div>
-              <div className="operator-scorecard-title">Operator Scorecard</div>
-              <p>{scorecard.summary}</p>
-            </div>
-            <div className="operator-scorecard-score">
-              <strong>{scorecard.score}</strong>
-              <span>/100</span>
-            </div>
-          </div>
-          {scorecard.prioritySignals.length > 0 ? (
-            <ul className="operator-scorecard-actions">
-              {scorecard.prioritySignals.map((signal) => (
-                <li key={`score-${signal.id}`}>
-                  <strong>{signal.label}:</strong> {signal.guidance}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="operator-scorecard-actions-empty">
-              No urgent actions this period. Keep current runbooks and monitor
-              trend drift.
-            </div>
-          )}
-        </div>
-      )}
-      {coaching && (
-        <div className="response-quality-coaching">
-          <div className="response-quality-coaching-title">
-            Coaching thresholds
-          </div>
-          <ul className="response-quality-coaching-list">
-            {coaching.signals.map((signal) => (
-              <li
-                key={signal.id}
-                className={`response-quality-coaching-item severity-${signal.severity}`}
-              >
-                <div className="response-quality-coaching-item-head">
-                  <strong>{signal.label}</strong>
-                  <span>{signal.value}</span>
-                </div>
-                <p>{signal.guidance}</p>
-                <p className="response-quality-coaching-hint">
-                  {signal.drilldownHint}
-                </p>
-                <small>{signal.threshold}</small>
-                {signal.severity !== "healthy" && (
-                  <QualityDrilldownExamples
-                    signalId={signal.id}
-                    drilldown={drilldown}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function QualityDrilldownExamples({
-  signalId,
-  drilldown,
-}: {
-  signalId:
-    | "edit_ratio"
-    | "time_to_draft"
-    | "copy_per_save"
-    | "edited_save_rate";
-  drilldown: ResponseQualityDrilldownExamples | null;
-}) {
-  if (!drilldown) {
-    return null;
-  }
-  const sourceItems = Array.isArray(drilldown[signalId])
-    ? drilldown[signalId]
-    : [];
-  const items = sourceItems.slice(0, 3);
-  if (items.length === 0) {
-    return (
-      <div className="quality-drilldown-empty">
-        No matching draft examples captured yet for this period.
-      </div>
-    );
-  }
-
-  return (
-    <div className="quality-drilldown">
-      <div className="quality-drilldown-title">Draft examples to review</div>
-      <ul className="quality-drilldown-list">
-        {items.map((item) => (
-          <li key={`${signalId}-${item.draft_id}-${item.created_at}`}>
-            <div className="quality-drilldown-head">
-              <code>{item.draft_id}</code>
-              <span>{formatDrilldownMetric(signalId, item.metric_value)}</span>
-            </div>
-            {item.draft_excerpt && <p>{item.draft_excerpt}</p>}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function formatDrilldownMetric(
-  signalId:
-    | "edit_ratio"
-    | "time_to_draft"
-    | "copy_per_save"
-    | "edited_save_rate",
-  metricValue: number,
-): string {
-  switch (signalId) {
-    case "edit_ratio":
-      return `${(metricValue * 100).toFixed(1)}% edit ratio`;
-    case "time_to_draft":
-      return `${(metricValue / 1000).toFixed(1)}s to draft`;
-    case "copy_per_save":
-      return "Saved without copy";
-    case "edited_save_rate":
-      return `${(metricValue * 100).toFixed(1)}% edit ratio`;
-    default:
-      return String(metricValue);
-  }
-}
-
-function RatingDistribution({ summary }: { summary: AnalyticsSummary }) {
-  // Derive rating distribution from summary data.
-  // The backend provides average_rating and total_ratings.
-  // We display a placeholder distribution based on available data.
-  const totalRatings = summary.total_ratings;
-
-  // If we have no ratings, show empty state
-  if (totalRatings === 0) {
-    return (
-      <div className="rating-distribution">
-        <div className="section-title">Rating Distribution</div>
-        <div className="analytics-empty">
-          <div className="analytics-empty-description">No ratings yet</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Use real per-star counts from the backend
-  const ratingDistribution = Array.isArray(summary.rating_distribution)
-    ? summary.rating_distribution
-    : [];
-  const distribution = [5, 4, 3, 2, 1].map((stars) => ({
-    stars,
-    count: ratingDistribution[stars - 1] ?? 0,
-  }));
-
-  const maxCount = Math.max(...distribution.map((d) => d.count), 1);
-
-  return (
-    <div className="rating-distribution">
-      <div className="section-title">Rating Distribution</div>
-      {distribution.map(({ stars, count }) => (
-        <div key={stars} className="rating-row">
-          <div className="rating-label">
-            {stars} star{stars !== 1 ? "s" : ""}
-          </div>
-          <div className="rating-bar-track">
-            <div
-              className="rating-bar-fill"
-              style={{ width: `${(count / maxCount) * 100}%` }}
-            />
-          </div>
-          <div className="rating-count">{count}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function KbUsageTable({
-  articles,
-  onArticleClick,
-}: {
-  articles: ArticleUsage[];
-  onArticleClick?: (id: string) => void;
-}) {
-  if (articles.length === 0) {
-    return (
-      <div className="kb-usage-table">
-        <div className="kb-usage-header">
-          <div>Article</div>
-          <div style={{ textAlign: "right" }}>Uses</div>
-        </div>
-        <div className="analytics-empty">
-          <div className="analytics-empty-description">
-            No article usage data yet
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="kb-usage-table">
-      <div className="kb-usage-header">
-        <div>Article</div>
-        <div style={{ textAlign: "right" }}>Uses</div>
-      </div>
-      {articles.map((article) => (
-        <div
-          key={article.document_id}
-          className={`kb-usage-row ${onArticleClick ? "kb-usage-row-clickable" : ""}`}
-          onClick={() => onArticleClick?.(article.document_id)}
-          role={onArticleClick ? "button" : undefined}
-          tabIndex={onArticleClick ? 0 : undefined}
-        >
-          <div className="kb-usage-title" title={article.title}>
-            {article.title}
-          </div>
-          <div className="kb-usage-count">{article.usage_count}</div>
-        </div>
-      ))}
     </div>
   );
 }
