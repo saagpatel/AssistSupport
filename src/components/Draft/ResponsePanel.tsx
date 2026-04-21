@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "../shared/Button";
 import { RatingPanel } from "./RatingPanel";
@@ -18,9 +18,9 @@ import {
   getSourceTypeLabel,
   getScoreBarClassName,
 } from "./responsePanelHelpers";
+import { useResponsePanelCopy } from "./useResponsePanelCopy";
 import "./ResponsePanel.css";
 
-type ExportFormat = "Markdown" | "PlainText" | "Html";
 type ResponseSection = "output" | "instructions";
 
 interface ResponsePanelProps {
@@ -66,12 +66,7 @@ export function ResponsePanel({
   ticketKey,
   onSaveAsTemplate,
 }: ResponsePanelProps) {
-  const [copied, setCopied] = useState(false);
-  const [showCopyOverride, setShowCopyOverride] = useState(false);
-  const [copyOverrideReason, setCopyOverrideReason] = useState("");
-  const [copyOverrideSubmitting, setCopyOverrideSubmitting] = useState(false);
   const [showSources, setShowSources] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
   const [sourcePreviewContent, setSourcePreviewContent] = useState<
     Record<string, string>
@@ -80,14 +75,33 @@ export function ResponsePanel({
     Record<string, boolean>
   >({});
   const [activeSection, setActiveSection] = useState<ResponseSection>("output");
-  const exportMenuRef = useRef<HTMLDivElement>(null);
   const { success: showSuccess, error: showError } = useToastContext();
   const prevResponseRef = useRef<string>("");
 
-  // Parse response into sections
   const parsed = useMemo(() => parseResponseSections(response), [response]);
 
-  // Auto-show sources when a new response completes with sources available
+  const {
+    copied,
+    showCopyOverride,
+    copyOverrideReason,
+    copyOverrideSubmitting,
+    showExportMenu,
+    exportMenuRef,
+    setCopyOverrideReason,
+    setShowExportMenu,
+    handleCopy,
+    handleConfirmCopyOverride,
+    handleExport,
+    cancelCopyOverride,
+  } = useResponsePanelCopy({
+    response,
+    parsed,
+    confidenceMode: confidence?.mode,
+    sourcesCount: sources.length,
+    showSuccess,
+    showError,
+  });
+
   useEffect(() => {
     if (
       response &&
@@ -100,101 +114,6 @@ export function ResponsePanel({
     }
     prevResponseRef.current = response;
   }, [response, sources.length, generating, isStreaming]);
-
-  // Close export menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        exportMenuRef.current &&
-        !exportMenuRef.current.contains(event.target as Node)
-      ) {
-        setShowExportMenu(false);
-      }
-    }
-    if (showExportMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showExportMenu]);
-
-  const handleExport = useCallback(
-    async (format: ExportFormat) => {
-      if (!response) return;
-      try {
-        const saved = await invoke<boolean>("export_draft", {
-          responseText: response,
-          format,
-        });
-        if (saved) {
-          showSuccess("Response exported successfully");
-        }
-      } catch (err) {
-        showError(`Export failed: ${err}`);
-      }
-      setShowExportMenu(false);
-    },
-    [response, showSuccess, showError],
-  );
-
-  const handleCopy = useCallback(async () => {
-    if (!response) return;
-    const mode = confidence?.mode ?? "answer";
-    const hasCitations = sources.length > 0;
-    const copyAllowed = mode === "answer" && hasCitations;
-
-    if (!copyAllowed) {
-      setShowCopyOverride(true);
-      return;
-    }
-    try {
-      // Copy only the OUTPUT section (or full response if no sections)
-      const textToCopy = parsed.hasSections ? parsed.output : response;
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      showError(`Copy failed: ${err}`);
-    }
-  }, [response, parsed, confidence?.mode, sources.length, showError]);
-
-  const handleConfirmCopyOverride = useCallback(async () => {
-    if (!response) return;
-    const reason = copyOverrideReason.trim();
-    if (!reason) {
-      showError("Reason is required to override copy gating.");
-      return;
-    }
-
-    try {
-      setCopyOverrideSubmitting(true);
-      await invoke("audit_response_copy_override", {
-        reason,
-        confidenceMode: confidence?.mode ?? null,
-        sourcesCount: sources.length,
-      });
-
-      const textToCopy = parsed.hasSections ? parsed.output : response;
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      setShowCopyOverride(false);
-      setCopyOverrideReason("");
-      showSuccess("Response copied (override logged)");
-    } catch (err) {
-      showError(`Copy override failed: ${err}`);
-    } finally {
-      setCopyOverrideSubmitting(false);
-    }
-  }, [
-    response,
-    parsed,
-    copyOverrideReason,
-    confidence?.mode,
-    sources.length,
-    showError,
-    showSuccess,
-  ]);
 
   const handleSourceToggle = useCallback(
     async (source: ContextSource) => {
@@ -273,10 +192,7 @@ export function ResponsePanel({
               <Button
                 variant="secondary"
                 size="small"
-                onClick={() => {
-                  setShowCopyOverride(false);
-                  setCopyOverrideReason("");
-                }}
+                onClick={cancelCopyOverride}
                 disabled={copyOverrideSubmitting}
               >
                 Cancel
