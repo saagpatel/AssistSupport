@@ -18,6 +18,7 @@ import { useDraftGeneration } from "./useDraftGeneration";
 import { useDraftIntake } from "./useDraftIntake";
 import { useDraftPersistence } from "./useDraftPersistence";
 import { useGuidedRunbook } from "./useGuidedRunbook";
+import { useWorkspaceArtifacts } from "./useWorkspaceArtifacts";
 import { useWorkspaceClipboardPacks } from "./useWorkspaceClipboardPacks";
 import { ConversationInput } from "./ConversationInput";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
@@ -42,9 +43,6 @@ import { useWorkspaceDerivedArtifacts } from "../../features/workspace/useWorksp
 import { useWorkspaceCommandBridge } from "../../features/workspace/useWorkspaceCommandBridge";
 import { useWorkspaceDraftState } from "../../features/workspace/useWorkspaceDraftState";
 import {
-  applyResolutionKit,
-  buildResolutionKitFromWorkspace,
-  buildSimilarCases,
   compactLines,
   parseCaseIntake,
 } from "../../features/workspace/workspaceAssistant";
@@ -62,11 +60,9 @@ import type { ContextSource } from "../../types/knowledge";
 import type {
   GuidedRunbookTemplate,
   NextActionRecommendation,
-  ResolutionKit,
   ResponseLength,
   SavedDraft,
   SimilarCase,
-  WorkspaceFavorite,
   WorkspacePersonalization,
 } from "../../types/workspace";
 import "./DraftTab.css";
@@ -330,9 +326,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       ConversationEntry[]
     >([]);
     const [handoffTouched, setHandoffTouched] = useState(false);
-    const [similarCases, setSimilarCases] = useState<SimilarCase[]>([]);
-    const [similarCasesLoading, setSimilarCasesLoading] = useState(false);
-    const [compareCase, setCompareCase] = useState<SimilarCase | null>(null);
     const [workspaceRunbookScopeKey, setWorkspaceRunbookScopeKey] =
       useState<string>(createWorkspaceRunbookScopeKey);
     const [autosaveDraftId, setAutosaveDraftId] = useState<string | null>(null);
@@ -538,69 +531,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       [savedDraftId],
     );
 
-    const handleRefreshSimilarCases = useCallback(async () => {
-      if (!similarCasesEnabled) {
-        setSimilarCases([]);
-        return;
-      }
-
-      const query = [
-        input,
-        currentTicket?.summary,
-        caseIntake.issue,
-        caseIntake.symptoms,
-      ]
-        .filter((value): value is string => Boolean(value?.trim()))
-        .join(" ");
-
-      if (!query.trim()) {
-        setSimilarCases([]);
-        return;
-      }
-
-      setSimilarCasesLoading(true);
-      try {
-        const results = await searchDrafts(query, 20);
-        const next = buildSimilarCases({
-          currentDraftId: savedDraftId,
-          queryText: query,
-          drafts: results,
-        });
-        setSimilarCases(next);
-      } finally {
-        setSimilarCasesLoading(false);
-      }
-    }, [
-      similarCasesEnabled,
-      input,
-      currentTicket?.summary,
-      caseIntake.issue,
-      caseIntake.symptoms,
-      searchDrafts,
-      savedDraftId,
-    ]);
-
-    const handleCompareLastResolution = useCallback(() => {
-      if (!response.trim()) {
-        showError(
-          "Generate or paste a response before comparing it to a prior resolution",
-        );
-        return;
-      }
-
-      const bestMatch = similarCases[0];
-      if (!bestMatch || !bestMatch.response_text.trim()) {
-        showError("No similar solved case is ready to compare yet");
-        return;
-      }
-
-      setCompareCase(bestMatch);
-      void logEvent("workspace_compare_last_resolution_opened", {
-        ticket_id: currentTicketId,
-        similar_case_id: bestMatch.draft_id,
-      });
-    }, [response, similarCases, showError, logEvent, currentTicketId]);
-
     const handleApplyTemplate = useCallback((content: string) => {
       setResponse(content);
     }, []);
@@ -697,9 +627,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
         ...parseCaseIntake(null),
         note_audience: workspacePersonalization.preferred_note_audience,
       });
-      setSimilarCases([]);
-      setSimilarCasesLoading(false);
-      setCompareCase(null);
+      resetWorkspaceArtifacts();
       setGuidedRunbookSession(null);
       setGuidedRunbookNote("");
       setRunbookSessionSourceScopeKey(null);
@@ -835,38 +763,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       return () => window.removeEventListener("keydown", handleKeydown);
     }, [viewMode, handlePanelDensityModeChange]);
 
-    useEffect(() => {
-      if (!similarCasesEnabled) {
-        return;
-      }
-
-      const query = [
-        input,
-        caseIntake.issue,
-        caseIntake.symptoms,
-        currentTicket?.summary,
-      ]
-        .filter((value): value is string => Boolean(value?.trim()))
-        .join(" ");
-      if (!query.trim()) {
-        setSimilarCases([]);
-        return;
-      }
-
-      const timer = window.setTimeout(() => {
-        void handleRefreshSimilarCases();
-      }, 350);
-
-      return () => window.clearTimeout(timer);
-    }, [
-      similarCasesEnabled,
-      input,
-      caseIntake.issue,
-      caseIntake.symptoms,
-      currentTicket?.summary,
-      handleRefreshSimilarCases,
-    ]);
-
     const buildDiagnosisJson = useCallback(() => {
       const completedIds = Object.keys(checklistCompleted).filter(
         (id) => checklistCompleted[id],
@@ -980,6 +876,45 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     });
 
     const {
+      similarCases,
+      similarCasesLoading,
+      compareCase,
+      setCompareCase,
+      handleRefreshSimilarCases,
+      handleCompareLastResolution,
+      handleCompareSimilarCase,
+      handleSaveCurrentResolutionKit,
+      handleApplyResolutionKit,
+      handleToggleWorkspaceFavorite,
+      resetWorkspaceArtifacts,
+    } = useWorkspaceArtifacts({
+      similarCasesEnabled,
+      input,
+      response,
+      currentTicket,
+      currentTicketId,
+      caseIntake,
+      kbDraft,
+      sources,
+      savedDraftId,
+      workspaceFavorites,
+      searchDrafts,
+      saveResolutionKit,
+      saveWorkspaceFavorite,
+      deleteWorkspaceFavorite,
+      refreshWorkspaceCatalog,
+      logEvent,
+      setResponse,
+      setOriginalResponse,
+      setIsResponseEdited,
+      setCaseIntake,
+      setDiagnosticNotes,
+      setPanelDensityMode,
+      onShowSuccess: showSuccess,
+      onShowError: showError,
+    });
+
+    const {
       pendingSimilarCaseOpen,
       setPendingSimilarCaseOpen,
       pendingDraftOpen,
@@ -1061,116 +996,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
         onShowError: showError,
       });
 
-    const handleSaveCurrentResolutionKit = useCallback(async () => {
-      try {
-        const nextKit = buildResolutionKitFromWorkspace({
-          intake: caseIntake,
-          kbDraft,
-          responseText: response,
-          sources,
-        });
-        await saveResolutionKit({
-          ...nextKit,
-          response_template: nextKit.response_template,
-          checklist_items: nextKit.checklist_items,
-          kb_document_ids: nextKit.kb_document_ids,
-        });
-        await refreshWorkspaceCatalog();
-        void logEvent("workspace_resolution_kit_saved", {
-          ticket_id: currentTicketId,
-          category: nextKit.category,
-        });
-        showSuccess("Saved the current workspace as a resolution kit");
-      } catch {
-        showError("Failed to save resolution kit");
-      }
-    }, [
-      caseIntake,
-      kbDraft,
-      response,
-      sources,
-      saveResolutionKit,
-      refreshWorkspaceCatalog,
-      logEvent,
-      currentTicketId,
-      showSuccess,
-      showError,
-    ]);
-
-    const handleApplyResolutionKit = useCallback(
-      (kit: ResolutionKit) => {
-        const applied = applyResolutionKit({
-          currentInput: input,
-          currentResponse: response,
-          currentIntake: caseIntake,
-          kit,
-        });
-        setResponse(applied.responseText);
-        if (!response.trim() && applied.responseText) {
-          setOriginalResponse(applied.responseText);
-          setIsResponseEdited(false);
-        }
-        setCaseIntake(applied.intake);
-        setDiagnosticNotes((prev) =>
-          compactLines([prev, applied.checklistText]),
-        );
-        setPanelDensityMode("focus-intake");
-        void logEvent("workspace_resolution_kit_applied", {
-          ticket_id: currentTicketId,
-          kit_id: kit.id,
-          category: kit.category,
-        });
-        showSuccess(`Applied ${kit.name}`);
-      },
-      [input, response, caseIntake, logEvent, currentTicketId, showSuccess],
-    );
-
-    const handleToggleWorkspaceFavorite = useCallback(
-      async (
-        kind: WorkspaceFavorite["kind"],
-        resourceId: string,
-        label: string,
-        metadata?: Record<string, string> | null,
-      ) => {
-        try {
-          const existing = workspaceFavorites.find(
-            (favorite) =>
-              favorite.kind === kind && favorite.resource_id === resourceId,
-          );
-          if (existing) {
-            await deleteWorkspaceFavorite(existing.id);
-            showSuccess(`Removed ${label} from favorites`);
-          } else {
-            await saveWorkspaceFavorite({
-              kind,
-              label,
-              resource_id: resourceId,
-              metadata: metadata ?? null,
-            });
-            showSuccess(`Added ${label} to favorites`);
-          }
-          await refreshWorkspaceCatalog();
-          void logEvent("workspace_favorite_toggled", {
-            ticket_id: currentTicketId,
-            kind,
-            resource_id: resourceId,
-          });
-        } catch {
-          showError("Failed to update favorites");
-        }
-      },
-      [
-        workspaceFavorites,
-        deleteWorkspaceFavorite,
-        saveWorkspaceFavorite,
-        refreshWorkspaceCatalog,
-        showSuccess,
-        logEvent,
-        currentTicketId,
-        showError,
-      ],
-    );
-
     const loadSimilarCaseIntoWorkspace = useCallback(
       async (similarCase: SimilarCase) => {
         const fullDraft = await getDraft(similarCase.draft_id);
@@ -1206,22 +1031,10 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
         logEvent,
         currentTicketId,
         requestOpenSimilarCase,
+        setPendingSimilarCaseOpen,
         showError,
         showSuccess,
       ],
-    );
-
-    const handleCompareSimilarCase = useCallback(
-      (similarCase: SimilarCase) => {
-        if (!response.trim()) {
-          showError(
-            "Generate or paste a response before comparing it to a prior resolution",
-          );
-          return;
-        }
-        setCompareCase(similarCase);
-      },
-      [response, showError],
     );
 
     const handleAcceptNextAction = useCallback(
