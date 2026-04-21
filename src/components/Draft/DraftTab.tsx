@@ -7,11 +7,9 @@ import {
   useMemo,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { DraftResponsePanel } from "./DraftResponsePanel";
 import { InputPanel } from "./InputPanel";
 import { DiagnosisPanel, TreeResult } from "./DiagnosisPanel";
-import { ResponsePanel } from "./ResponsePanel";
-import { AlternativePanel } from "./AlternativePanel";
-import { SavedResponsesSuggestion } from "./SavedResponsesSuggestion";
 import { ConversationThread, ConversationEntry } from "./ConversationThread";
 import { useDraftApproval } from "./useDraftApproval";
 import { useDraftChecklist } from "./useDraftChecklist";
@@ -1994,43 +1992,34 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     );
 
     const responsePanel = (
-      <>
-        {!suggestionsDismissed && suggestions.length > 0 && !response ? (
-          <SavedResponsesSuggestion
-            suggestions={suggestions}
-            onApply={handleSuggestionApply}
-            onDismiss={handleSuggestionDismiss}
-          />
-        ) : null}
-        <ResponsePanel
-          response={response}
-          streamingText={streamingText}
-          isStreaming={isStreaming}
-          sources={sources}
-          generating={generating}
-          metrics={metrics}
-          confidence={confidence}
-          grounding={grounding}
-          draftId={savedDraftId}
-          onSaveDraft={handleSaveDraft}
-          onCancel={handleCancel}
-          hasInput={!!input.trim()}
-          onResponseChange={handleResponseChange}
-          isEdited={isResponseEdited}
-          modelName={loadedModelName}
-          onGenerateAlternative={handleGenerateAlternative}
-          generatingAlternative={generatingAlternative}
-          ticketKey={currentTicketId}
-          onSaveAsTemplate={handleSaveAsTemplate}
-        />
-        {alternatives.length > 0 && response && !generating && !isStreaming ? (
-          <AlternativePanel
-            alternatives={alternatives}
-            onChoose={handleChooseAlternative}
-            onUseAlternative={handleUseAlternative}
-          />
-        ) : null}
-      </>
+      <DraftResponsePanel
+        suggestions={suggestions}
+        suggestionsDismissed={suggestionsDismissed}
+        onSuggestionApply={handleSuggestionApply}
+        onSuggestionDismiss={handleSuggestionDismiss}
+        response={response}
+        streamingText={streamingText}
+        isStreaming={isStreaming}
+        sources={sources}
+        generating={generating}
+        metrics={metrics}
+        confidence={confidence}
+        grounding={grounding}
+        savedDraftId={savedDraftId}
+        hasInput={!!input.trim()}
+        isResponseEdited={isResponseEdited}
+        loadedModelName={loadedModelName}
+        currentTicketId={currentTicketId}
+        onSaveDraft={handleSaveDraft}
+        onCancel={handleCancel}
+        onResponseChange={handleResponseChange}
+        onGenerateAlternative={handleGenerateAlternative}
+        generatingAlternative={generatingAlternative}
+        onSaveAsTemplate={handleSaveAsTemplate}
+        alternatives={alternatives}
+        onChooseAlternative={handleChooseAlternative}
+        onUseAlternative={handleUseAlternative}
+      />
     );
 
     const workspacePanel = (
