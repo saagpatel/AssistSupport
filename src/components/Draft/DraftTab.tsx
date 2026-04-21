@@ -16,6 +16,7 @@ import { useDraftChecklist } from "./useDraftChecklist";
 import { useDraftFirstResponse } from "./useDraftFirstResponse";
 import { useDraftGeneration } from "./useDraftGeneration";
 import { useDraftIntake } from "./useDraftIntake";
+import { useDraftPersistence } from "./useDraftPersistence";
 import { useGuidedRunbook } from "./useGuidedRunbook";
 import { useWorkspaceClipboardPacks } from "./useWorkspaceClipboardPacks";
 import { ConversationInput } from "./ConversationInput";
@@ -47,10 +48,6 @@ import {
   compactLines,
   parseCaseIntake,
 } from "../../features/workspace/workspaceAssistant";
-import {
-  shouldMigrateVisibleRunbookSession,
-  shouldProceedAfterSaveAttempt,
-} from "../../features/workspace/workspaceDraftSession";
 import {
   calculateEditRatio,
   countWords,
@@ -1324,202 +1321,50 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       onCompareLastResolution: handleCompareLastResolution,
     });
 
-    const handleSaveDraft = useCallback(async () => {
-      if (!hasSaveableWorkspaceContent) {
-        showError("Cannot save empty draft");
-        return null;
-      }
-
-      const diagnosisData = buildDiagnosisJson();
-      const currentCreatedAt = savedDraftCreatedAt ?? new Date().toISOString();
-      const draftPayload = {
-        input_text: input,
-        summary_text: currentTicket?.summary ?? null,
-        diagnosis_json: diagnosisData,
-        response_text: response || null,
-        ticket_id: currentTicketId,
-        kb_sources_json: sources.length > 0 ? JSON.stringify(sources) : null,
-        is_autosave: false,
-        model_name: loadedModelName,
-        case_intake_json: serializedCaseIntake,
-        handoff_summary: handoffPack.summary,
-        status: "draft" as const,
-      };
-
-      const draftId = savedDraftId
-        ? await updateDraft({
-            id: savedDraftId,
-            created_at: currentCreatedAt,
-            updated_at: activeWorkspaceDraft.updated_at,
-            finalized_at: null,
-            finalized_by: null,
-            ...draftPayload,
-          })
-        : await saveDraft(draftPayload);
-
-      if (draftId) {
-        const nextScopeKey = `draft:${draftId}`;
-        let runbookScopeLinked = true;
-        if (workspaceRunbookScopeKey !== nextScopeKey) {
-          try {
-            const shouldMigrateActiveRunbookSession = guidedRunbookSession
-              ? shouldMigrateVisibleRunbookSession({
-                  hasGuidedRunbookSession: true,
-                  runbookSessionTouched,
-                  runbookSessionSourceScopeKey,
-                  workspaceRunbookScopeKey,
-                })
-              : false;
-
-            const activeRunbookSessionId = guidedRunbookSession?.id ?? null;
-            if (shouldMigrateActiveRunbookSession && activeRunbookSessionId) {
-              await reassignRunbookSessionById(
-                activeRunbookSessionId,
-                nextScopeKey,
-              );
-            } else {
-              await reassignRunbookSessionScope(
-                workspaceRunbookScopeKey,
-                nextScopeKey,
-              );
-            }
-            setWorkspaceRunbookScopeKey(nextScopeKey);
-            setRunbookSessionSourceScopeKey(nextScopeKey);
-          } catch {
-            runbookScopeLinked = false;
-          }
-        }
-        setAutosaveDraftId(null);
-        setSavedDraftId(draftId);
-        setSavedDraftCreatedAt(currentCreatedAt);
-        const responseWordCount = countWords(response);
-        const editRatio = calculateEditRatio(originalResponse, response);
-        logEvent("response_saved", {
-          draft_id: draftId,
-          word_count: responseWordCount,
-          is_edited: isResponseEdited,
-          edit_ratio: Number(editRatio.toFixed(3)),
-        });
-        if (runbookScopeLinked) {
-          showSuccess("Draft saved");
-        } else {
-          showError(
-            "Draft saved, but guided runbook progress stayed attached to the previous workspace state",
-          );
-        }
-        return draftId;
-      }
-      return null;
-    }, [
-      activeWorkspaceDraft.updated_at,
-      buildDiagnosisJson,
-      currentTicket?.summary,
-      currentTicketId,
-      guidedRunbookSession,
-      handoffPack.summary,
-      hasSaveableWorkspaceContent,
+    const {
+      handleSaveDraft,
+      handleConfirmOpenDraft,
+      handleConfirmOpenSimilarCase,
+    } = useDraftPersistence({
       input,
-      isResponseEdited,
+      response,
+      sources,
+      currentTicket,
+      currentTicketId,
+      savedDraftId,
+      savedDraftCreatedAt,
       loadedModelName,
-      logEvent,
+      handoffPack,
+      serializedCaseIntake,
+      isResponseEdited,
       originalResponse,
+      hasSaveableWorkspaceContent,
+      activeWorkspaceDraft,
+      workspaceRunbookScopeKey,
+      guidedRunbookSession,
+      runbookSessionTouched,
+      runbookSessionSourceScopeKey,
+      buildDiagnosisJson,
+      saveDraft,
+      updateDraft,
       reassignRunbookSessionById,
       reassignRunbookSessionScope,
-      response,
-      savedDraftCreatedAt,
-      runbookSessionSourceScopeKey,
-      runbookSessionTouched,
-      savedDraftId,
-      saveDraft,
-      serializedCaseIntake,
-      showError,
-      showSuccess,
-      sources,
-      updateDraft,
-      workspaceRunbookScopeKey,
-    ]);
-
-    const handleConfirmOpenSimilarCase = useCallback(
-      async (mode: "replace" | "save-and-open" | "compare") => {
-        if (!pendingSimilarCaseOpen) {
-          return;
-        }
-
-        if (mode === "compare") {
-          setCompareCase(pendingSimilarCaseOpen);
-          setPendingSimilarCaseOpen(null);
-          return;
-        }
-
-        try {
-          if (mode === "save-and-open") {
-            const savedId = await handleSaveDraft();
-            if (!shouldProceedAfterSaveAttempt(mode, savedId)) {
-              return;
-            }
-          }
-
-          await loadSimilarCaseIntoWorkspace(pendingSimilarCaseOpen);
-          setPendingSimilarCaseOpen(null);
-          void logEvent("workspace_similar_case_opened", {
-            ticket_id: currentTicketId,
-            similar_case_id: pendingSimilarCaseOpen.draft_id,
-            similar_case_ticket: pendingSimilarCaseOpen.ticket_id,
-            open_mode: mode,
-          });
-          showSuccess(
-            mode === "save-and-open"
-              ? "Saved the current workspace and opened the saved case"
-              : "Opened the saved case in the workspace",
-          );
-        } catch {
-          showError("Failed to open the saved case");
-        }
-      },
-      [
-        currentTicketId,
-        handleSaveDraft,
-        loadSimilarCaseIntoWorkspace,
-        logEvent,
-        pendingSimilarCaseOpen,
-        showError,
-        showSuccess,
-      ],
-    );
-
-    const handleConfirmOpenDraft = useCallback(
-      async (mode: "replace" | "save-and-open") => {
-        if (!pendingDraftOpen) {
-          return;
-        }
-
-        try {
-          if (mode === "save-and-open") {
-            const savedId = await handleSaveDraft();
-            if (!shouldProceedAfterSaveAttempt(mode, savedId)) {
-              return;
-            }
-          }
-
-          applyLoadedDraft(pendingDraftOpen);
-          setPendingDraftOpen(null);
-          showSuccess(
-            mode === "save-and-open"
-              ? "Saved the current workspace and opened the selected draft"
-              : "Opened the selected draft in the workspace",
-          );
-        } catch {
-          showError("Failed to open the selected draft");
-        }
-      },
-      [
-        applyLoadedDraft,
-        handleSaveDraft,
-        pendingDraftOpen,
-        showError,
-        showSuccess,
-      ],
-    );
+      logEvent,
+      setWorkspaceRunbookScopeKey,
+      setRunbookSessionSourceScopeKey,
+      setAutosaveDraftId,
+      setSavedDraftId,
+      setSavedDraftCreatedAt,
+      pendingDraftOpen,
+      setPendingDraftOpen,
+      applyLoadedDraft,
+      pendingSimilarCaseOpen,
+      setPendingSimilarCaseOpen,
+      loadSimilarCaseIntoWorkspace,
+      setCompareCase,
+      onShowSuccess: showSuccess,
+      onShowError: showError,
+    });
 
     // Load initial draft if provided
     useEffect(() => {
