@@ -15,6 +15,7 @@ import { AlternativePanel } from "./AlternativePanel";
 import { SavedResponsesSuggestion } from "./SavedResponsesSuggestion";
 import { ConversationThread, ConversationEntry } from "./ConversationThread";
 import { useDraftApproval } from "./useDraftApproval";
+import { useDraftChecklist } from "./useDraftChecklist";
 import { useDraftFirstResponse } from "./useDraftFirstResponse";
 import { ConversationInput } from "./ConversationInput";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
@@ -59,11 +60,9 @@ import {
 } from "../../features/analytics/qualityMetrics";
 import type { JiraTicket } from "../../hooks/useJira";
 import type {
-  ChecklistState,
   ConfidenceAssessment,
   GenerationMetrics,
   GroundedClaim,
-  ChecklistItem,
 } from "../../types/llm";
 import type { ContextSource } from "../../types/knowledge";
 import type {
@@ -321,13 +320,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     const [ocrText, setOcrText] = useState<string | null>(null);
     const [diagnosticNotes, setDiagnosticNotes] = useState("");
     const [treeResult, setTreeResult] = useState<TreeResult | null>(null);
-    const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
-    const [checklistCompleted, setChecklistCompleted] = useState<
-      Record<string, boolean>
-    >({});
-    const [checklistGenerating, setChecklistGenerating] = useState(false);
-    const [checklistUpdating, setChecklistUpdating] = useState(false);
-    const [checklistError, setChecklistError] = useState<string | null>(null);
     const [response, setResponse] = useState("");
     const [sources, setSources] = useState<ContextSource[]>([]);
     const [metrics, setMetrics] = useState<GenerationMetrics | null>(null);
@@ -419,6 +411,32 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       modelLoaded,
       generateFirstResponse,
       onShowSuccess: showSuccess,
+      onShowError: showError,
+    });
+
+    const {
+      checklistItems,
+      setChecklistItems,
+      checklistCompleted,
+      setChecklistCompleted,
+      checklistGenerating,
+      checklistUpdating,
+      checklistError,
+      setChecklistError,
+      handleChecklistGenerate,
+      handleChecklistUpdate,
+      handleChecklistToggle,
+      handleChecklistClear,
+      resetChecklist,
+    } = useDraftChecklist({
+      input,
+      ocrText,
+      diagnosticNotes,
+      treeResult,
+      currentTicket,
+      modelLoaded,
+      generateChecklist,
+      updateChecklist,
       onShowError: showError,
     });
 
@@ -690,153 +708,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       currentTicketId,
     ]);
 
-    const handleChecklistGenerate = useCallback(async () => {
-      if (checklistGenerating) return;
-
-      if (!modelLoaded) {
-        showError("No model loaded. Go to Settings to load a model.");
-        return;
-      }
-
-      const ticketFallback = currentTicket
-        ? `${currentTicket.summary}${currentTicket.description ? `\n\n${currentTicket.description}` : ""}`
-        : "";
-      const promptInput =
-        input.trim() || ticketFallback.trim() || ocrText?.trim() || "";
-      if (!promptInput) {
-        setChecklistError(
-          "Add ticket details or notes before generating a checklist.",
-        );
-        return;
-      }
-
-      setChecklistGenerating(true);
-      setChecklistError(null);
-      try {
-        const treeDecisions = treeResult
-          ? {
-              tree_name: treeResult.treeName,
-              path_summary: treeResult.pathSummary,
-            }
-          : undefined;
-
-        const result = await generateChecklist({
-          user_input: promptInput,
-          ocr_text: ocrText ?? undefined,
-          diagnostic_notes: diagnosticNotes || undefined,
-          tree_decisions: treeDecisions,
-          jira_ticket: currentTicket ?? undefined,
-        });
-
-        setChecklistItems(result.items);
-        setChecklistCompleted({});
-      } catch (e) {
-        console.error("Checklist generation failed:", e);
-        setChecklistError(`Checklist failed: ${e}`);
-      } finally {
-        setChecklistGenerating(false);
-      }
-    }, [
-      input,
-      checklistGenerating,
-      modelLoaded,
-      treeResult,
-      ocrText,
-      diagnosticNotes,
-      currentTicket,
-      generateChecklist,
-      showError,
-    ]);
-
-    const handleChecklistUpdate = useCallback(async () => {
-      if (!checklistItems.length || checklistUpdating) return;
-
-      if (!modelLoaded) {
-        showError("No model loaded. Go to Settings to load a model.");
-        return;
-      }
-
-      const ticketFallback = currentTicket
-        ? `${currentTicket.summary}${currentTicket.description ? `\n\n${currentTicket.description}` : ""}`
-        : "";
-      const promptInput =
-        input.trim() || ticketFallback.trim() || ocrText?.trim() || "";
-      if (!promptInput) {
-        setChecklistError(
-          "Add ticket details or notes before updating the checklist.",
-        );
-        return;
-      }
-
-      setChecklistUpdating(true);
-      setChecklistError(null);
-      try {
-        const treeDecisions = treeResult
-          ? {
-              tree_name: treeResult.treeName,
-              path_summary: treeResult.pathSummary,
-            }
-          : undefined;
-
-        const completedIds = Object.keys(checklistCompleted).filter(
-          (id) => checklistCompleted[id],
-        );
-        const checklist: ChecklistState = {
-          items: checklistItems,
-          completed_ids: completedIds,
-        };
-
-        const result = await updateChecklist({
-          user_input: promptInput,
-          ocr_text: ocrText ?? undefined,
-          diagnostic_notes: diagnosticNotes || undefined,
-          tree_decisions: treeDecisions,
-          jira_ticket: currentTicket ?? undefined,
-          checklist,
-        });
-
-        const updatedCompleted: Record<string, boolean> = {};
-        for (const item of result.items) {
-          if (checklistCompleted[item.id]) {
-            updatedCompleted[item.id] = true;
-          }
-        }
-
-        setChecklistItems(result.items);
-        setChecklistCompleted(updatedCompleted);
-      } catch (e) {
-        console.error("Checklist update failed:", e);
-        setChecklistError(`Checklist update failed: ${e}`);
-      } finally {
-        setChecklistUpdating(false);
-      }
-    }, [
-      checklistItems,
-      checklistUpdating,
-      modelLoaded,
-      input,
-      ocrText,
-      diagnosticNotes,
-      treeResult,
-      currentTicket,
-      checklistCompleted,
-      updateChecklist,
-      showError,
-    ]);
-
-    const handleChecklistToggle = useCallback((id: string) => {
-      setChecklistCompleted((prev) => ({
-        ...prev,
-        [id]: !prev[id],
-      }));
-    }, []);
-
-    const handleChecklistClear = useCallback(() => {
-      setChecklistItems([]);
-      setChecklistCompleted({});
-      setChecklistError(null);
-    }, []);
-
     const handleApplyTemplate = useCallback((content: string) => {
       setResponse(content);
     }, []);
@@ -991,11 +862,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setOcrText(null);
       setDiagnosticNotes("");
       setTreeResult(null);
-      setChecklistItems([]);
-      setChecklistCompleted({});
-      setChecklistError(null);
-      setChecklistGenerating(false);
-      setChecklistUpdating(false);
+      resetChecklist();
       resetFirstResponse();
       resetApproval();
       setResponse("");
