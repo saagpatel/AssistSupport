@@ -4,7 +4,6 @@ import {
   useEffect,
   forwardRef,
   useImperativeHandle,
-  useRef,
   useMemo,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -17,6 +16,7 @@ import { ConversationThread, ConversationEntry } from "./ConversationThread";
 import { useDraftApproval } from "./useDraftApproval";
 import { useDraftChecklist } from "./useDraftChecklist";
 import { useDraftFirstResponse } from "./useDraftFirstResponse";
+import { useDraftGeneration } from "./useDraftGeneration";
 import { useDraftIntake } from "./useDraftIntake";
 import { ConversationInput } from "./ConversationInput";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
@@ -305,7 +305,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       () => loadWorkspacePersonalization().preferred_output_length,
     );
     const [diagnosisCollapsed, setDiagnosisCollapsed] = useState(false);
-    const [generating, setGenerating] = useState(false);
     const [currentTicketId, setCurrentTicketId] = useState<string | null>(null);
     const [currentTicket, setCurrentTicket] = useState<JiraTicket | null>(null);
     const [originalResponse, setOriginalResponse] = useState<string>("");
@@ -354,13 +353,48 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     } = useAlternatives();
     const { suggestions, findSimilar, saveAsTemplate, incrementUsage } =
       useSavedResponses();
-    const [generatingAlternative, setGeneratingAlternative] = useState(false);
     const [showTemplateModal, setShowTemplateModal] = useState(false);
     const [templateModalRating, setTemplateModalRating] = useState<
       number | undefined
     >(undefined);
     const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
-    const firstDraftStartMsRef = useRef<number | null>(null);
+
+    const {
+      generating,
+      setGenerating,
+      generatingAlternative,
+      handleGenerate,
+      handleGenerateAlternative,
+      handleChooseAlternative,
+      handleUseAlternative,
+      resetGeneration,
+    } = useDraftGeneration({
+      input,
+      ocrText,
+      responseLength,
+      modelLoaded,
+      treeResult,
+      diagnosticNotes,
+      currentTicket,
+      currentTicketId,
+      savedDraftId,
+      response,
+      generateStreaming,
+      clearStreamingText,
+      enrichDiagnosticNotes,
+      saveAlternative,
+      loadAlternatives,
+      chooseAlternative,
+      logEvent,
+      setResponse,
+      setOriginalResponse,
+      setIsResponseEdited,
+      setSources,
+      setMetrics,
+      setConfidence,
+      setGrounding,
+      onShowError: showError,
+    });
 
     const {
       firstResponse,
@@ -549,186 +583,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       });
     }, [response, similarCases, showError, logEvent, currentTicketId]);
 
-    const handleGenerate = useCallback(async () => {
-      if (!input.trim() || generating) return;
-
-      if (!modelLoaded) {
-        showError("No model loaded. Go to Settings to load a model.");
-        return;
-      }
-
-      setGenerating(true);
-      if (firstDraftStartMsRef.current === null) {
-        firstDraftStartMsRef.current = Date.now();
-      }
-      setResponse(""); // Clear previous response
-      clearStreamingText(); // Clear streaming buffer
-      setConfidence(null);
-      setGrounding([]);
-      try {
-        const combinedInput = ocrText
-          ? `${input}\n\n[Screenshot OCR Text]:\n${ocrText}`
-          : input;
-        const enrichment = await enrichDiagnosticNotes(
-          combinedInput,
-          diagnosticNotes || undefined,
-        );
-        logEvent("memorykernel_enrichment_attempted", {
-          applied: enrichment.enrichmentApplied,
-          status: enrichment.status,
-          fallback_reason: enrichment.fallbackReason,
-          machine_error_code: enrichment.machineErrorCode,
-        });
-        if (!enrichment.enrichmentApplied) {
-          console.info("MemoryKernel enrichment skipped:", enrichment.message);
-        }
-
-        // Build tree decisions if available
-        const treeDecisions = treeResult
-          ? {
-              tree_name: treeResult.treeName,
-              path_summary: treeResult.pathSummary,
-            }
-          : undefined;
-
-        const result = await generateStreaming(combinedInput, responseLength, {
-          treeDecisions,
-          diagnosticNotes: enrichment.diagnosticNotes,
-          jiraTicket: currentTicket || undefined,
-        });
-        setResponse(result.text);
-        setOriginalResponse(result.text);
-        setIsResponseEdited(false);
-        setSources(result.sources);
-        setMetrics(result.metrics ?? null);
-        setConfidence(result.confidence ?? null);
-        setGrounding(result.grounding ?? []);
-        const responseWordCount = countWords(result.text);
-        const timeToDraftMs = firstDraftStartMsRef.current
-          ? Date.now() - firstDraftStartMsRef.current
-          : null;
-        logEvent("response_generated", {
-          response_length: responseLength,
-          tokens_generated: result.tokens_generated,
-          duration_ms: result.duration_ms,
-          sources_count: result.sources.length,
-        });
-        logEvent("response_quality_snapshot", {
-          draft_id: savedDraftId,
-          word_count: responseWordCount,
-          edit_ratio: 0,
-          time_to_draft_ms: timeToDraftMs,
-          has_ticket: !!currentTicketId,
-          has_tree_path: !!treeResult,
-          has_notes: !!enrichment.diagnosticNotes?.trim(),
-        });
-      } catch (e) {
-        console.error("Generation failed:", e);
-        showError(`Generation failed: ${e}`);
-      } finally {
-        setGenerating(false);
-      }
-    }, [
-      input,
-      ocrText,
-      responseLength,
-      generating,
-      modelLoaded,
-      treeResult,
-      diagnosticNotes,
-      currentTicket,
-      generateStreaming,
-      clearStreamingText,
-      showError,
-      logEvent,
-      enrichDiagnosticNotes,
-      savedDraftId,
-      currentTicketId,
-    ]);
-
     const handleApplyTemplate = useCallback((content: string) => {
       setResponse(content);
-    }, []);
-
-    const handleGenerateAlternative = useCallback(async () => {
-      if (!response || generating || generatingAlternative || !modelLoaded)
-        return;
-
-      setGeneratingAlternative(true);
-      try {
-        const combinedInput = ocrText
-          ? `${input}\n\n[Screenshot OCR Text]:\n${ocrText}`
-          : input;
-        const treeDecisions = treeResult
-          ? {
-              tree_name: treeResult.treeName,
-              path_summary: treeResult.pathSummary,
-            }
-          : undefined;
-
-        const result = await generateStreaming(combinedInput, responseLength, {
-          treeDecisions,
-          diagnosticNotes: diagnosticNotes || undefined,
-          jiraTicket: currentTicket || undefined,
-        });
-
-        // Save the alternative
-        if (savedDraftId) {
-          await saveAlternative(savedDraftId, response, result.text, {
-            sourcesJson:
-              result.sources.length > 0
-                ? JSON.stringify(result.sources)
-                : undefined,
-            metricsJson: result.metrics
-              ? JSON.stringify(result.metrics)
-              : undefined,
-          });
-          await loadAlternatives(savedDraftId);
-        }
-
-        logEvent("alternative_generated", {
-          draft_id: savedDraftId,
-          tokens_generated: result.tokens_generated,
-        });
-      } catch (e) {
-        console.error("Alternative generation failed:", e);
-        showError(`Alternative generation failed: ${e}`);
-      } finally {
-        setGeneratingAlternative(false);
-      }
-    }, [
-      response,
-      generating,
-      generatingAlternative,
-      modelLoaded,
-      input,
-      ocrText,
-      responseLength,
-      treeResult,
-      diagnosticNotes,
-      currentTicket,
-      generateStreaming,
-      savedDraftId,
-      saveAlternative,
-      loadAlternatives,
-      logEvent,
-      showError,
-    ]);
-
-    const handleChooseAlternative = useCallback(
-      async (alternativeId: string, choice: "original" | "alternative") => {
-        await chooseAlternative(alternativeId, choice);
-        if (savedDraftId) {
-          await loadAlternatives(savedDraftId);
-        }
-      },
-      [chooseAlternative, loadAlternatives, savedDraftId],
-    );
-
-    const handleUseAlternative = useCallback((text: string) => {
-      setResponse(text);
-      setOriginalResponse(text);
-      setIsResponseEdited(false);
     }, []);
 
     const handleSaveAsTemplate = useCallback((rating: number) => {
@@ -816,7 +672,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setSavedDraftCreatedAt(null);
       setConversationEntries([]);
       setHandoffTouched(false);
-      setGeneratingAlternative(false);
       setShowTemplateModal(false);
       setTemplateModalRating(undefined);
       setSuggestionsDismissed(false);
@@ -834,8 +689,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setAutosaveDraftId(null);
       setPendingSimilarCaseOpen(null);
       setWorkspaceRunbookScopeKey(createWorkspaceRunbookScopeKey());
-      firstDraftStartMsRef.current = null;
-    }, [workspacePersonalization.preferred_note_audience]);
+      resetGeneration();
+    }, [workspacePersonalization.preferred_note_audience, resetGeneration]);
 
     const handleResponseChange = useCallback(
       (text: string) => {
