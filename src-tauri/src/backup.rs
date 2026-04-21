@@ -777,9 +777,13 @@ fn sanitize_imported_setting(key: &str, value: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::sanitize_imported_setting;
-    use super::{validate_zip_archive_limits, MAX_ZIP_ENTRIES};
+    use super::{
+        validate_backup_file_size, validate_zip_archive_limits, BackupError, MAX_BACKUP_FILE_BYTES,
+        MAX_ZIP_ENTRIES,
+    };
     use std::io::Cursor;
     use std::io::Write;
+    use tempfile::TempDir;
     use zip::write::SimpleFileOptions;
     use zip::{ZipArchive, ZipWriter};
 
@@ -822,6 +826,41 @@ mod tests {
             result.is_err(),
             "Expected archive to be rejected for too many entries"
         );
+    }
+
+    #[test]
+    fn validate_backup_file_size_accepts_under_cap() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("small.bin");
+        std::fs::write(&path, b"hello").unwrap();
+        let result = validate_backup_file_size(&path);
+        assert!(
+            result.is_ok(),
+            "under-cap file should pass, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn validate_backup_file_size_rejects_over_cap_without_allocating() {
+        // Use a sparse file so the test doesn't actually write 512MB+ to disk.
+        // This simulates an attacker-crafted backup that claims to be huge
+        // and must be rejected before any allocation or decrypt happens.
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("oversized.bin");
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_len(MAX_BACKUP_FILE_BYTES + 1).unwrap();
+        drop(file);
+
+        let result = validate_backup_file_size(&path);
+        assert!(matches!(result, Err(BackupError::InvalidBackup(_))));
+        if let Err(BackupError::InvalidBackup(msg)) = result {
+            assert!(
+                msg.contains("too large"),
+                "expected size error, got: {}",
+                msg
+            );
+        }
     }
 
     #[test]
