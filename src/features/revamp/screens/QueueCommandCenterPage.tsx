@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/shared/Icon";
 import { useToastContext } from "../../../contexts/ToastContext";
 import { useAnalytics } from "../../../hooks/useAnalytics";
@@ -8,41 +8,26 @@ import type {
   CollaborationDispatchPreview,
   SavedDraft,
 } from "../../../types/workspace";
-import type {
-  DispatchHistoryRecord,
-  TriageClusterRecord,
-} from "../../../types/queue";
-import {
-  QueueHistoryTemplatesPanel,
-  type QueueHistoryTemplatesSection,
-} from "./QueueHistoryTemplatesPanel";
+import { QueueHistoryTemplatesPanel } from "./QueueHistoryTemplatesPanel";
 import { resolveRevampFlags } from "../../revamp";
 import {
-  buildQueueHandoffSnapshot,
-  buildQueueItems,
-  filterQueueItems,
   formatQueueTimestamp,
-  loadQueueHandoffSnapshot,
-  loadQueueMeta,
-  persistQueueHandoffSnapshot,
-  persistQueueMeta,
-  summarizeQueue,
-  type QueueItem,
-  type QueueMetaMap,
   type QueuePriority,
-  type QueueState,
   type QueueView,
 } from "../../inbox/queueModel";
-import {
-  buildQueueCoachingSnapshot,
-  buildQueueDispatchPreview,
-  buildQueueHandoffPackText,
-  formatBatchTriageOutput,
-  matchesQueueFocusFilter,
-  parseBatchTriageInput,
-  type QueueFocusFilter,
-} from "../../inbox/queueCommandCenterHelpers";
+import type { QueueFocusFilter } from "../../inbox/queueCommandCenterHelpers";
 import { AsButton, Badge, EmptyState, Panel, Skeleton } from "../ui";
+import {
+  QUEUE_OPERATOR_STORAGE_KEY,
+  bandLabel,
+  formatTicketLabel,
+  loadOperatorName,
+  truncate,
+} from "./queueHelpers";
+import { useQueueRenderingState } from "./useQueueRenderingState";
+import { useBatchTriageManager } from "./useBatchTriageManager";
+import { useDispatchManager } from "./useDispatchManager";
+import { useQueueOperationHandlers } from "./useQueueOperationHandlers";
 import "../../../styles/revamp/index.css";
 import "./queueCommandCenter.css";
 
@@ -51,11 +36,6 @@ interface QueueCommandCenterPageProps {
   initialQueueView?: QueueView | null;
   onQueueViewConsumed?: () => void;
 }
-
-type QueueSection = "triage" | QueueHistoryTemplatesSection;
-
-const QUEUE_OPERATOR_STORAGE_KEY = "assistsupport.queue.operator";
-const QUEUE_VIEW_STORAGE_KEY = "assistsupport.queue.favorite-view";
 
 const QUEUE_VIEWS: Array<{ id: QueueView; label: string }> = [
   { id: "all", label: "All" },
@@ -79,55 +59,6 @@ const DISPATCH_TARGETS: CollaborationDispatchPreview["integration_type"][] = [
   "slack",
   "teams",
 ];
-
-function formatTicketLabel(draft: SavedDraft): string {
-  return draft.ticket_id?.trim() || `Draft ${draft.id.slice(0, 8)}`;
-}
-
-function truncate(value: string, limit: number): string {
-  if (value.length <= limit) return value;
-  return `${value.slice(0, limit)}...`;
-}
-
-function loadOperatorName(): string {
-  if (typeof window === "undefined") return "current-operator";
-  try {
-    return (
-      localStorage.getItem(QUEUE_OPERATOR_STORAGE_KEY) || "current-operator"
-    );
-  } catch {
-    return "current-operator";
-  }
-}
-
-function loadPreferredQueueView(): QueueView {
-  if (typeof window === "undefined") return "all";
-  try {
-    const stored = localStorage.getItem(QUEUE_VIEW_STORAGE_KEY);
-    if (
-      stored === "all" ||
-      stored === "unassigned" ||
-      stored === "at_risk" ||
-      stored === "in_progress" ||
-      stored === "resolved"
-    ) {
-      return stored;
-    }
-  } catch {
-    // Keep queue usable even when storage is unavailable.
-  }
-  return "all";
-}
-
-function bandLabel(
-  item: QueueItem,
-): "At Risk" | "Unassigned" | "In Progress" | "Open" | "Resolved" {
-  if (item.meta.state === "resolved") return "Resolved";
-  if (item.isAtRisk) return "At Risk";
-  if (item.meta.owner === "unassigned") return "Unassigned";
-  if (item.meta.state === "in_progress") return "In Progress";
-  return "Open";
-}
 
 export function QueueCommandCenterPage({
   onLoadDraft,
@@ -163,62 +94,100 @@ export function QueueCommandCenterPage({
     listDispatchHistory,
   } = useQueueOps();
   const queueFlags = useMemo(() => resolveRevampFlags(), []);
-  const [queueMetaMap, setQueueMetaMap] = useState<QueueMetaMap>(() =>
-    loadQueueMeta(),
-  );
-  const [previousHandoffSnapshot, setPreviousHandoffSnapshot] = useState(() =>
-    loadQueueHandoffSnapshot(),
-  );
-  const [queueView, setQueueView] = useState<QueueView>(loadPreferredQueueView);
-  const [queueSection, setQueueSection] = useState<QueueSection>("triage");
-  const [queueFocusFilter, setQueueFocusFilter] =
-    useState<QueueFocusFilter>("all");
-  const [searchQuery, setSearchQuery] = useState("");
   const [operatorName, setOperatorName] = useState(loadOperatorName);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [batchTriageInput, setBatchTriageInput] = useState("");
-  const [batchTriageOutput, setBatchTriageOutput] = useState("");
-  const [batchTriageBusy, setBatchTriageBusy] = useState(false);
-  const [triageHistory, setTriageHistory] = useState<TriageClusterRecord[]>([]);
-  const [handoffStatus, setHandoffStatus] = useState<string | null>(null);
-  const [dispatchTarget, setDispatchTarget] =
-    useState<CollaborationDispatchPreview["integration_type"]>("jira");
-  const [dispatchPreview, setDispatchPreview] =
-    useState<CollaborationDispatchPreview | null>(null);
-  const [dispatchHistory, setDispatchHistory] = useState<
-    DispatchHistoryRecord[]
-  >([]);
-  const [pendingDispatchId, setPendingDispatchId] = useState<string | null>(
-    null,
-  );
+
+  const rendering = useQueueRenderingState({
+    drafts,
+    initialQueueView,
+    onQueueViewConsumed,
+    listRecentTriageClusters,
+    operatorName,
+    logEvent,
+    showSuccess,
+    showError,
+  });
+  const {
+    queueView,
+    setQueueView,
+    queueSection,
+    setQueueSection,
+    queueFocusFilter,
+    setQueueFocusFilter,
+    searchQuery,
+    setSearchQuery,
+    selectedIndex,
+    setSelectedIndex,
+    triageHistory,
+    setTriageHistory,
+    queueSummary,
+    queueCoaching,
+    queueHandoffPackText,
+    filteredItems,
+    handoffStatus,
+    updateQueueMeta,
+    handleCopyHandoffPack,
+  } = rendering;
+
+  const batchTriage = useBatchTriageManager({
+    filteredItems,
+    operatorName,
+    clusterTicketsForTriage,
+    listRecentTriageClusters,
+    setTriageHistory,
+    logEvent,
+    showSuccess,
+    showError,
+  });
+  const {
+    batchTriageInput,
+    setBatchTriageInput,
+    batchTriageOutput,
+    batchTriageBusy,
+    handleSeedBatchTriage,
+    handleRunBatchTriage,
+  } = batchTriage;
+
+  const dispatch = useDispatchManager({
+    operatorName,
+    previewCollaborationDispatch,
+    confirmCollaborationDispatch,
+    cancelCollaborationDispatch,
+    listDispatchHistory,
+    logEvent,
+    showSuccess,
+    showError,
+  });
+  const {
+    dispatchTarget,
+    setDispatchTarget,
+    dispatchPreview,
+    dispatchHistory,
+    handlePreviewDispatch,
+    handleSendDispatch,
+    handleCancelDispatch,
+  } = dispatch;
+
+  const operations = useQueueOperationHandlers({
+    filteredItems,
+    selectedIndex,
+    setSelectedIndex,
+    updateQueueMeta,
+    operatorName,
+    onLoadDraft,
+    logEvent,
+  });
+  const {
+    currentItem,
+    handleClaim,
+    handleResolve,
+    handleReopen,
+    handlePriorityChange,
+    handleQueueKeyDown,
+  } = operations;
 
   useEffect(() => {
     loadDrafts(100);
   }, [loadDrafts]);
-
-  useEffect(() => {
-    listRecentTriageClusters(20)
-      .then(setTriageHistory)
-      .catch(() => setTriageHistory([]));
-  }, [listRecentTriageClusters]);
-
-  useEffect(() => {
-    if (!queueFlags.ASSISTSUPPORT_COLLABORATION_DISPATCH) {
-      setDispatchHistory([]);
-      return;
-    }
-
-    listDispatchHistory(20)
-      .then(setDispatchHistory)
-      .catch(() => setDispatchHistory([]));
-  }, [queueFlags.ASSISTSUPPORT_COLLABORATION_DISPATCH, listDispatchHistory]);
-
-  useEffect(() => {
-    if (!initialQueueView) return;
-    setQueueSection("triage");
-    setQueueView(initialQueueView);
-    onQueueViewConsumed?.();
-  }, [initialQueueView, onQueueViewConsumed]);
 
   useEffect(() => {
     try {
@@ -228,18 +197,6 @@ export function QueueCommandCenterPage({
     }
   }, [operatorName]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(QUEUE_VIEW_STORAGE_KEY, queueView);
-    } catch {
-      // Keep queue workflows usable even if storage is restricted.
-    }
-  }, [queueView]);
-
-  const queueItems = useMemo(
-    () => buildQueueItems(drafts, queueMetaMap),
-    [drafts, queueMetaMap],
-  );
   const followUpsDataSource = useMemo(
     () => ({
       drafts,
@@ -272,381 +229,6 @@ export function QueueCommandCenterPage({
       searchDrafts,
       templates,
       updateTemplate,
-    ],
-  );
-  const queueSummary = useMemo(() => summarizeQueue(queueItems), [queueItems]);
-  const queueCoaching = useMemo(
-    () => buildQueueCoachingSnapshot(queueItems, triageHistory),
-    [queueItems, triageHistory],
-  );
-  const queueHandoffSnapshot = useMemo(
-    () => buildQueueHandoffSnapshot(queueItems),
-    [queueItems],
-  );
-  const queueHandoffPackText = useMemo(
-    () =>
-      buildQueueHandoffPackText(queueHandoffSnapshot, previousHandoffSnapshot),
-    [queueHandoffSnapshot, previousHandoffSnapshot],
-  );
-
-  const filteredItems = useMemo(() => {
-    const scoped = filterQueueItems(queueItems, queueView);
-    const focused = scoped.filter((item) =>
-      matchesQueueFocusFilter(item, queueFocusFilter, triageHistory),
-    );
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return focused;
-    return focused.filter((item) => {
-      const ticket = item.draft.ticket_id?.toLowerCase() ?? "";
-      const summary = item.draft.summary_text?.toLowerCase() ?? "";
-      const input = item.draft.input_text.toLowerCase();
-      return ticket.includes(q) || summary.includes(q) || input.includes(q);
-    });
-  }, [queueItems, queueView, queueFocusFilter, triageHistory, searchQuery]);
-
-  useEffect(() => {
-    setSelectedIndex((prev) => {
-      if (filteredItems.length === 0) return 0;
-      return Math.max(0, Math.min(prev, filteredItems.length - 1));
-    });
-  }, [filteredItems]);
-
-  const updateQueueMeta = useCallback(
-    (
-      draftId: string,
-      updates: Partial<{
-        owner: string;
-        state: QueueState;
-        priority: QueuePriority;
-      }>,
-    ) => {
-      setQueueMetaMap((prev) => {
-        const existing = prev[draftId] ?? {
-          owner: "unassigned",
-          state: "open" as QueueState,
-          priority: "normal" as QueuePriority,
-          updatedAt: new Date().toISOString(),
-        };
-
-        const next: QueueMetaMap = {
-          ...prev,
-          [draftId]: {
-            ...existing,
-            ...updates,
-            updatedAt: new Date().toISOString(),
-          },
-        };
-
-        persistQueueMeta(next);
-        return next;
-      });
-    },
-    [],
-  );
-
-  const handleClaim = useCallback(
-    (draftId: string) => {
-      updateQueueMeta(draftId, { owner: operatorName, state: "in_progress" });
-      void logEvent("queue_item_claimed", {
-        draft_id: draftId,
-        operator: operatorName,
-      });
-    },
-    [logEvent, operatorName, updateQueueMeta],
-  );
-
-  const handleResolve = useCallback(
-    (draftId: string) => {
-      updateQueueMeta(draftId, { state: "resolved" });
-      void logEvent("queue_item_resolved", {
-        draft_id: draftId,
-        operator: operatorName,
-      });
-    },
-    [logEvent, operatorName, updateQueueMeta],
-  );
-
-  const handleReopen = useCallback(
-    (draftId: string) => {
-      updateQueueMeta(draftId, { state: "open" });
-      void logEvent("queue_item_reopened", {
-        draft_id: draftId,
-        operator: operatorName,
-      });
-    },
-    [logEvent, operatorName, updateQueueMeta],
-  );
-
-  const handlePriorityChange = useCallback(
-    (draftId: string, priority: QueuePriority) => {
-      updateQueueMeta(draftId, { priority });
-      void logEvent("queue_item_priority_changed", {
-        draft_id: draftId,
-        operator: operatorName,
-        priority,
-      });
-    },
-    [logEvent, operatorName, updateQueueMeta],
-  );
-
-  const currentItem = filteredItems[selectedIndex] ?? null;
-
-  const withCurrentItem = useCallback(
-    (handler: (item: QueueItem) => void) => {
-      if (!currentItem) return;
-      handler(currentItem);
-    },
-    [currentItem],
-  );
-
-  const refreshTriageHistory = useCallback(async () => {
-    const next = await listRecentTriageClusters(20).catch(() => []);
-    setTriageHistory(next);
-  }, [listRecentTriageClusters]);
-
-  const handleSeedBatchTriage = useCallback(() => {
-    const nextInput = filteredItems
-      .slice(0, 25)
-      .map(
-        (item) =>
-          `${formatTicketLabel(item.draft)}|${item.draft.summary_text || item.draft.input_text}`,
-      )
-      .join("\n");
-    setBatchTriageInput(nextInput);
-  }, [filteredItems]);
-
-  const handleRunBatchTriage = useCallback(async () => {
-    const tickets = parseBatchTriageInput(batchTriageInput);
-    if (tickets.length === 0) {
-      showError("Add at least one ticket before running batch triage");
-      return;
-    }
-
-    setBatchTriageBusy(true);
-    try {
-      const clusters = await clusterTicketsForTriage(tickets);
-      setBatchTriageOutput(formatBatchTriageOutput(clusters));
-      await refreshTriageHistory();
-      void logEvent("queue_batch_triage_ran", {
-        operator: operatorName,
-        ticket_count: tickets.length,
-        cluster_count: clusters.length,
-      });
-      showSuccess("Batch triage completed");
-    } catch (error) {
-      showError(`Batch triage failed: ${error}`);
-    } finally {
-      setBatchTriageBusy(false);
-    }
-  }, [
-    batchTriageInput,
-    clusterTicketsForTriage,
-    refreshTriageHistory,
-    logEvent,
-    operatorName,
-    showSuccess,
-    showError,
-  ]);
-
-  const handleCopyHandoffPack = useCallback(async () => {
-    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
-      setHandoffStatus("Clipboard not available in this environment.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(queueHandoffPackText);
-      persistQueueHandoffSnapshot(queueHandoffSnapshot);
-      setPreviousHandoffSnapshot(queueHandoffSnapshot);
-      setHandoffStatus("Shift handoff pack copied.");
-      void logEvent("queue_handoff_pack_copied", {
-        operator: operatorName,
-        queue_view: queueView,
-        at_risk: queueHandoffSnapshot.summary.atRisk,
-      });
-      showSuccess("Shift handoff pack copied");
-    } catch {
-      setHandoffStatus("Failed to copy shift handoff pack.");
-      showError("Failed to copy shift handoff pack");
-    }
-  }, [
-    queueHandoffPackText,
-    queueHandoffSnapshot,
-    logEvent,
-    operatorName,
-    queueView,
-    showSuccess,
-    showError,
-  ]);
-
-  const handlePreviewDispatch = useCallback(() => {
-    if (!currentItem) {
-      showError("Select a work item before previewing a dispatch");
-      return;
-    }
-
-    const preview = buildQueueDispatchPreview(currentItem, dispatchTarget);
-    void previewCollaborationDispatch({
-      integrationType: preview.integration_type,
-      draftId: currentItem.draft.id,
-      title: preview.title,
-      destinationLabel: preview.destination_label,
-      payloadPreview: preview.payload_preview,
-      metadataJson: JSON.stringify({
-        operator: operatorName,
-        ticket_id: currentItem.draft.ticket_id,
-      }),
-    })
-      .then(async (record) => {
-        setDispatchPreview(preview);
-        setPendingDispatchId(record.id);
-        setDispatchHistory(await listDispatchHistory(20).catch(() => []));
-        void logEvent("queue_dispatch_previewed", {
-          operator: operatorName,
-          draft_id: currentItem.draft.id,
-          integration_type: dispatchTarget,
-        });
-      })
-      .catch((error) => {
-        showError(`Could not preview dispatch: ${error}`);
-      });
-  }, [
-    currentItem,
-    dispatchTarget,
-    operatorName,
-    previewCollaborationDispatch,
-    listDispatchHistory,
-    logEvent,
-    showError,
-  ]);
-
-  const handleSendDispatch = useCallback(async () => {
-    if (!pendingDispatchId || !dispatchPreview) {
-      showError("Preview a dispatch before confirming delivery");
-      return;
-    }
-
-    try {
-      const record = await confirmCollaborationDispatch(pendingDispatchId);
-      setDispatchHistory(await listDispatchHistory(20).catch(() => []));
-      setDispatchPreview(null);
-      setPendingDispatchId(null);
-      void logEvent("queue_dispatch_sent", {
-        operator: operatorName,
-        integration_type: record.integration_type,
-        dispatch_id: record.id,
-      });
-      showSuccess(`${record.destination_label} dispatch confirmed as sent`);
-    } catch (error) {
-      showError(`Failed to confirm dispatch: ${error}`);
-    }
-  }, [
-    pendingDispatchId,
-    dispatchPreview,
-    confirmCollaborationDispatch,
-    listDispatchHistory,
-    logEvent,
-    operatorName,
-    showSuccess,
-    showError,
-  ]);
-
-  const handleCancelDispatch = useCallback(async () => {
-    if (!pendingDispatchId) {
-      setDispatchPreview(null);
-      return;
-    }
-
-    try {
-      await cancelCollaborationDispatch(pendingDispatchId);
-      setDispatchHistory(await listDispatchHistory(20).catch(() => []));
-      setDispatchPreview(null);
-      setPendingDispatchId(null);
-      showSuccess("Dispatch preview cancelled");
-    } catch (error) {
-      showError(`Failed to cancel dispatch: ${error}`);
-    }
-  }, [
-    pendingDispatchId,
-    cancelCollaborationDispatch,
-    listDispatchHistory,
-    showSuccess,
-    showError,
-  ]);
-
-  const handleQueueKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLElement>) => {
-      const target = event.target as HTMLElement;
-      const isInputElement =
-        target.tagName === "INPUT" ||
-        target.tagName === "SELECT" ||
-        target.tagName === "TEXTAREA";
-      if (isInputElement) return;
-
-      switch (event.key.toLowerCase()) {
-        case "arrowdown":
-        case "j":
-          event.preventDefault();
-          setSelectedIndex((prev) =>
-            Math.min(prev + 1, Math.max(filteredItems.length - 1, 0)),
-          );
-          break;
-        case "arrowup":
-        case "k":
-          event.preventDefault();
-          setSelectedIndex((prev) => Math.max(prev - 1, 0));
-          break;
-        case "enter":
-          event.preventDefault();
-          withCurrentItem((item) => {
-            onLoadDraft(item.draft);
-            void logEvent("queue_item_opened", {
-              draft_id: item.draft.id,
-              operator: operatorName,
-              entrypoint: "keyboard",
-            });
-          });
-          break;
-        case "c":
-          event.preventDefault();
-          withCurrentItem((item) => {
-            if (
-              item.meta.owner === "unassigned" &&
-              item.meta.state !== "resolved"
-            ) {
-              handleClaim(item.draft.id);
-            }
-          });
-          break;
-        case "x":
-          event.preventDefault();
-          withCurrentItem((item) => {
-            if (item.meta.state !== "resolved") {
-              handleResolve(item.draft.id);
-            }
-          });
-          break;
-        case "o":
-          event.preventDefault();
-          withCurrentItem((item) => {
-            if (item.meta.state === "resolved") {
-              handleReopen(item.draft.id);
-            }
-          });
-          break;
-        default:
-          break;
-      }
-    },
-    [
-      filteredItems.length,
-      handleClaim,
-      handleReopen,
-      handleResolve,
-      logEvent,
-      onLoadDraft,
-      operatorName,
-      withCurrentItem,
     ],
   );
 
@@ -1093,7 +675,7 @@ export function QueueCommandCenterPage({
                 <AsButton
                   tone="primary"
                   size="small"
-                  onClick={handlePreviewDispatch}
+                  onClick={() => handlePreviewDispatch(currentItem)}
                 >
                   Preview payload
                 </AsButton>
