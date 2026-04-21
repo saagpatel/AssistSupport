@@ -596,6 +596,7 @@ export function SettingsTab() {
   }, [
     runDeploymentPreflight,
     getDeploymentHealthSummary,
+    setDeploymentHealth,
     showSuccess,
     showError,
   ]);
@@ -610,7 +611,7 @@ export function SettingsTab() {
         showError(`Failed to update ${integrationType}: ${err}`);
       }
     },
-    [configureIntegration, listIntegrations, showError],
+    [configureIntegration, listIntegrations, setIntegrations, showError],
   );
 
   const updateQualityThreshold = useCallback(
@@ -618,7 +619,7 @@ export function SettingsTab() {
       setQualityThresholds((prev) => ({ ...prev, [key]: value }));
       setQualityThresholdError(null);
     },
-    [],
+    [setQualityThresholds],
   );
 
   const handleSaveQualityThresholds = useCallback(() => {
@@ -631,14 +632,14 @@ export function SettingsTab() {
     setQualityThresholds(saved);
     setQualityThresholdError(null);
     showSuccess("Response quality coaching thresholds updated");
-  }, [qualityThresholds, showSuccess]);
+  }, [qualityThresholds, setQualityThresholds, showSuccess]);
 
   const handleResetQualityThresholds = useCallback(() => {
     const defaults = resetResponseQualityThresholds();
     setQualityThresholds(defaults);
     setQualityThresholdError(null);
     showSuccess("Response quality coaching thresholds reset to defaults");
-  }, [showSuccess]);
+  }, [setQualityThresholds, showSuccess]);
 
   const searchApiEmbeddingBadge = getSearchApiEmbeddingBadge(
     searchApiEmbeddingStatus,
