@@ -21,6 +21,7 @@ import type { KbGapCandidate } from "../../types/insights";
 import { ArticleDetailPanel } from "./ArticleDetailPanel";
 import { PilotDashboard, PilotQueryTester } from "../Pilot";
 import { RatingDistribution } from "./RatingDistribution";
+import { KbUsageTable } from "./KbUsageTable";
 import "./AnalyticsTab.css";
 
 type Period = 7 | 30 | 90 | null; // null = all time
@@ -720,53 +721,6 @@ function formatDrilldownMetric(
     default:
       return String(metricValue);
   }
-}
-
-function KbUsageTable({
-  articles,
-  onArticleClick,
-}: {
-  articles: ArticleUsage[];
-  onArticleClick?: (id: string) => void;
-}) {
-  if (articles.length === 0) {
-    return (
-      <div className="kb-usage-table">
-        <div className="kb-usage-header">
-          <div>Article</div>
-          <div style={{ textAlign: "right" }}>Uses</div>
-        </div>
-        <div className="analytics-empty">
-          <div className="analytics-empty-description">
-            No article usage data yet
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="kb-usage-table">
-      <div className="kb-usage-header">
-        <div>Article</div>
-        <div style={{ textAlign: "right" }}>Uses</div>
-      </div>
-      {articles.map((article) => (
-        <div
-          key={article.document_id}
-          className={`kb-usage-row ${onArticleClick ? "kb-usage-row-clickable" : ""}`}
-          onClick={() => onArticleClick?.(article.document_id)}
-          role={onArticleClick ? "button" : undefined}
-          tabIndex={onArticleClick ? 0 : undefined}
-        >
-          <div className="kb-usage-title" title={article.title}>
-            {article.title}
-          </div>
-          <div className="kb-usage-count">{article.usage_count}</div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 /** Format a date string (YYYY-MM-DD) into a short label (e.g., "Jan 5") */
