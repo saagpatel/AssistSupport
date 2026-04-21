@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "../shared/Button";
 import { RatingPanel } from "./RatingPanel";
@@ -10,47 +10,20 @@ import type {
   GroundedClaim,
 } from "../../types/llm";
 import type { ContextSource, DocumentChunk } from "../../types/knowledge";
+import {
+  parseResponseSections,
+  getModeLabel,
+  getConfidenceLevel,
+  getSearchMethodLabel,
+  getSourceTypeLabel,
+  getScoreBarClassName,
+} from "./responsePanelHelpers";
+import { useResponsePanelCopy } from "./useResponsePanelCopy";
+import {
+  ResponsePanelSections,
+  type ResponseSection,
+} from "./ResponsePanelSections";
 import "./ResponsePanel.css";
-
-type ExportFormat = "Markdown" | "PlainText" | "Html";
-type ResponseSection = "output" | "instructions";
-
-interface ParsedResponse {
-  output: string;
-  instructions: string;
-  hasSections: boolean;
-}
-
-/** Parse LLM response into OUTPUT and IT SUPPORT INSTRUCTIONS sections */
-function parseResponseSections(text: string): ParsedResponse {
-  if (!text) return { output: "", instructions: "", hasSections: false };
-
-  // Match "### OUTPUT" and "### IT SUPPORT INSTRUCTIONS" headers (case-insensitive)
-  const outputMatch = text.match(/^###\s+OUTPUT\s*$/im);
-  const instructionsMatch = text.match(
-    /^###\s+IT\s+SUPPORT\s+INSTRUCTIONS\s*$/im,
-  );
-
-  if (!outputMatch || !instructionsMatch) {
-    // Legacy response — no section headers found
-    return { output: text, instructions: "", hasSections: false };
-  }
-
-  const outputStart = outputMatch.index! + outputMatch[0].length;
-  const instructionsStart =
-    instructionsMatch.index! + instructionsMatch[0].length;
-
-  // OUTPUT section: from after its header to the start of INSTRUCTIONS header
-  const outputText = text.slice(outputStart, instructionsMatch.index!).trim();
-  // INSTRUCTIONS section: from after its header to end
-  const instructionsText = text.slice(instructionsStart).trim();
-
-  return {
-    output: outputText,
-    instructions: instructionsText,
-    hasSections: true,
-  };
-}
 
 interface ResponsePanelProps {
   response: string;
@@ -74,76 +47,6 @@ interface ResponsePanelProps {
   onSaveAsTemplate?: (rating: number) => void;
 }
 
-function getModeLabel(mode: ConfidenceAssessment["mode"]): string {
-  if (mode === "answer") return "Ready to answer";
-  if (mode === "clarify") return "Needs clarification";
-  return "Abstain suggested";
-}
-
-function getConfidenceLevel(avgScore: number): {
-  label: string;
-  className: string;
-  explanation: string;
-} {
-  const pct = avgScore * 100;
-  if (pct > 80) {
-    return {
-      label: `${pct.toFixed(0)}% confidence`,
-      className: "confidence-high",
-      explanation: "Strong match",
-    };
-  } else if (pct >= 50) {
-    return {
-      label: `${pct.toFixed(0)}% confidence`,
-      className: "confidence-medium",
-      explanation: "Moderate — review suggested",
-    };
-  } else {
-    return {
-      label: `${pct.toFixed(0)}% confidence`,
-      className: "confidence-low",
-      explanation: "Weak — verify manually",
-    };
-  }
-}
-
-function getSearchMethodLabel(method: string | null): string {
-  if (!method) return "Search";
-  switch (method) {
-    case "Fts5":
-      return "Keyword";
-    case "Vector":
-      return "Semantic";
-    case "Hybrid":
-      return "Hybrid";
-    default:
-      return method;
-  }
-}
-
-function getSourceTypeLabel(sourceType: string | null): string {
-  if (!sourceType) return "";
-  switch (sourceType) {
-    case "file":
-      return "File";
-    case "url":
-      return "URL";
-    case "youtube":
-      return "YouTube";
-    case "github":
-      return "GitHub";
-    default:
-      return sourceType;
-  }
-}
-
-function getScoreBarClassName(score: number): string {
-  const pct = score * 100;
-  if (pct > 80) return "score-fill-high";
-  if (pct >= 50) return "score-fill-medium";
-  return "score-fill-low";
-}
-
 export function ResponsePanel({
   response,
   streamingText,
@@ -165,12 +68,7 @@ export function ResponsePanel({
   ticketKey,
   onSaveAsTemplate,
 }: ResponsePanelProps) {
-  const [copied, setCopied] = useState(false);
-  const [showCopyOverride, setShowCopyOverride] = useState(false);
-  const [copyOverrideReason, setCopyOverrideReason] = useState("");
-  const [copyOverrideSubmitting, setCopyOverrideSubmitting] = useState(false);
   const [showSources, setShowSources] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
   const [sourcePreviewContent, setSourcePreviewContent] = useState<
     Record<string, string>
@@ -179,14 +77,33 @@ export function ResponsePanel({
     Record<string, boolean>
   >({});
   const [activeSection, setActiveSection] = useState<ResponseSection>("output");
-  const exportMenuRef = useRef<HTMLDivElement>(null);
   const { success: showSuccess, error: showError } = useToastContext();
   const prevResponseRef = useRef<string>("");
 
-  // Parse response into sections
   const parsed = useMemo(() => parseResponseSections(response), [response]);
 
-  // Auto-show sources when a new response completes with sources available
+  const {
+    copied,
+    showCopyOverride,
+    copyOverrideReason,
+    copyOverrideSubmitting,
+    showExportMenu,
+    exportMenuRef,
+    setCopyOverrideReason,
+    setShowExportMenu,
+    handleCopy,
+    handleConfirmCopyOverride,
+    handleExport,
+    cancelCopyOverride,
+  } = useResponsePanelCopy({
+    response,
+    parsed,
+    confidenceMode: confidence?.mode,
+    sourcesCount: sources.length,
+    showSuccess,
+    showError,
+  });
+
   useEffect(() => {
     if (
       response &&
@@ -199,101 +116,6 @@ export function ResponsePanel({
     }
     prevResponseRef.current = response;
   }, [response, sources.length, generating, isStreaming]);
-
-  // Close export menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        exportMenuRef.current &&
-        !exportMenuRef.current.contains(event.target as Node)
-      ) {
-        setShowExportMenu(false);
-      }
-    }
-    if (showExportMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showExportMenu]);
-
-  const handleExport = useCallback(
-    async (format: ExportFormat) => {
-      if (!response) return;
-      try {
-        const saved = await invoke<boolean>("export_draft", {
-          responseText: response,
-          format,
-        });
-        if (saved) {
-          showSuccess("Response exported successfully");
-        }
-      } catch (err) {
-        showError(`Export failed: ${err}`);
-      }
-      setShowExportMenu(false);
-    },
-    [response, showSuccess, showError],
-  );
-
-  const handleCopy = useCallback(async () => {
-    if (!response) return;
-    const mode = confidence?.mode ?? "answer";
-    const hasCitations = sources.length > 0;
-    const copyAllowed = mode === "answer" && hasCitations;
-
-    if (!copyAllowed) {
-      setShowCopyOverride(true);
-      return;
-    }
-    try {
-      // Copy only the OUTPUT section (or full response if no sections)
-      const textToCopy = parsed.hasSections ? parsed.output : response;
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      showError(`Copy failed: ${err}`);
-    }
-  }, [response, parsed, confidence?.mode, sources.length, showError]);
-
-  const handleConfirmCopyOverride = useCallback(async () => {
-    if (!response) return;
-    const reason = copyOverrideReason.trim();
-    if (!reason) {
-      showError("Reason is required to override copy gating.");
-      return;
-    }
-
-    try {
-      setCopyOverrideSubmitting(true);
-      await invoke("audit_response_copy_override", {
-        reason,
-        confidenceMode: confidence?.mode ?? null,
-        sourcesCount: sources.length,
-      });
-
-      const textToCopy = parsed.hasSections ? parsed.output : response;
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      setShowCopyOverride(false);
-      setCopyOverrideReason("");
-      showSuccess("Response copied (override logged)");
-    } catch (err) {
-      showError(`Copy override failed: ${err}`);
-    } finally {
-      setCopyOverrideSubmitting(false);
-    }
-  }, [
-    response,
-    parsed,
-    copyOverrideReason,
-    confidence?.mode,
-    sources.length,
-    showError,
-    showSuccess,
-  ]);
 
   const handleSourceToggle = useCallback(
     async (source: ContextSource) => {
@@ -372,10 +194,7 @@ export function ResponsePanel({
               <Button
                 variant="secondary"
                 size="small"
-                onClick={() => {
-                  setShowCopyOverride(false);
-                  setCopyOverrideReason("");
-                }}
+                onClick={cancelCopyOverride}
                 disabled={copyOverrideSubmitting}
               >
                 Cancel
@@ -513,45 +332,13 @@ export function ResponsePanel({
               </div>
             )}
 
-            {parsed.hasSections && (
-              <div className="response-section-tabs">
-                <button
-                  className={`response-section-tab${activeSection === "output" ? " active" : ""}`}
-                  onClick={() => setActiveSection("output")}
-                >
-                  Output
-                  <span className="section-tab-hint">Copy &amp; Send</span>
-                </button>
-                <button
-                  className={`response-section-tab${activeSection === "instructions" ? " active" : ""}`}
-                  onClick={() => setActiveSection("instructions")}
-                >
-                  IT Support Instructions
-                </button>
-              </div>
-            )}
-
-            {(!parsed.hasSections || activeSection === "output") && (
-              <textarea
-                className="response-textarea"
-                value={parsed.hasSections ? parsed.output : response}
-                onChange={(e) => {
-                  if (!parsed.hasSections) {
-                    onResponseChange?.(e.target.value);
-                  } else {
-                    // Reconstruct full response with edited output
-                    const newFull = `### OUTPUT\n${e.target.value}\n\n### IT SUPPORT INSTRUCTIONS\n${parsed.instructions}`;
-                    onResponseChange?.(newFull);
-                  }
-                }}
-                placeholder="Response will appear here..."
-                readOnly={!onResponseChange}
-              />
-            )}
-
-            {parsed.hasSections && activeSection === "instructions" && (
-              <div className="instructions-content">{parsed.instructions}</div>
-            )}
+            <ResponsePanelSections
+              parsed={parsed}
+              response={response}
+              activeSection={activeSection}
+              onSelectSection={setActiveSection}
+              onResponseChange={onResponseChange}
+            />
 
             {showSources && sources.length > 0 && (
               <div className="sources-panel">
