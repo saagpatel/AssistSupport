@@ -16,6 +16,8 @@ import { useDraftChecklist } from "./useDraftChecklist";
 import { useDraftFirstResponse } from "./useDraftFirstResponse";
 import { useDraftGeneration } from "./useDraftGeneration";
 import { useDraftIntake } from "./useDraftIntake";
+import { useGuidedRunbook } from "./useGuidedRunbook";
+import { useWorkspaceClipboardPacks } from "./useWorkspaceClipboardPacks";
 import { ConversationInput } from "./ConversationInput";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 import { WorkspaceModeShell } from "./WorkspaceModeShell";
@@ -43,9 +45,6 @@ import {
   buildResolutionKitFromWorkspace,
   buildSimilarCases,
   compactLines,
-  formatEvidencePackForClipboard,
-  formatHandoffPackForClipboard,
-  formatKbDraftForClipboard,
   parseCaseIntake,
 } from "../../features/workspace/workspaceAssistant";
 import {
@@ -337,7 +336,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     const [similarCases, setSimilarCases] = useState<SimilarCase[]>([]);
     const [similarCasesLoading, setSimilarCasesLoading] = useState(false);
     const [compareCase, setCompareCase] = useState<SimilarCase | null>(null);
-    const [guidedRunbookNote, setGuidedRunbookNote] = useState("");
     const [workspaceRunbookScopeKey, setWorkspaceRunbookScopeKey] =
       useState<string>(createWorkspaceRunbookScopeKey);
     const [autosaveDraftId, setAutosaveDraftId] = useState<string | null>(null);
@@ -486,6 +484,31 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       response,
       logEvent,
       setWorkspacePersonalization,
+    });
+
+    const {
+      guidedRunbookNote,
+      setGuidedRunbookNote,
+      handleStartGuidedRunbook,
+      handleAdvanceGuidedRunbook,
+      handleCopyRunbookProgressToNotes,
+      handleGuidedRunbookNoteChange,
+    } = useGuidedRunbook({
+      runbookTemplates,
+      guidedRunbookSession,
+      workspaceRunbookScopeKey,
+      currentTicketId,
+      startRunbookSession,
+      addRunbookStepEvidence,
+      advanceRunbookSession,
+      refreshWorkspaceCatalog,
+      logEvent,
+      setDiagnosticNotes,
+      setPanelDensityMode,
+      setRunbookSessionSourceScopeKey,
+      setRunbookSessionTouched,
+      onShowSuccess: showSuccess,
+      onShowError: showError,
     });
 
     const handleResponseLengthChange = useCallback((length: ResponseLength) => {
@@ -1026,116 +1049,20 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setOcrText,
     });
 
-    const handleCopyHandoffPack = useCallback(async () => {
-      try {
-        await navigator.clipboard.writeText(
-          formatHandoffPackForClipboard(handoffPack),
-        );
-        setHandoffTouched(true);
-        if (savedDraftId) {
-          await saveCaseOutcome({
-            draft_id: savedDraftId,
-            status: "handoff-ready",
-            outcome_summary: handoffPack.summary,
-            handoff_pack_json: JSON.stringify(handoffPack),
-            kb_draft_json: JSON.stringify(kbDraft),
-            evidence_pack_json: JSON.stringify(evidencePack),
-            tags_json: JSON.stringify(
-              [caseIntake.likely_category].filter(Boolean),
-            ),
-          });
-        }
-        void logEvent("workspace_handoff_pack_copied", {
-          ticket_id: currentTicketId,
-          note_audience: caseIntake.note_audience,
-        });
-        showSuccess("Handoff pack copied");
-      } catch {
-        showError("Failed to copy handoff pack");
-      }
-    }, [
-      handoffPack,
-      savedDraftId,
-      saveCaseOutcome,
-      kbDraft,
-      evidencePack,
-      caseIntake.likely_category,
-      logEvent,
-      currentTicketId,
-      caseIntake.note_audience,
-      showSuccess,
-      showError,
-    ]);
-
-    const handleCopyEvidencePack = useCallback(async () => {
-      try {
-        await navigator.clipboard.writeText(
-          formatEvidencePackForClipboard(evidencePack),
-        );
-        if (savedDraftId) {
-          await saveCaseOutcome({
-            draft_id: savedDraftId,
-            status: "evidence-ready",
-            outcome_summary: evidencePack.summary,
-            handoff_pack_json: JSON.stringify(handoffPack),
-            kb_draft_json: JSON.stringify(kbDraft),
-            evidence_pack_json: JSON.stringify(evidencePack),
-            tags_json: JSON.stringify(kbDraft.tags),
-          });
-        }
-        void logEvent("workspace_evidence_pack_copied", {
-          ticket_id: currentTicketId,
-        });
-        showSuccess("Evidence pack copied");
-      } catch {
-        showError("Failed to copy evidence pack");
-      }
-    }, [
-      evidencePack,
-      savedDraftId,
-      saveCaseOutcome,
-      handoffPack,
-      kbDraft,
-      logEvent,
-      currentTicketId,
-      showSuccess,
-      showError,
-    ]);
-
-    const handleCopyKbDraft = useCallback(async () => {
-      try {
-        await navigator.clipboard.writeText(formatKbDraftForClipboard(kbDraft));
-        if (savedDraftId) {
-          await saveCaseOutcome({
-            draft_id: savedDraftId,
-            status: "kb-promoted",
-            outcome_summary: kbDraft.summary,
-            handoff_pack_json: JSON.stringify(handoffPack),
-            kb_draft_json: JSON.stringify(kbDraft),
-            evidence_pack_json: JSON.stringify(evidencePack),
-            tags_json: JSON.stringify(kbDraft.tags),
-          });
-        }
-        void logEvent("workspace_kb_draft_copied", {
-          ticket_id: currentTicketId,
-          category: caseIntake.likely_category,
-        });
-        showSuccess("KB draft copied");
-      } catch {
-        showError("Failed to copy KB draft");
-      }
-    }, [
-      kbDraft,
-      saveCaseOutcome,
-      savedDraftId,
-      handoffPack,
-      evidencePack,
-      logEvent,
-      currentTicketId,
-      caseIntake.likely_category,
-      showSuccess,
-      showError,
-    ]);
+    const { handleCopyHandoffPack, handleCopyEvidencePack, handleCopyKbDraft } =
+      useWorkspaceClipboardPacks({
+        handoffPack,
+        evidencePack,
+        kbDraft,
+        caseIntake,
+        savedDraftId,
+        currentTicketId,
+        saveCaseOutcome,
+        logEvent,
+        onHandoffCopied: () => setHandoffTouched(true),
+        onShowSuccess: showSuccess,
+        onShowError: showError,
+      });
 
     const handleSaveCurrentResolutionKit = useCallback(async () => {
       try {
@@ -1246,167 +1173,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
         showError,
       ],
     );
-
-    const handleStartGuidedRunbook = useCallback(
-      async (templateId: string) => {
-        const template = runbookTemplates.find(
-          (item) => item.id === templateId,
-        );
-        if (!template) {
-          showError("Choose a guided runbook template first");
-          return;
-        }
-        if (
-          guidedRunbookSession &&
-          guidedRunbookSession.status !== "completed"
-        ) {
-          showError(
-            "Finish the current guided runbook before starting another one",
-          );
-          return;
-        }
-
-        try {
-          await startRunbookSession(
-            template.scenario,
-            template.steps,
-            workspaceRunbookScopeKey,
-          );
-          setGuidedRunbookNote("");
-          setRunbookSessionSourceScopeKey(workspaceRunbookScopeKey);
-          setRunbookSessionTouched(true);
-          await refreshWorkspaceCatalog();
-          setPanelDensityMode("focus-intake");
-          void logEvent("workspace_guided_runbook_started", {
-            ticket_id: currentTicketId,
-            template_id: template.id,
-            scenario: template.scenario,
-          });
-          showSuccess(`Started ${template.name}`);
-        } catch {
-          showError("Failed to start guided runbook");
-        }
-      },
-      [
-        runbookTemplates,
-        startRunbookSession,
-        refreshWorkspaceCatalog,
-        workspaceRunbookScopeKey,
-        guidedRunbookSession,
-        logEvent,
-        currentTicketId,
-        showSuccess,
-        showError,
-      ],
-    );
-
-    const handleAdvanceGuidedRunbook = useCallback(
-      async (status: "completed" | "skipped" | "failed") => {
-        if (!guidedRunbookSession) {
-          showError("Start a guided runbook before updating a step");
-          return;
-        }
-
-        const currentStep = guidedRunbookSession.current_step;
-        const stepLabel =
-          guidedRunbookSession.steps[currentStep] ?? `Step ${currentStep + 1}`;
-        const noteText = guidedRunbookNote.trim();
-        const evidenceText = noteText || `${status} · ${stepLabel}`;
-        const skipReason =
-          status === "skipped"
-            ? noteText || "Skipped from workspace"
-            : undefined;
-        const nextStep =
-          status === "failed"
-            ? currentStep
-            : Math.min(
-                currentStep + 1,
-                Math.max(guidedRunbookSession.steps.length - 1, 0),
-              );
-        const nextStatus =
-          status === "failed"
-            ? "paused"
-            : currentStep >= guidedRunbookSession.steps.length - 1
-              ? "completed"
-              : "active";
-
-        try {
-          await addRunbookStepEvidence(
-            guidedRunbookSession.id,
-            currentStep,
-            status,
-            evidenceText,
-            skipReason,
-          );
-          await advanceRunbookSession(
-            guidedRunbookSession.id,
-            nextStep,
-            nextStatus,
-          );
-          setRunbookSessionTouched(true);
-          if (noteText) {
-            setDiagnosticNotes((prev) =>
-              compactLines([prev, `Runbook ${stepLabel}: ${noteText}`]),
-            );
-          }
-          setGuidedRunbookNote("");
-          await refreshWorkspaceCatalog();
-          void logEvent("workspace_guided_runbook_step_recorded", {
-            ticket_id: currentTicketId,
-            session_id: guidedRunbookSession.id,
-            step_index: currentStep,
-            status,
-          });
-          showSuccess(
-            status === "failed"
-              ? `Paused the runbook at ${stepLabel}`
-              : nextStatus === "completed"
-                ? "Guided runbook completed"
-                : `Recorded ${stepLabel}`,
-          );
-        } catch {
-          showError("Failed to update guided runbook progress");
-        }
-      },
-      [
-        guidedRunbookSession,
-        guidedRunbookNote,
-        addRunbookStepEvidence,
-        advanceRunbookSession,
-        refreshWorkspaceCatalog,
-        currentTicketId,
-        logEvent,
-        showSuccess,
-        showError,
-      ],
-    );
-
-    const handleCopyRunbookProgressToNotes = useCallback(() => {
-      if (!guidedRunbookSession || guidedRunbookSession.evidence.length === 0) {
-        showError("No guided runbook progress to copy yet");
-        return;
-      }
-
-      const progressText = compactLines([
-        `Guided runbook: ${guidedRunbookSession.scenario}`,
-        ...guidedRunbookSession.evidence.map((item) => {
-          const stepLabel =
-            guidedRunbookSession.steps[item.step_index] ??
-            `Step ${item.step_index + 1}`;
-          return `- ${stepLabel}: ${item.status}${item.evidence_text ? ` · ${item.evidence_text}` : ""}`;
-        }),
-      ]);
-
-      setDiagnosticNotes((prev) => compactLines([prev, progressText]));
-      showSuccess("Copied guided runbook progress into the notes");
-    }, [guidedRunbookSession, showError, showSuccess]);
-
-    const handleGuidedRunbookNoteChange = useCallback((value: string) => {
-      setGuidedRunbookNote(value);
-      if (value.trim()) {
-        setRunbookSessionTouched(true);
-      }
-    }, []);
 
     const loadSimilarCaseIntoWorkspace = useCallback(
       async (similarCase: SimilarCase) => {
