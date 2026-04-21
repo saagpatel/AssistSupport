@@ -1,34 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  useAnalytics,
-  AnalyticsSummary,
-  ArticleUsage,
-  LowRatingAnalysis,
-  ResponseQualityDrilldownExamples,
-  ResponseQualitySummary,
-} from "../../hooks/useAnalytics";
-import { useInsightsOps } from "../../hooks/useInsightsOps";
+import { useState, useEffect } from "react";
 import type { ResponseQualityThresholds } from "../../features/analytics/qualityThresholds";
 import {
   readCurrentThresholds,
   subscribeToQualityThresholds,
 } from "./qualityThresholdsState";
-import type { KbGapCandidate } from "../../types/insights";
 import { ArticleDetailPanel } from "./ArticleDetailPanel";
 import { PilotDiagnosticsSection } from "./PilotDiagnosticsSection";
 import { RatingDistribution } from "./RatingDistribution";
 import { KbUsageTable } from "./KbUsageTable";
 import { ResponseQualityPanel } from "./ResponseQualityPanel";
+import { useAnalyticsLoader, type AnalyticsPeriod } from "./useAnalyticsLoader";
 import "./AnalyticsTab.css";
 
-type Period = 7 | 30 | 90 | null; // null = all time
 type AnalyticsSection = "overview" | "pilot";
 
 interface AnalyticsTabProps {
   initialSection?: AnalyticsSection;
 }
 
-const PERIODS: { label: string; value: Period }[] = [
+const PERIODS: { label: string; value: AnalyticsPeriod }[] = [
   { label: "7 days", value: 7 },
   { label: "30 days", value: 30 },
   { label: "90 days", value: 90 },
@@ -39,30 +29,22 @@ export function AnalyticsTab({
   initialSection = "overview",
 }: AnalyticsTabProps) {
   const {
-    getSummary,
-    getKbUsage,
-    getLowRatingAnalysis,
-    getResponseQualitySummary,
-    getResponseQualityDrilldownExamples,
-  } = useAnalytics();
-  const { getKbGapCandidates, updateKbGapStatus } = useInsightsOps();
+    summary,
+    qualitySummary,
+    qualityDrilldown,
+    kbUsage,
+    lowRatingData,
+    gapCandidates,
+    loading,
+    error,
+    period,
+    setPeriod,
+    updateGapStatus,
+  } = useAnalyticsLoader();
   const [activeSection, setActiveSection] =
     useState<AnalyticsSection>(initialSection);
-  const [period, setPeriod] = useState<Period>(30);
-  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
-  const [qualitySummary, setQualitySummary] =
-    useState<ResponseQualitySummary | null>(null);
-  const [qualityDrilldown, setQualityDrilldown] =
-    useState<ResponseQualityDrilldownExamples | null>(null);
   const [qualityThresholds, setQualityThresholds] =
     useState<ResponseQualityThresholds>(() => readCurrentThresholds());
-  const [kbUsage, setKbUsage] = useState<ArticleUsage[]>([]);
-  const [lowRatingData, setLowRatingData] = useState<LowRatingAnalysis | null>(
-    null,
-  );
-  const [gapCandidates, setGapCandidates] = useState<KbGapCandidate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(
     null,
   );
@@ -70,60 +52,6 @@ export function AnalyticsTab({
   useEffect(() => {
     setActiveSection(initialSection);
   }, [initialSection]);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [
-        summaryData,
-        kbData,
-        lowRating,
-        qualityData,
-        qualityDrilldownData,
-      ] = await Promise.all([
-        getSummary(period ?? undefined),
-        getKbUsage(period ?? undefined),
-        getLowRatingAnalysis(period ?? undefined).catch(() => null),
-        getResponseQualitySummary(period ?? undefined).catch(() => null),
-        getResponseQualityDrilldownExamples(period ?? undefined, 6).catch(
-          () => null,
-        ),
-      ]);
-      const gaps = await getKbGapCandidates(12, "open").catch(() => []);
-      setSummary(summaryData);
-      setQualitySummary(qualityData);
-      setQualityDrilldown(qualityDrilldownData);
-      setKbUsage(kbData);
-      setLowRatingData(lowRating);
-      setGapCandidates(gaps);
-    } catch (err) {
-      console.error("Failed to load analytics:", err);
-      setError(typeof err === "string" ? err : "Failed to load analytics data");
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    period,
-    getSummary,
-    getKbUsage,
-    getLowRatingAnalysis,
-    getResponseQualitySummary,
-    getResponseQualityDrilldownExamples,
-    getKbGapCandidates,
-  ]);
-
-  const handleGapStatus = useCallback(
-    async (id: string, status: "accepted" | "resolved" | "ignored") => {
-      await updateKbGapStatus(id, status);
-      setGapCandidates((prev) => prev.filter((g) => g.id !== id));
-    },
-    [updateKbGapStatus],
-  );
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   useEffect(() => {
     setQualityThresholds(readCurrentThresholds());
@@ -339,19 +267,19 @@ export function AnalyticsTab({
                   <div className="kb-gap-actions">
                     <button
                       className="kb-gap-btn"
-                      onClick={() => handleGapStatus(gap.id, "accepted")}
+                      onClick={() => updateGapStatus(gap.id, "accepted")}
                     >
                       Accept
                     </button>
                     <button
                       className="kb-gap-btn"
-                      onClick={() => handleGapStatus(gap.id, "resolved")}
+                      onClick={() => updateGapStatus(gap.id, "resolved")}
                     >
                       Resolve
                     </button>
                     <button
                       className="kb-gap-btn kb-gap-btn-muted"
-                      onClick={() => handleGapStatus(gap.id, "ignored")}
+                      onClick={() => updateGapStatus(gap.id, "ignored")}
                     >
                       Ignore
                     </button>
