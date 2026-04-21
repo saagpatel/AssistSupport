@@ -4,7 +4,7 @@
 
 > Your support team's second brain — ML-powered answers from your own knowledge base, in under 25ms, without sending a single query to the cloud.
 
-AssistSupport combines local LLM inference with a hybrid ML search pipeline to generate accurate, KB-informed IT support responses. A logistic regression intent classifier routes queries before a TF-IDF retriever finds candidates, and a cross-encoder reranker sharpens relevance before the response is drafted. The entire pipeline — app, sidecar, and model inference — runs on your machine. Core workspace data is encrypted at rest.
+AssistSupport combines local LLM inference with a hybrid ML search pipeline to generate accurate, KB-informed IT support responses. A logistic regression intent classifier routes queries before a TF-IDF retriever finds candidates, and a cross-encoder reranker sharpens relevance before the response is drafted. The entire pipeline — app, sidecar, and model inference — runs on your machine. Core SQLite data and token material are encrypted at rest via SQLCipher (AES-256); optional vector-search embeddings stay local but are not currently encrypted at rest when vector search is enabled. See [docs/SECURITY.md](docs/SECURITY.md) for the full security architecture.
 
 ```
 User asks:    "Can I use a flash drive?"
@@ -19,7 +19,7 @@ You copy:     Paste into Jira — done in under a minute
 
 - **ML intent classification** — Logistic regression routes queries before retrieval starts.
 - **Sub-25ms hybrid search** — TF-IDF retrieval plus cross-encoder reranking across 3,500+ KB articles.
-- **Encrypted local workspace** — Core SQLite data and secrets stay local and encrypted at rest.
+- **Encrypted local workspace** — Core SQLite data and token material stay local and encrypted at rest via SQLCipher (AES-256). Vector-search embeddings are local but plaintext at rest when the optional vector store is enabled.
 - **Trust-gated responses** — Confidence modes and source grounding reduce unsupported output.
 - **Self-improving feedback loop** — KB gap analysis turns low-confidence patterns into follow-up work.
 - **Ops-ready workspace** — Deployment, rollback, eval, triage, and runbook tooling ship with the app.
