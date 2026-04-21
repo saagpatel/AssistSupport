@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { SearchApiEmbeddingModelStatus } from "../types";
+import type { SearchApiEmbeddingModelStatus } from "../types/settings";
 
 interface SearchApiEmbeddingState {
   status: SearchApiEmbeddingModelStatus | null;

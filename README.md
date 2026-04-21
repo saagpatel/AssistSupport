@@ -1,10 +1,10 @@
 # AssistSupport
 
-[![Rust](https://img.shields.io/badge/Rust-%23dea584?style=flat-square&logo=rust)](#) [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](#) [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?style=flat-square)](#)
+[![Version](https://img.shields.io/badge/version-1.2.0-10a37f)](#) [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](#) [![License](https://img.shields.io/badge/license-MIT-blue)](#) [![Core Health](https://img.shields.io/badge/core--health-gated-blue)](#) [![Coverage](https://img.shields.io/badge/diff--coverage-gated-blue)](#)
 
 > Your support team's second brain — ML-powered answers from your own knowledge base, in under 25ms, without sending a single query to the cloud.
 
-AssistSupport combines local LLM inference with a hybrid ML search pipeline to generate accurate, KB-informed IT support responses. A logistic regression intent classifier (85.7% accuracy) routes queries before a TF-IDF retriever finds candidates, and a cross-encoder reranker (ms-marco-MiniLM-L-6-v2) sharpens relevance before the response is drafted. The entire pipeline — app, sidecar, and model inference — runs on your machine. Core workspace data is encrypted at rest.
+AssistSupport combines local LLM inference with a hybrid ML search pipeline to generate accurate, KB-informed IT support responses. A logistic regression intent classifier routes queries before a TF-IDF retriever finds candidates, and a cross-encoder reranker sharpens relevance before the response is drafted. The entire pipeline — app, sidecar, and model inference — runs on your machine. Core workspace data is encrypted at rest.
 
 ```
 User asks:    "Can I use a flash drive?"
@@ -17,12 +17,12 @@ You copy:     Paste into Jira — done in under a minute
 
 ## Features
 
-- **ML Intent Classification** — Logistic regression classifier routes queries to the right search strategy before retrieval even starts
-- **Sub-25ms Hybrid Search** — p50: 8ms, p95: 82ms across 3,500+ KB articles; TF-IDF + cross-encoder reranker pipeline
-- **Encrypted Local Workspace** — Core SQLite database and stored secrets are protected with wrapped keys and encrypted-at-rest storage; no cloud dependency for the primary workflow
-- **Trust-Gated Responses** — Confidence modes (answer / clarify / abstain), claim grounding map, citation-aware copy safety for low-confidence output
-- **Self-Improving Feedback Loop** — KB gap detector surfaces repeated low-confidence topics and tracks remediation over time
-- **Ops-Ready Workspace** — Deployment preflight, rollback flows, eval harness runs, triage clustering, and runbook sessions built in
+- **ML intent classification** — Logistic regression routes queries before retrieval starts.
+- **Sub-25ms hybrid search** — TF-IDF retrieval plus cross-encoder reranking across 3,500+ KB articles.
+- **Encrypted local workspace** — Core SQLite data and secrets stay local and encrypted at rest.
+- **Trust-gated responses** — Confidence modes and source grounding reduce unsupported output.
+- **Self-improving feedback loop** — KB gap analysis turns low-confidence patterns into follow-up work.
+- **Ops-ready workspace** — Deployment, rollback, eval, triage, and runbook tooling ship with the app.
 
 ## Quick Start
 
@@ -30,7 +30,7 @@ You copy:     Paste into Jira — done in under a minute
 
 - Node.js 20+
 - pnpm 9+
-- Rust toolchain (stable) + Tauri v2 prerequisites for macOS
+- Rust toolchain (stable) with Tauri v2 prerequisites for macOS
 
 ### Installation
 
@@ -38,20 +38,78 @@ You copy:     Paste into Jira — done in under a minute
 git clone https://github.com/saagpatel/AssistSupport.git
 cd AssistSupport
 pnpm install
-cp .env.example .env
 ```
 
-### Run (development)
+### Run
 
 ```bash
 pnpm dev
 ```
 
-### Build (desktop app)
+### Build
 
 ```bash
 pnpm tauri build
 ```
+
+## Health Checks
+
+Use the daily truth source for normal development and PR confidence:
+
+```bash
+pnpm health:repo
+```
+
+Use the release-only health command when you need heavier validation:
+
+```bash
+pnpm health:release
+```
+
+`pnpm health:release` runs the core repo health path plus coverage generation, build-time, bundle, asset, memory, and Lighthouse checks. API latency and DB query health are skipped unless `BASE_URL` and `DATABASE_URL` are configured.
+
+Diff coverage is enforced in CI. Overall line coverage is informational and is not the primary health target.
+
+The current health contract lives in [docs/status/current-health.md](docs/status/current-health.md).
+
+## Core Commands
+
+```bash
+# Static checks
+pnpm lint
+pnpm typecheck
+pnpm stylelint
+
+# Test suites
+pnpm test
+pnpm search-api:test
+pnpm test:ci
+pnpm ui:gate:regression
+
+# Release-only checks
+pnpm test:coverage
+pnpm perf:build
+pnpm perf:bundle
+pnpm perf:assets
+pnpm perf:memory
+pnpm perf:lhci
+```
+
+## Contributing
+
+Create work on a compliant branch:
+
+```bash
+pnpm git:branch:create "your feature" feat
+```
+
+Before opening a PR, run:
+
+```bash
+pnpm health:repo
+```
+
+Push your `codex/<type>/<slug>` branch and open a PR against `master`.
 
 ## Tech Stack
 
@@ -66,7 +124,7 @@ pnpm tauri build
 
 ## Architecture
 
-AssistSupport is a Tauri 2 desktop app with a Rust backend handling search, encryption, and LLM orchestration. The ML pipeline runs as a local sidecar: intent classification happens first, then candidate retrieval via TF-IDF index, then cross-encoder reranking to select the most relevant KB articles before response generation. The feedback loop writes ratings back to a local SQLite store and periodically surfaces gap analysis via the Ops workspace.
+AssistSupport is a Tauri 2 desktop app with a Rust backend handling search, encryption, and LLM orchestration. The ML pipeline runs as a local sidecar: intent classification happens first, then candidate retrieval via TF-IDF, then cross-encoder reranking to select the most relevant KB articles before response generation. Ratings feed back into the local SQLite store and surface gap analysis via the Ops workspace.
 
 ## License
 

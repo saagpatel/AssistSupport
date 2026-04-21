@@ -1,33 +1,79 @@
 import js from "@eslint/js";
-import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+import tseslint from "typescript-eslint";
+
+const sharedGlobals = {
+  ...globals.browser,
+  ...globals.node,
+  ...globals.es2024,
+};
 
 export default [
   {
     ignores: [
-      "dist/**",
-      "build/**",
       "coverage/**",
-      ".next/**",
-      "storybook-static/**",
-      "**/*.cjs",
-      "src-tauri/**",
+      "dist/**",
+      "node_modules/**",
+      "playwright-report/**",
+      "search-api/venv/**",
+      "src-tauri/target/**",
+      "test-results/**",
     ],
   },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
   {
-    files: ["**/*.{ts,tsx,js,jsx}"],
-    languageOptions: { globals: { ...globals.browser, ...globals.node } },
+    ...js.configs.recommended,
+    files: ["**/*.{js,mjs,cjs}"],
+    languageOptions: {
+      ...js.configs.recommended.languageOptions,
+      ecmaVersion: "latest",
+      globals: sharedGlobals,
+      sourceType: "module",
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["tests/perf/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      globals: {
+        ...sharedGlobals,
+        __ENV: "readonly",
+      },
+      sourceType: "module",
+    },
+  },
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: ["**/*.{ts,tsx}"],
+  })),
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      globals: sharedGlobals,
+      sourceType: "module",
+    },
     plugins: {
+      "@typescript-eslint": tseslint.plugin,
       "react-hooks": reactHooks,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/no-explicit-any": "off",
-      "no-useless-catch": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+      "no-console": "off",
+      "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/rules-of-hooks": "error",
     },
   },
 ];

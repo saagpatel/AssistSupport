@@ -1,9 +1,9 @@
-name: quality-gates
+name: supporting-policy-and-coverage
 
 on:
   pull_request:
   push:
-    branches: [main, master]
+    branches: [master]
 
 permissions:
   contents: read

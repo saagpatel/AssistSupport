@@ -14,12 +14,14 @@ export interface ModelInfo {
   n_embd?: number;
   n_vocab?: number;
   n_gpu_layers?: number;
+  verification_status?: string | null;
 }
 
 export interface GgufFileInfo {
   file_name: string;
   file_size: number;
   is_valid: boolean;
+  integrity_status?: string;
 }
 
 export interface GenerationParams {

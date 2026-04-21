@@ -1,9 +1,9 @@
-name: perf-enforced
+name: release-health-enforced
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
-    branches: [main, master]
+    branches: [master]
 
 jobs:
   perf-policy:
@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Validate enforced performance profile configuration
+      - name: Validate enforced release health profile configuration
         run: |
           if [[ "${{ vars.PERF_PROFILE }}" != "production" ]]; then
             echo "PERF_PROFILE is not production; enforced performance lanes are advisory only."

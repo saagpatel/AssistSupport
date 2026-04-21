@@ -199,8 +199,8 @@ vi.mock("../../hooks/useCustomVariables", () => ({
   }),
 }));
 
-vi.mock("../../hooks/useFeatureOps", () => ({
-  useFeatureOps: () => ({
+vi.mock("../../hooks/useSettingsOps", () => ({
+  useSettingsOps: () => ({
     getDeploymentHealthSummary: getDeploymentHealthSummaryMock,
     runDeploymentPreflight: runDeploymentPreflightMock,
     listIntegrations: listIntegrationsMock,

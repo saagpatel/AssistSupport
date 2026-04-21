@@ -13,20 +13,20 @@ import { resolveRevampFlags } from "../../features/revamp/flags";
 import { useCustomVariables } from "../../hooks/useCustomVariables";
 import { useDownload } from "../../hooks/useDownload";
 import { useEmbedding } from "../../hooks/useEmbedding";
-import { useFeatureOps } from "../../hooks/useFeatureOps";
+import { useSettingsOps } from "../../hooks/useSettingsOps";
 import { useJira } from "../../hooks/useJira";
 import { useKb } from "../../hooks/useKb";
 import { useLlm } from "../../hooks/useLlm";
 import { useSearchApiEmbedding } from "../../hooks/useSearchApiEmbedding";
+import type { ModelInfo } from "../../types/llm";
 import type {
   AuditEntry,
-  CustomVariable,
   DeploymentHealthSummary,
   IntegrationConfigRecord,
   MemoryKernelPreflightStatus,
-  ModelInfo,
   SearchApiEmbeddingModelStatus,
-} from "../../types";
+} from "../../types/settings";
+import type { CustomVariable } from "../../types/workspace";
 import { Button } from "../shared/Button";
 import {
   AuditLogsSection,
@@ -241,7 +241,7 @@ export function SettingsTab() {
     runDeploymentPreflight,
     listIntegrations,
     configureIntegration,
-  } = useFeatureOps();
+  } = useSettingsOps();
   const { theme, setTheme } = useTheme();
   const { success: showSuccess, error: showError } = useToastContext();
   const {
@@ -342,7 +342,7 @@ export function SettingsTab() {
         "get_memory_kernel_preflight_status",
       );
       setMemoryKernelPreflight(status);
-    } catch (err) {
+    } catch {
       // Non-blocking: show as unavailable rather than failing settings load.
       setMemoryKernelPreflight(null);
     } finally {

@@ -15,7 +15,9 @@ function nextBundle() {
       const full = path.join(".next", file.replace(/^\/?/, ""));
       try {
         total += statSync(full).size;
-      } catch {}
+      } catch {
+        continue;
+      }
     }
     pageSizes[route] = total;
   }
@@ -38,7 +40,9 @@ function viteBundle() {
       const size = statSync(full).size;
       result.assets[file] = size;
       result.totalBytes += size;
-    } catch {}
+    } catch {
+      continue;
+    }
   }
   return result;
 }

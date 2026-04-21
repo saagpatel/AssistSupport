@@ -1,4 +1,4 @@
-name: CI
+name: core-repo-health
 
 on:
   push:
@@ -17,8 +17,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  frontend-static:
-    name: Frontend Static Gates
+  repo-sanity-static:
+    name: Core Sanity + Static Gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -38,17 +38,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Workstation preflight
-        run: pnpm run check:workstation-preflight
-
-      - name: Workflow command drift
-        run: pnpm run check:workflow-drift
-
-      - name: Version parity
-        run: pnpm run check:version-parity
-
-      - name: Typecheck and lint gate
-        run: pnpm run ui:gate:static
+      - name: Run core sanity and static gates
+        run: pnpm run health:repo:checks && pnpm run health:repo:static
 
   frontend-tests:
     name: Frontend Unit + Coverage
@@ -71,8 +62,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run unit tests
-        run: pnpm test
+      - name: Run frontend unit health lane
+        run: pnpm run health:repo:frontend
 
       - name: Run coverage
         run: pnpm test:coverage
@@ -86,7 +77,7 @@ jobs:
           retention-days: 14
 
   ui-regression:
-    name: UI Visual + A11y
+    name: UI Smoke + Visual + A11y + Responsive
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -109,11 +100,8 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run smoke lane
-        run: pnpm run test:e2e:smoke
-
-      - name: Run visual + accessibility gates
-        run: pnpm run ui:gate:regression
+      - name: Run UI regression health lane
+        run: pnpm run health:repo:ui
 
       - name: Upload Playwright report
         if: always()
@@ -127,7 +115,7 @@ jobs:
           retention-days: 14
 
   backend-tests:
-    name: Rust Backend Tests
+    name: Rust Backend + Security Health
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -160,14 +148,11 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Run backend tests
-        run: pnpm run test:ci
-
-      - name: Run security-focused Rust tests
-        run: pnpm run test:security-regression
+      - name: Run backend health lane
+        run: pnpm run health:repo:backend
 
   search-api-tests:
-    name: Search API Tests
+    name: Search API Health
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -211,11 +196,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-test.txt
 
-      - name: Run Search API tests
-        working-directory: search-api
-        run: |
-          source venv/bin/activate
-          pytest -q
+      - name: Run Search API health lane
+        run: pnpm run health:repo:search
 
       - name: Validate production runtime config
         working-directory: search-api

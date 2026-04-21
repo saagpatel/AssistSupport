@@ -106,12 +106,7 @@ pub async fn rebuild_vector_store(
     app_handle: tauri::AppHandle,
 ) -> Result<RepairResult, String> {
     let result =
-        crate::commands::embedding_runtime::generate_kb_embeddings_internal(
-            state.inner(),
-            &app_handle,
-            true,
-        )
-        .await?;
+        crate::commands::generate_kb_embeddings_internal(state.inner(), &app_handle, true).await?;
 
     Ok(RepairResult {
         component: "Vector Store".to_string(),
