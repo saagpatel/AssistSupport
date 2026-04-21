@@ -8,7 +8,6 @@ import type {
   CollaborationDispatchPreview,
   SavedDraft,
 } from "../../../types/workspace";
-import type { DispatchHistoryRecord } from "../../../types/queue";
 import { QueueHistoryTemplatesPanel } from "./QueueHistoryTemplatesPanel";
 import { resolveRevampFlags } from "../../revamp";
 import {
@@ -17,10 +16,7 @@ import {
   type QueuePriority,
   type QueueView,
 } from "../../inbox/queueModel";
-import {
-  buildQueueDispatchPreview,
-  type QueueFocusFilter,
-} from "../../inbox/queueCommandCenterHelpers";
+import type { QueueFocusFilter } from "../../inbox/queueCommandCenterHelpers";
 import { AsButton, Badge, EmptyState, Panel, Skeleton } from "../ui";
 import {
   QUEUE_OPERATOR_STORAGE_KEY,
@@ -31,6 +27,7 @@ import {
 } from "./queueHelpers";
 import { useQueueRenderingState } from "./useQueueRenderingState";
 import { useBatchTriageManager } from "./useBatchTriageManager";
+import { useDispatchManager } from "./useDispatchManager";
 import "../../../styles/revamp/index.css";
 import "./queueCommandCenter.css";
 
@@ -98,16 +95,6 @@ export function QueueCommandCenterPage({
   } = useQueueOps();
   const queueFlags = useMemo(() => resolveRevampFlags(), []);
   const [operatorName, setOperatorName] = useState(loadOperatorName);
-  const [dispatchTarget, setDispatchTarget] =
-    useState<CollaborationDispatchPreview["integration_type"]>("jira");
-  const [dispatchPreview, setDispatchPreview] =
-    useState<CollaborationDispatchPreview | null>(null);
-  const [dispatchHistory, setDispatchHistory] = useState<
-    DispatchHistoryRecord[]
-  >([]);
-  const [pendingDispatchId, setPendingDispatchId] = useState<string | null>(
-    null,
-  );
 
   const rendering = useQueueRenderingState({
     drafts,
@@ -160,20 +147,29 @@ export function QueueCommandCenterPage({
     handleRunBatchTriage,
   } = batchTriage;
 
+  const dispatch = useDispatchManager({
+    operatorName,
+    previewCollaborationDispatch,
+    confirmCollaborationDispatch,
+    cancelCollaborationDispatch,
+    listDispatchHistory,
+    logEvent,
+    showSuccess,
+    showError,
+  });
+  const {
+    dispatchTarget,
+    setDispatchTarget,
+    dispatchPreview,
+    dispatchHistory,
+    handlePreviewDispatch,
+    handleSendDispatch,
+    handleCancelDispatch,
+  } = dispatch;
+
   useEffect(() => {
     loadDrafts(100);
   }, [loadDrafts]);
-
-  useEffect(() => {
-    if (!queueFlags.ASSISTSUPPORT_COLLABORATION_DISPATCH) {
-      setDispatchHistory([]);
-      return;
-    }
-
-    listDispatchHistory(20)
-      .then(setDispatchHistory)
-      .catch(() => setDispatchHistory([]));
-  }, [queueFlags.ASSISTSUPPORT_COLLABORATION_DISPATCH, listDispatchHistory]);
 
   useEffect(() => {
     try {
@@ -272,101 +268,6 @@ export function QueueCommandCenterPage({
     },
     [currentItem],
   );
-
-  const handlePreviewDispatch = useCallback(() => {
-    if (!currentItem) {
-      showError("Select a work item before previewing a dispatch");
-      return;
-    }
-
-    const preview = buildQueueDispatchPreview(currentItem, dispatchTarget);
-    void previewCollaborationDispatch({
-      integrationType: preview.integration_type,
-      draftId: currentItem.draft.id,
-      title: preview.title,
-      destinationLabel: preview.destination_label,
-      payloadPreview: preview.payload_preview,
-      metadataJson: JSON.stringify({
-        operator: operatorName,
-        ticket_id: currentItem.draft.ticket_id,
-      }),
-    })
-      .then(async (record) => {
-        setDispatchPreview(preview);
-        setPendingDispatchId(record.id);
-        setDispatchHistory(await listDispatchHistory(20).catch(() => []));
-        void logEvent("queue_dispatch_previewed", {
-          operator: operatorName,
-          draft_id: currentItem.draft.id,
-          integration_type: dispatchTarget,
-        });
-      })
-      .catch((error) => {
-        showError(`Could not preview dispatch: ${error}`);
-      });
-  }, [
-    currentItem,
-    dispatchTarget,
-    operatorName,
-    previewCollaborationDispatch,
-    listDispatchHistory,
-    logEvent,
-    showError,
-  ]);
-
-  const handleSendDispatch = useCallback(async () => {
-    if (!pendingDispatchId || !dispatchPreview) {
-      showError("Preview a dispatch before confirming delivery");
-      return;
-    }
-
-    try {
-      const record = await confirmCollaborationDispatch(pendingDispatchId);
-      setDispatchHistory(await listDispatchHistory(20).catch(() => []));
-      setDispatchPreview(null);
-      setPendingDispatchId(null);
-      void logEvent("queue_dispatch_sent", {
-        operator: operatorName,
-        integration_type: record.integration_type,
-        dispatch_id: record.id,
-      });
-      showSuccess(`${record.destination_label} dispatch confirmed as sent`);
-    } catch (error) {
-      showError(`Failed to confirm dispatch: ${error}`);
-    }
-  }, [
-    pendingDispatchId,
-    dispatchPreview,
-    confirmCollaborationDispatch,
-    listDispatchHistory,
-    logEvent,
-    operatorName,
-    showSuccess,
-    showError,
-  ]);
-
-  const handleCancelDispatch = useCallback(async () => {
-    if (!pendingDispatchId) {
-      setDispatchPreview(null);
-      return;
-    }
-
-    try {
-      await cancelCollaborationDispatch(pendingDispatchId);
-      setDispatchHistory(await listDispatchHistory(20).catch(() => []));
-      setDispatchPreview(null);
-      setPendingDispatchId(null);
-      showSuccess("Dispatch preview cancelled");
-    } catch (error) {
-      showError(`Failed to cancel dispatch: ${error}`);
-    }
-  }, [
-    pendingDispatchId,
-    cancelCollaborationDispatch,
-    listDispatchHistory,
-    showSuccess,
-    showError,
-  ]);
 
   const handleQueueKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
@@ -887,7 +788,7 @@ export function QueueCommandCenterPage({
                 <AsButton
                   tone="primary"
                   size="small"
-                  onClick={handlePreviewDispatch}
+                  onClick={() => handlePreviewDispatch(currentItem)}
                 >
                   Preview payload
                 </AsButton>
