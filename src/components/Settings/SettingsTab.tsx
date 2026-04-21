@@ -4,7 +4,6 @@ import appPackage from "../../../package.json";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useToastContext } from "../../contexts/ToastContext";
 import {
-  getResponseQualityThresholds,
   type ResponseQualityThresholds,
   resetResponseQualityThresholds,
   saveResponseQualityThresholds,
@@ -18,13 +17,6 @@ import { useKb } from "../../hooks/useKb";
 import { useLlm } from "../../hooks/useLlm";
 import { useSearchApiEmbedding } from "../../hooks/useSearchApiEmbedding";
 import { useSettingsOps } from "../../hooks/useSettingsOps";
-import type { ModelInfo } from "../../types/llm";
-import type {
-  AuditEntry,
-  DeploymentHealthSummary,
-  IntegrationConfigRecord,
-  MemoryKernelPreflightStatus,
-} from "../../types/settings";
 import {
   formatAuditEvent,
   formatBytes,
@@ -33,6 +25,7 @@ import {
   getSearchApiEmbeddingBadge,
   validateQualityThresholds,
 } from "./SettingsTab.helpers";
+import { useSettingsInit } from "./useSettingsInit";
 import { AdvancedSearchSection } from "./sections/AdvancedSearchSection";
 import { ContextWindowSection } from "./sections/ContextWindowSection";
 import { JiraSection } from "./sections/JiraSection";
@@ -131,86 +124,80 @@ export function SettingsTab() {
     deleteVariable,
   } = useCustomVariables();
 
-  const [loadedModel, setLoadedModel] = useState<string | null>(null);
-  const [loadedModelInfo, setLoadedModelInfo] = useState<ModelInfo | null>(
-    null,
-  );
-  const [downloadedModels, setDownloadedModels] = useState<string[]>([]);
-  const [kbFolder, setKbFolderState] = useState<string | null>(null);
-  const [indexStats, setIndexStats] = useState<{
-    total_chunks: number;
-    total_files: number;
-  } | null>(null);
-  const [vectorEnabled, setVectorEnabled] = useState(false);
-  const [jiraConfigured, setJiraConfigured] = useState(false);
-  const [contextWindowSize, setContextWindowSize] = useState<number | null>(
-    null,
-  );
-  const [embeddingDownloaded, setEmbeddingDownloaded] = useState(false);
-  const [allowUnverifiedLocalModels, setAllowUnverifiedLocalModels] =
-    useState(false);
+  const init = useSettingsInit({
+    getLoadedModel,
+    getModelInfo,
+    listModels,
+    getKbFolder,
+    getIndexStats,
+    getVectorConsent,
+    getContextWindow,
+    checkJiraConfig,
+    isEmbeddingDownloaded,
+    getDeploymentHealthSummary,
+    listIntegrations,
+    checkEmbeddingStatus,
+    refreshSearchApiEmbeddingStatus,
+    onShowError: showError,
+  });
+
+  const {
+    loadedModel,
+    setLoadedModel,
+    loadedModelInfo,
+    setLoadedModelInfo,
+    downloadedModels,
+    setDownloadedModels,
+    kbFolder,
+    setKbFolder: setKbFolderState,
+    indexStats,
+    setIndexStats,
+    vectorEnabled,
+    setVectorEnabled,
+    jiraConfigured,
+    setJiraConfigured,
+    contextWindowSize,
+    setContextWindowSize,
+    embeddingDownloaded,
+    setEmbeddingDownloaded,
+    allowUnverifiedLocalModels,
+    setAllowUnverifiedLocalModels,
+    deploymentHealth,
+    setDeploymentHealth,
+    integrations,
+    setIntegrations,
+    qualityThresholds,
+    setQualityThresholds,
+    memoryKernelPreflight,
+    memoryKernelLoading,
+    auditEntries,
+    auditLoading,
+    auditPage,
+    setAuditPage,
+    loadInitialState,
+    loadAuditEntries,
+    refreshMemoryKernelStatus,
+  } = init;
+
   const [generatingEmbeddings, setGeneratingEmbeddings] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [backupLoading, setBackupLoading] = useState<
     "export" | "import" | null
   >(null);
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
-  const [auditLoading, setAuditLoading] = useState(false);
   const [auditExporting, setAuditExporting] = useState(false);
   const [auditSeverityFilter, setAuditSeverityFilter] = useState<
     "all" | "info" | "warning" | "error" | "critical"
   >("all");
   const [auditSearchQuery, setAuditSearchQuery] = useState("");
-  const [auditPage, setAuditPage] = useState(1);
-
-  const [deploymentHealth, setDeploymentHealth] =
-    useState<DeploymentHealthSummary | null>(null);
   const [deployPreflightChecks, setDeployPreflightChecks] = useState<string[]>(
     [],
   );
   const [deployPreflightRunning, setDeployPreflightRunning] = useState(false);
-  const [integrations, setIntegrations] = useState<IntegrationConfigRecord[]>(
-    [],
-  );
-  const [qualityThresholds, setQualityThresholds] =
-    useState<ResponseQualityThresholds>(() => getResponseQualityThresholds());
   const [qualityThresholdError, setQualityThresholdError] = useState<
     string | null
   >(null);
-  const [memoryKernelPreflight, setMemoryKernelPreflight] =
-    useState<MemoryKernelPreflightStatus | null>(null);
-  const [memoryKernelLoading, setMemoryKernelLoading] = useState(false);
   const revampFlags = useMemo(() => resolveRevampFlags(), []);
-
-  const loadAuditEntries = useCallback(async () => {
-    setAuditLoading(true);
-    try {
-      const entries = await invoke<AuditEntry[]>("get_audit_entries", {
-        limit: 200,
-      });
-      setAuditEntries(entries ?? []);
-      setAuditPage(1);
-    } catch (err) {
-      showError(`Failed to load audit logs: ${err}`);
-    } finally {
-      setAuditLoading(false);
-    }
-  }, [showError]);
-
-  const refreshMemoryKernelStatus = useCallback(async () => {
-    setMemoryKernelLoading(true);
-    try {
-      const status = await invoke<MemoryKernelPreflightStatus>(
-        "get_memory_kernel_preflight_status",
-      );
-      setMemoryKernelPreflight(status);
-    } catch {
-      setMemoryKernelPreflight(null);
-    } finally {
-      setMemoryKernelLoading(false);
-    }
-  }, []);
 
   const filteredAuditEntries = useMemo(() => {
     const normalized = auditEntries.slice().reverse();
@@ -239,11 +226,7 @@ export function SettingsTab() {
 
   useEffect(() => {
     setAuditPage((prev) => Math.min(prev, auditTotalPages));
-  }, [auditTotalPages]);
-
-  useEffect(() => {
-    refreshMemoryKernelStatus();
-  }, [refreshMemoryKernelStatus]);
+  }, [auditTotalPages, setAuditPage]);
 
   const pagedAuditEntries = useMemo(() => {
     const start = (auditPage - 1) * AUDIT_PAGE_SIZE;
@@ -251,71 +234,10 @@ export function SettingsTab() {
   }, [filteredAuditEntries, auditPage]);
 
   useEffect(() => {
-    Promise.resolve(loadInitialState()).catch((err) =>
-      console.error("Settings init failed:", err),
-    );
     Promise.resolve(loadVariables()).catch((err) =>
       console.error("Variables load failed:", err),
     );
-    Promise.resolve(loadAuditEntries()).catch((err) =>
-      console.error("Audit load failed:", err),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadVariables, loadAuditEntries]);
-
-  async function loadInitialState() {
-    try {
-      const [
-        loaded,
-        modelInfo,
-        downloaded,
-        folder,
-        stats,
-        consent,
-        jiraConfigResult,
-        ctxWindow,
-        embDownloaded,
-        allowUnverifiedModels,
-        deployHealth,
-        integrationsList,
-      ] = await Promise.all([
-        getLoadedModel(),
-        getModelInfo().catch(() => null),
-        listModels(),
-        getKbFolder(),
-        getIndexStats().catch(() => null),
-        getVectorConsent().catch(() => null),
-        checkJiraConfig().catch(() => false),
-        getContextWindow().catch(() => null),
-        isEmbeddingDownloaded().catch(() => false),
-        invoke<boolean>("get_allow_unverified_local_models").catch(() => false),
-        getDeploymentHealthSummary().catch(() => null),
-        listIntegrations().catch(() => []),
-      ]);
-      setLoadedModel(loaded);
-      setLoadedModelInfo(modelInfo);
-      setDownloadedModels(downloaded);
-      setKbFolderState(folder);
-      setIndexStats(stats);
-      if (consent) {
-        setVectorEnabled(consent.enabled);
-      }
-      setJiraConfigured(jiraConfigResult);
-      setContextWindowSize(ctxWindow);
-      setEmbeddingDownloaded(embDownloaded);
-      setAllowUnverifiedLocalModels(allowUnverifiedModels);
-      setDeploymentHealth(deployHealth);
-      setIntegrations(integrationsList ?? []);
-      setQualityThresholds(getResponseQualityThresholds());
-
-      await Promise.all([
-        checkEmbeddingStatus(),
-        refreshSearchApiEmbeddingStatus(),
-      ]);
-    } catch (err) {
-      console.error("Failed to load settings state:", err);
-    }
-  }
+  }, [loadVariables]);
 
   async function handleVectorToggle() {
     const newValue = !vectorEnabled;
