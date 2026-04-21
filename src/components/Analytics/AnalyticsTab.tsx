@@ -8,11 +8,11 @@ import {
   ResponseQualitySummary,
 } from "../../hooks/useAnalytics";
 import { useInsightsOps } from "../../hooks/useInsightsOps";
+import type { ResponseQualityThresholds } from "../../features/analytics/qualityThresholds";
 import {
-  getResponseQualityThresholds,
-  RESPONSE_QUALITY_THRESHOLDS_UPDATED_EVENT,
-  ResponseQualityThresholds,
-} from "../../features/analytics/qualityThresholds";
+  readCurrentThresholds,
+  subscribeToQualityThresholds,
+} from "./qualityThresholdsState";
 import type { KbGapCandidate } from "../../types/insights";
 import { ArticleDetailPanel } from "./ArticleDetailPanel";
 import { PilotDiagnosticsSection } from "./PilotDiagnosticsSection";
@@ -55,7 +55,7 @@ export function AnalyticsTab({
   const [qualityDrilldown, setQualityDrilldown] =
     useState<ResponseQualityDrilldownExamples | null>(null);
   const [qualityThresholds, setQualityThresholds] =
-    useState<ResponseQualityThresholds>(() => getResponseQualityThresholds());
+    useState<ResponseQualityThresholds>(() => readCurrentThresholds());
   const [kbUsage, setKbUsage] = useState<ArticleUsage[]>([]);
   const [lowRatingData, setLowRatingData] = useState<LowRatingAnalysis | null>(
     null,
@@ -126,21 +126,8 @@ export function AnalyticsTab({
   }, [loadData]);
 
   useEffect(() => {
-    const syncThresholds = () =>
-      setQualityThresholds(getResponseQualityThresholds());
-    syncThresholds();
-    window.addEventListener(
-      RESPONSE_QUALITY_THRESHOLDS_UPDATED_EVENT,
-      syncThresholds,
-    );
-    window.addEventListener("storage", syncThresholds);
-    return () => {
-      window.removeEventListener(
-        RESPONSE_QUALITY_THRESHOLDS_UPDATED_EVENT,
-        syncThresholds,
-      );
-      window.removeEventListener("storage", syncThresholds);
-    };
+    setQualityThresholds(readCurrentThresholds());
+    return subscribeToQualityThresholds(setQualityThresholds);
   }, []);
 
   const overviewContent = (() => {
