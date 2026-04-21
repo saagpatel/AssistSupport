@@ -17,6 +17,7 @@ import { ConversationThread, ConversationEntry } from "./ConversationThread";
 import { useDraftApproval } from "./useDraftApproval";
 import { useDraftChecklist } from "./useDraftChecklist";
 import { useDraftFirstResponse } from "./useDraftFirstResponse";
+import { useDraftIntake } from "./useDraftIntake";
 import { ConversationInput } from "./ConversationInput";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 import { WorkspaceModeShell } from "./WorkspaceModeShell";
@@ -41,7 +42,6 @@ import { useWorkspaceCommandBridge } from "../../features/workspace/useWorkspace
 import { useWorkspaceDraftState } from "../../features/workspace/useWorkspaceDraftState";
 import {
   applyResolutionKit,
-  analyzeCaseIntake,
   buildResolutionKitFromWorkspace,
   buildSimilarCases,
   compactLines,
@@ -66,10 +66,8 @@ import type {
 } from "../../types/llm";
 import type { ContextSource } from "../../types/knowledge";
 import type {
-  CaseIntake,
   GuidedRunbookTemplate,
   NextActionRecommendation,
-  NoteAudience,
   ResolutionKit,
   ResponseLength,
   SavedDraft,
@@ -205,32 +203,6 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-const INTAKE_PRESETS: Record<
-  "incident" | "access" | "rollout" | "device",
-  Partial<CaseIntake>
-> = {
-  incident: {
-    likely_category: "incident",
-    urgency: "high",
-    note_audience: "internal-note",
-  },
-  access: {
-    likely_category: "access",
-    urgency: "normal",
-    note_audience: "internal-note",
-  },
-  rollout: {
-    likely_category: "change-rollout",
-    urgency: "normal",
-    note_audience: "internal-note",
-  },
-  device: {
-    likely_category: "device-environment",
-    urgency: "normal",
-    note_audience: "internal-note",
-  },
-};
-
 export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
   function DraftTab(
     { initialDraft, onNavigateToSource, revampModeEnabled = false },
@@ -365,10 +337,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       ConversationEntry[]
     >([]);
     const [handoffTouched, setHandoffTouched] = useState(false);
-    const [caseIntake, setCaseIntake] = useState<CaseIntake>(() => ({
-      ...parseCaseIntake(null),
-      note_audience: loadWorkspacePersonalization().preferred_note_audience,
-    }));
     const [similarCases, setSimilarCases] = useState<SimilarCase[]>([]);
     const [similarCasesLoading, setSimilarCasesLoading] = useState(false);
     const [compareCase, setCompareCase] = useState<SimilarCase | null>(null);
@@ -471,52 +439,22 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       void refreshWorkspaceCatalog();
     }, [refreshWorkspaceCatalog]);
 
-    const handleIntakeFieldChange = useCallback(
-      (field: keyof CaseIntake, value: string) => {
-        setCaseIntake((prev) => ({
-          ...prev,
-          [field]: value,
-        }));
-      },
-      [],
-    );
-
-    const handleAnalyzeIntake = useCallback(() => {
-      setCaseIntake((prev) =>
-        analyzeCaseIntake(input, currentTicket ?? undefined, prev),
-      );
-      void logEvent("workspace_intake_analyzed", {
-        ticket_id: currentTicketId,
-        has_ticket: Boolean(currentTicketId),
-        has_response: Boolean(response.trim()),
-      });
-    }, [input, currentTicket, logEvent, currentTicketId, response]);
-
-    const handleApplyIntakePreset = useCallback(
-      (preset: "incident" | "access" | "rollout" | "device") => {
-        setCaseIntake((prev) => ({
-          ...prev,
-          ...INTAKE_PRESETS[preset],
-        }));
-        void logEvent("workspace_intake_preset_applied", { preset });
-      },
-      [logEvent],
-    );
-
-    const handleNoteAudienceChange = useCallback(
-      (audience: NoteAudience) => {
-        setCaseIntake((prev) => ({
-          ...prev,
-          note_audience: audience,
-        }));
-        setWorkspacePersonalization((prev) => ({
-          ...prev,
-          preferred_note_audience: audience,
-        }));
-        void logEvent("workspace_note_audience_changed", { audience });
-      },
-      [logEvent],
-    );
+    const {
+      caseIntake,
+      setCaseIntake,
+      handleIntakeFieldChange,
+      handleAnalyzeIntake,
+      handleApplyIntakePreset,
+      handleNoteAudienceChange,
+    } = useDraftIntake({
+      initialNoteAudience: workspacePersonalization.preferred_note_audience,
+      input,
+      currentTicket,
+      currentTicketId,
+      response,
+      logEvent,
+      setWorkspacePersonalization,
+    });
 
     const handleResponseLengthChange = useCallback((length: ResponseLength) => {
       setResponseLength(length);
