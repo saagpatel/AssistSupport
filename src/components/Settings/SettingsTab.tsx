@@ -24,10 +24,17 @@ import type {
   DeploymentHealthSummary,
   IntegrationConfigRecord,
   MemoryKernelPreflightStatus,
-  SearchApiEmbeddingModelStatus,
 } from "../../types/settings";
 import type { CustomVariable } from "../../types/workspace";
 import { Button } from "../shared/Button";
+import {
+  formatAuditEvent,
+  formatBytes,
+  formatSpeed,
+  formatVerificationStatus,
+  getSearchApiEmbeddingBadge,
+  validateQualityThresholds,
+} from "./SettingsTab.helpers";
 import {
   AuditLogsSection,
   BackupSection,
@@ -43,6 +50,15 @@ import {
 } from "./sections/SettingsOverviewSections";
 import { formatAppVersion } from "./versionLabel";
 import "./SettingsTab.css";
+
+export {
+  formatAuditEvent,
+  formatBytes,
+  formatSpeed,
+  formatVerificationStatus,
+  getSearchApiEmbeddingBadge,
+  validateQualityThresholds,
+};
 
 const RECOMMENDED_MODELS: ModelInfo[] = [
   {
@@ -78,17 +94,6 @@ const OTHER_SUPPORTED_MODELS: ModelInfo[] = [
 
 const APP_VERSION = appPackage.version;
 
-// Audit event types can be either a plain string (unit variants like "key_generated")
-// or an object (data variants like { custom: "value" }). Normalize for display.
-function formatAuditEvent(event: string | Record<string, string>): string {
-  if (typeof event === "string") return event;
-  if (typeof event === "object" && event !== null) {
-    const key = Object.keys(event)[0];
-    return key ? `${key}: ${event[key]}` : JSON.stringify(event);
-  }
-  return String(event);
-}
-
 const CONTEXT_WINDOW_OPTIONS = [
   { value: null, label: "Model Default" },
   { value: 2048, label: "2K (2,048 tokens)" },
@@ -99,94 +104,6 @@ const CONTEXT_WINDOW_OPTIONS = [
 ];
 
 const AUDIT_PAGE_SIZE = 50;
-
-// Helper to format bytes for display
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / k ** i).toFixed(1)} ${sizes[i]}`;
-}
-
-// Helper to format download speed
-export function formatSpeed(bps: number): string {
-  if (bps === 0) return "";
-  return `${formatBytes(bps)}/s`;
-}
-
-export function formatVerificationStatus(
-  status: string | null | undefined,
-): string {
-  if (status === "verified") return "Verified";
-  if (status === "unverified") return "Unverified";
-  return "Unknown";
-}
-
-export function getSearchApiEmbeddingBadge(
-  status: SearchApiEmbeddingModelStatus | null,
-  installError: string | null,
-): { label: string; className: string; detail: string } {
-  if (installError) {
-    return {
-      label: "Unavailable",
-      className: "error",
-      detail: installError,
-    };
-  }
-
-  if (!status) {
-    return {
-      label: "Checking",
-      className: "downloaded",
-      detail:
-        "Checking whether the managed search API embedding model is installed.",
-    };
-  }
-
-  if (!status.installed) {
-    return {
-      label: "Not Installed",
-      className: "not-downloaded",
-      detail:
-        "Install this managed model to keep search-api embeddings explicit, pinned, and offline at runtime.",
-    };
-  }
-
-  if (!status.ready) {
-    return {
-      label: "Needs Repair",
-      className: "error",
-      detail:
-        status.error ??
-        "The managed search API embedding model is installed but not ready.",
-    };
-  }
-
-  return {
-    label: "Ready",
-    className: "loaded",
-    detail: `Pinned revision ${status.revision}. Loaded from local disk only at runtime.`,
-  };
-}
-
-export function validateQualityThresholds(
-  thresholds: ResponseQualityThresholds,
-): string | null {
-  if (thresholds.editRatioWatch >= thresholds.editRatioAction) {
-    return "Edit ratio watch threshold must be lower than action threshold.";
-  }
-  if (thresholds.timeToDraftWatchMs >= thresholds.timeToDraftActionMs) {
-    return "Time-to-draft watch threshold must be lower than action threshold.";
-  }
-  if (thresholds.copyPerSaveWatch <= thresholds.copyPerSaveAction) {
-    return "Copy-per-save watch threshold must be higher than action threshold.";
-  }
-  if (thresholds.editedSaveRateWatch >= thresholds.editedSaveRateAction) {
-    return "Edited save rate watch threshold must be lower than action threshold.";
-  }
-  return null;
-}
 
 export function SettingsTab() {
   const {
