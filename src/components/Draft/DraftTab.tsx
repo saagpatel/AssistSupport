@@ -6,7 +6,6 @@ import {
   useImperativeHandle,
   useMemo,
 } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { DraftResponsePanel } from "./DraftResponsePanel";
 import { InputPanel } from "./InputPanel";
 import { DiagnosisPanel, TreeResult } from "./DiagnosisPanel";
@@ -18,6 +17,7 @@ import { useDraftGeneration } from "./useDraftGeneration";
 import { useDraftIntake } from "./useDraftIntake";
 import { useDraftPersistence } from "./useDraftPersistence";
 import { useGuidedRunbook } from "./useGuidedRunbook";
+import { useResponseActions } from "./useResponseActions";
 import { useWorkspaceArtifacts } from "./useWorkspaceArtifacts";
 import { useWorkspaceClipboardPacks } from "./useWorkspaceClipboardPacks";
 import { ConversationInput } from "./ConversationInput";
@@ -46,10 +46,7 @@ import {
   compactLines,
   parseCaseIntake,
 } from "../../features/workspace/workspaceAssistant";
-import {
-  calculateEditRatio,
-  countWords,
-} from "../../features/analytics/qualityMetrics";
+import { countWords } from "../../features/analytics/qualityMetrics";
 import type { JiraTicket } from "../../hooks/useJira";
 import type {
   ConfidenceAssessment,
@@ -339,10 +336,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     } = useAlternatives();
     const { suggestions, findSimilar, saveAsTemplate, incrementUsage } =
       useSavedResponses();
-    const [showTemplateModal, setShowTemplateModal] = useState(false);
-    const [templateModalRating, setTemplateModalRating] = useState<
-      number | undefined
-    >(undefined);
     const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
 
     const {
@@ -531,43 +524,37 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       [savedDraftId],
     );
 
-    const handleApplyTemplate = useCallback((content: string) => {
-      setResponse(content);
-    }, []);
-
-    const handleSaveAsTemplate = useCallback((rating: number) => {
-      setTemplateModalRating(rating);
-      setShowTemplateModal(true);
-    }, []);
-
-    const handleTemplateModalSave = useCallback(
-      async (
-        name: string,
-        category: string | null,
-        content: string,
-        variablesJson: string | null,
-      ): Promise<boolean> => {
-        const id = await saveAsTemplate(name, content, {
-          sourceDraftId: savedDraftId ?? undefined,
-          sourceRating: templateModalRating,
-          category: category ?? undefined,
-          variablesJson: variablesJson ?? undefined,
-        });
-        if (id) {
-          showSuccess("Response saved as template");
-          return true;
-        }
-        showError("Failed to save template");
-        return false;
-      },
-      [
-        saveAsTemplate,
-        savedDraftId,
-        templateModalRating,
-        showSuccess,
-        showError,
-      ],
-    );
+    const {
+      showTemplateModal,
+      setShowTemplateModal,
+      templateModalRating,
+      handleApplyTemplate,
+      handleSaveAsTemplate,
+      handleTemplateModalSave,
+      handleResponseChange,
+      handleCancel,
+      handleCopyResponse,
+      handleExportResponse,
+      resetResponseActions,
+    } = useResponseActions({
+      response,
+      originalResponse,
+      isResponseEdited,
+      confidence,
+      sources,
+      savedDraftId,
+      streamingText,
+      cancelGeneration,
+      saveAsTemplate,
+      logEvent,
+      setResponse,
+      setOriginalResponse,
+      setIsResponseEdited,
+      setGenerating,
+      setHandoffTouched,
+      onShowSuccess: showSuccess,
+      onShowError: showError,
+    });
 
     const handleSuggestionApply = useCallback(
       (content: string, templateId: string) => {
@@ -620,8 +607,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setSavedDraftCreatedAt(null);
       setConversationEntries([]);
       setHandoffTouched(false);
-      setShowTemplateModal(false);
-      setTemplateModalRating(undefined);
+      resetResponseActions();
       setSuggestionsDismissed(false);
       setCaseIntake({
         ...parseCaseIntake(null),
@@ -637,14 +623,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setWorkspaceRunbookScopeKey(createWorkspaceRunbookScopeKey());
       resetGeneration();
     }, [workspacePersonalization.preferred_note_audience, resetGeneration]);
-
-    const handleResponseChange = useCallback(
-      (text: string) => {
-        setResponse(text);
-        setIsResponseEdited(text !== originalResponse);
-      },
-      [originalResponse],
-    );
 
     const handleTreeComplete = useCallback((result: TreeResult) => {
       setTreeResult(result);
@@ -723,17 +701,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       },
       [modelLoaded, responseLength, generateStreaming, clearStreamingText],
     );
-
-    const handleCancel = useCallback(async () => {
-      await cancelGeneration();
-      setGenerating(false);
-      // Keep the streaming text that was generated so far
-      if (streamingText) {
-        setResponse(streamingText);
-        setOriginalResponse(streamingText);
-        setIsResponseEdited(false);
-      }
-    }, [cancelGeneration, streamingText]);
 
     useEffect(() => {
       if (viewMode !== "panels") {
@@ -1190,73 +1157,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     useEffect(() => {
       loadTemplates();
     }, [loadTemplates]);
-
-    const handleCopyResponse = useCallback(async () => {
-      if (!response) return;
-      try {
-        const mode = confidence?.mode ?? "answer";
-        const hasCitations = sources.length > 0;
-        const copyAllowed = mode === "answer" && hasCitations;
-
-        if (!copyAllowed) {
-          const reason = window.prompt(
-            "Copy override required. This response is missing citations or is not in answer mode.\n\nEnter a reason to proceed (will be logged locally):",
-          );
-          if (!reason || !reason.trim()) {
-            showError("Copy cancelled (reason required).");
-            return;
-          }
-          await invoke("audit_response_copy_override", {
-            reason: reason.trim(),
-            confidenceMode: confidence?.mode ?? null,
-            sourcesCount: sources.length,
-          });
-        }
-        await navigator.clipboard.writeText(response);
-        setHandoffTouched(true);
-        logEvent("response_copied", {
-          draft_id: savedDraftId,
-          word_count: countWords(response),
-          is_edited: isResponseEdited,
-          edit_ratio: Number(
-            calculateEditRatio(originalResponse, response).toFixed(3),
-          ),
-        });
-        showSuccess("Response copied to clipboard");
-      } catch {
-        showError("Failed to copy response");
-      }
-    }, [
-      response,
-      confidence?.mode,
-      sources.length,
-      showSuccess,
-      showError,
-      logEvent,
-      savedDraftId,
-      isResponseEdited,
-      originalResponse,
-      setHandoffTouched,
-    ]);
-
-    const handleExportResponse = useCallback(async () => {
-      if (!response) {
-        showError("No response to export");
-        return;
-      }
-      try {
-        const saved = await invoke<boolean>("export_draft", {
-          responseText: response,
-          format: "Markdown",
-        });
-        if (saved) {
-          setHandoffTouched(true);
-          showSuccess("Response exported successfully");
-        }
-      } catch (e) {
-        showError(`Export failed: ${e}`);
-      }
-    }, [response, showSuccess, showError, setHandoffTouched]);
 
     // Expose functions to parent via ref
     useImperativeHandle(
