@@ -709,7 +709,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       try {
         await navigator.clipboard.writeText(firstResponse);
         showSuccess("First response copied to clipboard");
-      } catch (e) {
+      } catch {
         showError("Failed to copy first response");
       }
     }, [firstResponse, showSuccess, showError]);
@@ -2236,7 +2236,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
           ),
         });
         showSuccess("Response copied to clipboard");
-      } catch (e) {
+      } catch {
         showError("Failed to copy response");
       }
     }, [

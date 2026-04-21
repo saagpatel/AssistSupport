@@ -1,9 +1,9 @@
-name: perf-foundation
+name: release-health-advisory
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main, master]
+    branches: [master]
 
 jobs:
   perf-bundle:

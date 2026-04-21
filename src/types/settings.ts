@@ -68,6 +68,15 @@ export interface MemoryKernelEnrichmentResult {
   preflight: MemoryKernelPreflightStatus;
 }
 
+export interface SearchApiEmbeddingModelStatus {
+  installed: boolean;
+  ready: boolean;
+  model_name: string;
+  revision: string;
+  local_path: string | null;
+  error: string | null;
+}
+
 export type Theme = "light" | "dark" | "system";
 
 export interface AuditEntry {

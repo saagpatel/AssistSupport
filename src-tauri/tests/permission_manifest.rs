@@ -3,17 +3,19 @@ use std::fs;
 
 fn tauri_commands() -> BTreeSet<String> {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let lib_rs = fs::read_to_string(format!("{manifest_dir}/src/lib.rs")).expect("read src/lib.rs");
-    let body = lib_rs
-        .split("invoke_handler(tauri::generate_handler![")
+    let registry =
+        fs::read_to_string(format!("{manifest_dir}/src/commands/registry.rs"))
+            .expect("read src/commands/registry.rs");
+    let body = registry
+        .split("tauri::generate_handler![")
         .nth(1)
-        .and_then(|rest| rest.split("])").next())
-        .expect("invoke handler block");
+        .and_then(|rest| rest.split("\n        ]").next())
+        .expect("registry generate_handler block");
 
     body.lines()
         .filter_map(|line| {
-            line.find("commands::")
-                .map(|index| &line[index + "commands::".len()..])
+            line.find("crate::commands::")
+                .map(|index| &line[index + "crate::commands::".len()..])
         })
         .filter_map(|line| {
             line.split(|ch: char| ch == ',' || ch.is_whitespace() || ch == ']')

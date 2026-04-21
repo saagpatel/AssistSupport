@@ -7,15 +7,24 @@
 //! This file contains the remaining commands that are being gradually migrated.
 
 // Domain-specific command modules
+pub mod app_core_commands;
 pub mod backup;
+pub mod decision_tree_runtime;
 pub mod diagnostics;
+pub mod download_runtime;
 pub mod draft_commands;
+pub mod embedding_runtime;
 pub mod jira_commands;
+pub mod jobs_commands;
 pub mod kb_commands;
 pub mod memory_kernel;
 pub mod model_commands;
+pub mod model_runtime;
+pub mod ocr_runtime;
+pub mod operations_analytics_commands;
 pub mod pilot_feedback;
 pub mod product_workspace;
+pub mod registry;
 pub mod search_api;
 pub mod security_commands;
 pub mod startup_commands;
@@ -67,7 +76,7 @@ use crate::security::{
     FileKeyStore, TOKEN_HUGGINGFACE, TOKEN_JIRA, TOKEN_MEMORYKERNEL_SERVICE, TOKEN_SEARCH_API,
 };
 use crate::validation::{
-    is_http_url, normalize_and_validate_namespace_id, validate_non_empty, validate_text_size,
+    normalize_and_validate_namespace_id, validate_non_empty, validate_text_size,
     validate_ticket_id, validate_within_home, ValidationError, MAX_QUERY_BYTES,
     MAX_TEXT_INPUT_BYTES,
 };
@@ -154,7 +163,6 @@ pub fn set_allow_unverified_local_models(
 }
 
 /// Verify FTS5 is available (release gate command)
-#[tauri::command]
 pub fn check_fts5_enabled(state: State<'_, AppState>) -> Result<bool, String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -162,7 +170,6 @@ pub fn check_fts5_enabled(state: State<'_, AppState>) -> Result<bool, String> {
 }
 
 /// Check database integrity
-#[tauri::command]
 pub fn check_db_integrity(state: State<'_, AppState>) -> Result<bool, String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -171,7 +178,6 @@ pub fn check_db_integrity(state: State<'_, AppState>) -> Result<bool, String> {
 }
 
 /// Get vector search consent status
-#[tauri::command]
 pub fn get_vector_consent(state: State<'_, AppState>) -> Result<crate::db::VectorConsent, String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -179,7 +185,6 @@ pub fn get_vector_consent(state: State<'_, AppState>) -> Result<crate::db::Vecto
 }
 
 /// Set vector search consent (requires explicit opt-in if unencrypted)
-#[tauri::command]
 pub fn set_vector_consent(
     state: State<'_, AppState>,
     enabled: bool,
@@ -206,7 +211,6 @@ pub struct SearchOptionsParam {
 
 /// Hybrid search for KB (FTS5 + vector when enabled)
 /// Uses parallel execution when vector search is available
-#[tauri::command]
 pub async fn search_kb(
     state: State<'_, AppState>,
     query: String,
@@ -217,7 +221,6 @@ pub async fn search_kb(
 }
 
 /// Advanced search with configurable options
-#[tauri::command]
 pub async fn search_kb_with_options(
     state: State<'_, AppState>,
     query: String,
@@ -322,7 +325,6 @@ pub async fn search_kb_with_options(
 }
 
 /// Get formatted context for LLM injection from search results
-#[tauri::command]
 pub async fn get_search_context(
     state: State<'_, AppState>,
     query: String,
@@ -334,7 +336,6 @@ pub async fn get_search_context(
 }
 
 /// Greet command (placeholder for testing)
-#[tauri::command]
 pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
@@ -344,7 +345,6 @@ pub fn greet(name: &str) -> String {
 // ============================================================================
 
 /// Initialize the LLM engine (idempotent — skips if already initialized)
-#[tauri::command]
 pub fn init_llm_engine(state: State<'_, AppState>) -> Result<(), String> {
     if state.llm.read().is_some() {
         return Ok(());
@@ -356,7 +356,6 @@ pub fn init_llm_engine(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 /// Load a model by ID
-#[tauri::command]
 pub fn load_model(
     state: State<'_, AppState>,
     model_id: String,
@@ -405,7 +404,6 @@ pub fn load_model(
 }
 
 /// Load a custom GGUF model from a file path
-#[tauri::command]
 pub fn load_custom_model(
     state: State<'_, AppState>,
     model_path: String,
@@ -508,7 +506,6 @@ pub fn load_custom_model(
 }
 
 /// Validate a GGUF file without loading it (returns model metadata)
-#[tauri::command]
 pub fn validate_gguf_file(model_path: String) -> Result<GgufFileInfo, String> {
     use std::fs;
     use std::path::Path;
@@ -587,7 +584,6 @@ pub struct GgufFileInfo {
 }
 
 /// Unload the current model
-#[tauri::command]
 pub fn unload_model(state: State<'_, AppState>) -> Result<(), String> {
     let llm_guard = state.llm.read();
     let engine = llm_guard.as_ref().ok_or("LLM engine not initialized")?;
@@ -602,7 +598,6 @@ pub fn unload_model(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 /// Get current model info
-#[tauri::command]
 pub fn get_model_info(state: State<'_, AppState>) -> Result<Option<ModelInfo>, String> {
     let llm_guard = state.llm.read();
     let engine = llm_guard.as_ref().ok_or("LLM engine not initialized")?;
@@ -610,7 +605,6 @@ pub fn get_model_info(state: State<'_, AppState>) -> Result<Option<ModelInfo>, S
 }
 
 /// Check if a model is loaded
-#[tauri::command]
 pub fn is_model_loaded(state: State<'_, AppState>) -> Result<bool, String> {
     let llm_guard = state.llm.read();
     match llm_guard.as_ref() {
@@ -662,7 +656,6 @@ pub struct GenerationResult {
 }
 
 /// Generate text (non-streaming, for simple use cases)
-#[tauri::command]
 pub async fn generate_text(
     state: State<'_, AppState>,
     prompt: String,
@@ -1162,7 +1155,6 @@ fn assess_confidence(
 }
 
 /// Generate text with KB context injection
-#[tauri::command]
 pub async fn generate_with_context(
     state: State<'_, AppState>,
     params: GenerateWithContextParams,
@@ -1328,7 +1320,6 @@ pub struct StreamToken {
 }
 
 /// Generate text with streaming (emits events as tokens are generated)
-#[tauri::command]
 pub async fn generate_streaming(
     window: tauri::Window,
     state: State<'_, AppState>,
@@ -1565,7 +1556,6 @@ pub async fn generate_streaming(
 }
 
 /// Generate a short first-response message for Slack or Jira
-#[tauri::command]
 pub async fn generate_first_response(
     state: State<'_, AppState>,
     params: FirstResponseParams,
@@ -1623,7 +1613,6 @@ pub async fn generate_first_response(
 }
 
 /// Generate a troubleshooting checklist for the issue
-#[tauri::command]
 pub async fn generate_troubleshooting_checklist(
     state: State<'_, AppState>,
     params: ChecklistGenerateParams,
@@ -1682,7 +1671,6 @@ pub async fn generate_troubleshooting_checklist(
 }
 
 /// Update an existing troubleshooting checklist based on completed steps
-#[tauri::command]
 pub async fn update_troubleshooting_checklist(
     state: State<'_, AppState>,
     params: ChecklistUpdateParams,
@@ -1772,7 +1760,6 @@ pub async fn update_troubleshooting_checklist(
 }
 
 /// Test model with a simple prompt
-#[tauri::command]
 pub async fn test_model(state: State<'_, AppState>) -> Result<TestModelResult, String> {
     let result = generate_text(
         state,
@@ -1803,7 +1790,6 @@ pub async fn test_model(state: State<'_, AppState>) -> Result<TestModelResult, S
 }
 
 /// Cancel an ongoing text generation
-#[tauri::command]
 pub fn cancel_generation() -> Result<(), String> {
     GENERATION_CANCEL_FLAG.store(true, Ordering::SeqCst);
     Ok(())
@@ -1821,7 +1807,6 @@ pub struct TestModelResult {
 const CONTEXT_WINDOW_SETTING: &str = "llm_context_window";
 
 /// Get the configured context window size
-#[tauri::command]
 pub fn get_context_window(state: State<'_, AppState>) -> Result<Option<u32>, String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -1843,7 +1828,6 @@ pub fn get_context_window(state: State<'_, AppState>) -> Result<Option<u32>, Str
 }
 
 /// Set the context window size (2048-32768, or None for model default)
-#[tauri::command]
 pub fn set_context_window(state: State<'_, AppState>, size: Option<u32>) -> Result<(), String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -1882,13 +1866,11 @@ pub fn set_context_window(state: State<'_, AppState>, size: Option<u32>) -> Resu
 use crate::downloads::{recommended_models, DownloadManager, ModelSource};
 
 /// Get recommended models list
-#[tauri::command]
 pub fn get_recommended_models() -> Vec<ModelSource> {
     recommended_models()
 }
 
 /// List downloaded models
-#[tauri::command]
 pub fn list_downloaded_models() -> Result<Vec<String>, String> {
     let app_dir = get_app_data_dir();
     let manager = DownloadManager::new(&app_dir);
@@ -1919,7 +1901,6 @@ pub fn list_downloaded_models() -> Result<Vec<String>, String> {
 }
 
 /// Check if embedding model is downloaded and return its path if so
-#[tauri::command]
 pub fn get_embedding_model_path(model_id: String) -> Result<Option<String>, String> {
     let filename = get_embedding_model_filename(&model_id)
         .ok_or_else(|| format!("Unknown embedding model ID: {}", model_id))?;
@@ -1935,7 +1916,6 @@ pub fn get_embedding_model_path(model_id: String) -> Result<Option<String>, Stri
 }
 
 /// Check if the default embedding model is downloaded
-#[tauri::command]
 pub fn is_embedding_model_downloaded() -> Result<bool, String> {
     let app_dir = get_app_data_dir();
     let model_path = app_dir
@@ -1945,7 +1925,6 @@ pub fn is_embedding_model_downloaded() -> Result<bool, String> {
 }
 
 /// Get models directory path
-#[tauri::command]
 pub fn get_models_dir() -> Result<String, String> {
     let app_dir = get_app_data_dir();
     let manager = DownloadManager::new(&app_dir);
@@ -1953,7 +1932,6 @@ pub fn get_models_dir() -> Result<String, String> {
 }
 
 /// Delete a downloaded model
-#[tauri::command]
 pub fn delete_downloaded_model(filename: String) -> Result<(), String> {
     use std::path::Component;
     use std::path::Path;
@@ -2067,7 +2045,6 @@ pub fn export_audit_log(export_path: String) -> Result<String, String> {
 /// Audit: operator overrode copy gating (e.g., copied without citations).
 ///
 /// This is best-effort and intentionally does not include the copied text.
-#[tauri::command]
 pub fn audit_response_copy_override(
     reason: String,
     confidence_mode: Option<String>,
@@ -2134,7 +2111,6 @@ fn get_embedding_model_filename(model_id: &str) -> Option<&'static str> {
 }
 
 /// Download a model from HuggingFace with progress events
-#[tauri::command]
 pub async fn download_model(window: tauri::Window, model_id: String) -> Result<String, String> {
     let (repo, filename) = get_model_source(&model_id)?;
     audit::audit_model_download_started(&model_id, repo, filename);
@@ -2237,7 +2213,6 @@ pub async fn download_model(window: tauri::Window, model_id: String) -> Result<S
 }
 
 /// Cancel an ongoing download
-#[tauri::command]
 pub fn cancel_download() -> Result<(), String> {
     DOWNLOAD_CANCEL_FLAG.store(true, Ordering::SeqCst);
     Ok(())
@@ -2247,27 +2222,21 @@ pub fn cancel_download() -> Result<(), String> {
 // KB Indexer Commands
 // ============================================================================
 
-use crate::kb::indexer::{IndexResult, IndexStats, KbIndexer};
-
-/// KB folder setting key
-const KB_FOLDER_SETTING: &str = "kb_folder";
+use crate::kb::indexer::{IndexResult, IndexStats};
 
 /// Set the KB folder path
 /// Path must be within user's home directory (auto-creates if needed)
 /// Blocks sensitive directories like .ssh, .aws, .gnupg, .config
-#[tauri::command]
 pub fn set_kb_folder(state: State<'_, AppState>, folder_path: String) -> Result<(), String> {
     kb_commands::set_kb_folder_impl(state, folder_path)
 }
 
 /// Get the current KB folder path
-#[tauri::command]
 pub fn get_kb_folder(state: State<'_, AppState>) -> Result<Option<String>, String> {
     kb_commands::get_kb_folder_impl(state)
 }
 
 /// Index the KB folder with progress events
-#[tauri::command]
 pub async fn index_kb(
     window: tauri::Window,
     state: State<'_, AppState>,
@@ -2276,13 +2245,11 @@ pub async fn index_kb(
 }
 
 /// Get KB statistics
-#[tauri::command]
 pub fn get_kb_stats(state: State<'_, AppState>) -> Result<IndexStats, String> {
     kb_commands::get_kb_stats_impl(state)
 }
 
 /// List indexed KB documents, optionally filtered by namespace and/or source
-#[tauri::command]
 pub fn list_kb_documents(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
@@ -2292,20 +2259,9 @@ pub fn list_kb_documents(
 }
 
 /// KB document info for API responses
-#[derive(serde::Serialize)]
-pub struct KbDocumentInfo {
-    pub id: String,
-    pub file_path: String,
-    pub title: Option<String>,
-    pub indexed_at: Option<String>,
-    pub chunk_count: Option<i64>,
-    pub namespace_id: String,
-    pub source_type: String,
-    pub source_id: Option<String>,
-}
+pub type KbDocumentInfo = kb_commands::KbDocumentInfo;
 
 /// Remove a document from the KB index
-#[tauri::command]
 pub async fn remove_kb_document(
     file_path: String,
     state: State<'_, AppState>,
@@ -2314,7 +2270,6 @@ pub async fn remove_kb_document(
 }
 
 /// Start watching KB folder for changes
-#[tauri::command]
 pub async fn start_kb_watcher(
     window: tauri::Window,
     state: State<'_, AppState>,
@@ -2323,13 +2278,11 @@ pub async fn start_kb_watcher(
 }
 
 /// Stop watching KB folder
-#[tauri::command]
 pub fn stop_kb_watcher() -> Result<bool, String> {
     kb_commands::stop_kb_watcher_impl()
 }
 
 /// Check if KB watcher is running
-#[tauri::command]
 pub fn is_kb_watcher_running() -> Result<bool, String> {
     kb_commands::is_kb_watcher_running_impl()
 }
@@ -2512,7 +2465,6 @@ pub(super) async fn generate_kb_embeddings_internal(
 
 /// Generate embeddings for all KB chunks
 /// This should be called after indexing if vector search is enabled
-#[tauri::command]
 pub async fn generate_kb_embeddings(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
@@ -2535,7 +2487,6 @@ use crate::kb::embeddings::{EmbeddingEngine, EmbeddingModelInfo};
 use crate::kb::ocr::OcrManager;
 
 /// Initialize the embedding engine (idempotent — skips if already initialized)
-#[tauri::command]
 pub fn init_embedding_engine(state: State<'_, AppState>) -> Result<(), String> {
     if state.embeddings.read().is_some() {
         return Ok(());
@@ -2547,7 +2498,6 @@ pub fn init_embedding_engine(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 /// Load an embedding model from file
-#[tauri::command]
 pub fn load_embedding_model(
     state: State<'_, AppState>,
     path: String,
@@ -2607,7 +2557,6 @@ pub fn load_embedding_model(
 }
 
 /// Unload the current embedding model
-#[tauri::command]
 pub fn unload_embedding_model(state: State<'_, AppState>) -> Result<(), String> {
     let emb_guard = state.embeddings.read();
     let engine = emb_guard
@@ -2624,7 +2573,6 @@ pub fn unload_embedding_model(state: State<'_, AppState>) -> Result<(), String> 
 }
 
 /// Get current embedding model info
-#[tauri::command]
 pub fn get_embedding_model_info(
     state: State<'_, AppState>,
 ) -> Result<Option<EmbeddingModelInfo>, String> {
@@ -2636,7 +2584,6 @@ pub fn get_embedding_model_info(
 }
 
 /// Check if an embedding model is loaded
-#[tauri::command]
 pub fn is_embedding_model_loaded(state: State<'_, AppState>) -> Result<bool, String> {
     let emb_guard = state.embeddings.read();
     match emb_guard.as_ref() {
@@ -2650,7 +2597,6 @@ pub fn is_embedding_model_loaded(state: State<'_, AppState>) -> Result<bool, Str
 // ============================================================================
 
 /// Initialize the vector store
-#[tauri::command]
 pub async fn init_vector_store(state: State<'_, AppState>) -> Result<(), String> {
     ensure_vector_store_initialized(state.inner()).await?;
 
@@ -2686,7 +2632,6 @@ pub async fn init_vector_store(state: State<'_, AppState>) -> Result<(), String>
 }
 
 /// Enable or disable vector search
-#[tauri::command]
 pub async fn set_vector_enabled(state: State<'_, AppState>, enabled: bool) -> Result<(), String> {
     ensure_vector_store_initialized(state.inner()).await?;
 
@@ -2720,7 +2665,6 @@ pub async fn set_vector_enabled(state: State<'_, AppState>, enabled: bool) -> Re
 }
 
 /// Check if vector store is enabled
-#[tauri::command]
 pub async fn is_vector_enabled(state: State<'_, AppState>) -> Result<bool, String> {
     let vectors_lock = state.vectors.read().await;
     Ok(vectors_lock
@@ -2730,7 +2674,6 @@ pub async fn is_vector_enabled(state: State<'_, AppState>) -> Result<bool, Strin
 }
 
 /// Get vector store statistics
-#[tauri::command]
 pub async fn get_vector_stats(state: State<'_, AppState>) -> Result<VectorStats, String> {
     let vectors_lock = state.vectors.read().await;
     let store = vectors_lock
@@ -2768,7 +2711,6 @@ pub struct OcrResult {
 }
 
 /// Process an image with OCR to extract text
-#[tauri::command]
 pub fn process_ocr(image_path: String) -> Result<OcrResult, String> {
     let ocr = OcrManager::new();
     let path = PathBuf::from(&image_path);
@@ -2803,7 +2745,6 @@ pub fn process_ocr(image_path: String) -> Result<OcrResult, String> {
 const MAX_OCR_BASE64_BYTES: usize = 10 * 1024 * 1024;
 
 /// Process OCR from base64-encoded image data (for clipboard paste)
-#[tauri::command]
 pub fn process_ocr_bytes(image_base64: String) -> Result<OcrResult, String> {
     use base64::{engine::general_purpose, Engine as _};
 
@@ -2843,7 +2784,6 @@ pub fn process_ocr_bytes(image_base64: String) -> Result<OcrResult, String> {
 }
 
 /// Check if OCR is available on this system
-#[tauri::command]
 pub fn is_ocr_available() -> bool {
     let ocr = OcrManager::new();
     !ocr.available_providers().is_empty()
@@ -2854,7 +2794,6 @@ pub fn is_ocr_available() -> bool {
 // ============================================================================
 
 /// List all decision trees
-#[tauri::command]
 pub fn list_decision_trees(
     state: State<'_, AppState>,
 ) -> Result<Vec<crate::db::DecisionTree>, String> {
@@ -2864,7 +2803,6 @@ pub fn list_decision_trees(
 }
 
 /// Get a single decision tree by ID
-#[tauri::command]
 pub fn get_decision_tree(
     state: State<'_, AppState>,
     tree_id: String,
@@ -2885,13 +2823,11 @@ const JIRA_BASE_URL_SETTING: &str = "jira_base_url";
 const JIRA_EMAIL_SETTING: &str = "jira_email";
 
 /// Check if Jira is configured
-#[tauri::command]
 pub fn is_jira_configured(state: State<'_, AppState>) -> Result<bool, String> {
     jira_commands::is_jira_configured_impl(state)
 }
 
 /// Get Jira configuration (without token)
-#[tauri::command]
 pub fn get_jira_config(state: State<'_, AppState>) -> Result<Option<JiraConfig>, String> {
     jira_commands::get_jira_config_impl(state)
 }
@@ -2899,7 +2835,6 @@ pub fn get_jira_config(state: State<'_, AppState>) -> Result<Option<JiraConfig>,
 /// Configure Jira (tests connection before saving)
 /// HTTPS is required by default. HTTP can only be used with explicit opt-in
 /// (allow_http = true), which triggers a security audit log entry.
-#[tauri::command]
 pub async fn configure_jira(
     state: State<'_, AppState>,
     base_url: String,
@@ -2911,13 +2846,11 @@ pub async fn configure_jira(
 }
 
 /// Clear Jira configuration
-#[tauri::command]
 pub fn clear_jira_config(state: State<'_, AppState>) -> Result<(), String> {
     jira_commands::clear_jira_config_impl(state)
 }
 
 /// Get a Jira ticket by key
-#[tauri::command]
 pub async fn get_jira_ticket(
     state: State<'_, AppState>,
     ticket_key: String,
@@ -2965,7 +2898,6 @@ pub async fn get_jira_ticket(
 }
 
 /// Add a comment to a Jira ticket (Phase 18)
-#[tauri::command]
 pub async fn add_jira_comment(
     state: State<'_, AppState>,
     ticket_key: String,
@@ -3026,7 +2958,6 @@ pub async fn add_jira_comment(
 }
 
 /// Push draft to Jira as a comment with KB citations (Phase 18)
-#[tauri::command]
 pub async fn push_draft_to_jira(
     state: State<'_, AppState>,
     draft_id: String,
@@ -3121,7 +3052,6 @@ use crate::exports::{
 };
 
 /// Export a draft in various formats
-#[tauri::command]
 pub fn export_draft_formatted(
     state: State<'_, AppState>,
     draft_id: String,
@@ -3167,7 +3097,6 @@ pub fn export_draft_formatted(
 }
 
 /// Format draft for clipboard (optimized for ticket systems)
-#[tauri::command]
 pub fn format_draft_for_clipboard(
     state: State<'_, AppState>,
     draft_id: String,
@@ -3209,7 +3138,6 @@ pub fn format_draft_for_clipboard(
 use crate::db::{ResponseTemplate, SavedDraft};
 
 /// List saved drafts (most recent first)
-#[tauri::command]
 pub fn list_drafts(
     state: State<'_, AppState>,
     limit: Option<usize>,
@@ -3218,7 +3146,6 @@ pub fn list_drafts(
 }
 
 /// Search drafts by text content
-#[tauri::command]
 pub fn search_drafts(
     state: State<'_, AppState>,
     query: String,
@@ -3228,25 +3155,21 @@ pub fn search_drafts(
 }
 
 /// Get a single draft by ID
-#[tauri::command]
 pub fn get_draft(state: State<'_, AppState>, draft_id: String) -> Result<SavedDraft, String> {
     draft_commands::get_draft_impl(state, draft_id)
 }
 
 /// Save a draft (insert or update)
-#[tauri::command]
 pub fn save_draft(state: State<'_, AppState>, draft: SavedDraft) -> Result<String, String> {
     draft_commands::save_draft_impl(state, draft)
 }
 
 /// Delete a draft by ID
-#[tauri::command]
 pub fn delete_draft(state: State<'_, AppState>, draft_id: String) -> Result<(), String> {
     draft_commands::delete_draft_impl(state, draft_id)
 }
 
 /// List autosave drafts (most recent first)
-#[tauri::command]
 pub fn list_autosaves(
     state: State<'_, AppState>,
     limit: Option<usize>,
@@ -3255,7 +3178,6 @@ pub fn list_autosaves(
 }
 
 /// Cleanup old autosaves, keeping only the most recent ones
-#[tauri::command]
 pub fn cleanup_autosaves(
     state: State<'_, AppState>,
     keep_count: Option<usize>,
@@ -3265,7 +3187,6 @@ pub fn cleanup_autosaves(
 
 /// Get draft versions by input hash (autosaves with matching input_text hash)
 /// Used for version history UI
-#[tauri::command]
 pub fn get_draft_versions(
     state: State<'_, AppState>,
     input_hash: String,
@@ -3281,7 +3202,6 @@ pub fn get_draft_versions(
 // ============================================================================
 
 /// Create a draft version snapshot
-#[tauri::command]
 pub fn create_draft_version(
     state: State<'_, AppState>,
     draft_id: String,
@@ -3294,7 +3214,6 @@ pub fn create_draft_version(
 }
 
 /// List draft versions for a specific draft
-#[tauri::command]
 pub fn list_draft_versions(
     state: State<'_, AppState>,
     draft_id: String,
@@ -3305,7 +3224,6 @@ pub fn list_draft_versions(
 }
 
 /// Finalize a draft (lock and mark as read-only)
-#[tauri::command]
 pub fn finalize_draft(
     state: State<'_, AppState>,
     draft_id: String,
@@ -3318,7 +3236,6 @@ pub fn finalize_draft(
 }
 
 /// Archive a draft
-#[tauri::command]
 pub fn archive_draft(state: State<'_, AppState>, draft_id: String) -> Result<(), String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -3326,7 +3243,6 @@ pub fn archive_draft(state: State<'_, AppState>, draft_id: String) -> Result<(),
 }
 
 /// Update draft handoff summary for escalations
-#[tauri::command]
 pub fn update_draft_handoff(
     state: State<'_, AppState>,
     draft_id: String,
@@ -3343,7 +3259,6 @@ pub fn update_draft_handoff(
 // ============================================================================
 
 /// List all active playbooks
-#[tauri::command]
 pub fn list_playbooks(
     state: State<'_, AppState>,
     category: Option<String>,
@@ -3355,7 +3270,6 @@ pub fn list_playbooks(
 }
 
 /// Get a playbook by ID
-#[tauri::command]
 pub fn get_playbook(
     state: State<'_, AppState>,
     playbook_id: String,
@@ -3366,7 +3280,6 @@ pub fn get_playbook(
 }
 
 /// Save a playbook (insert or update)
-#[tauri::command]
 pub fn save_playbook(
     state: State<'_, AppState>,
     playbook: crate::db::Playbook,
@@ -3377,7 +3290,6 @@ pub fn save_playbook(
 }
 
 /// Record playbook usage
-#[tauri::command]
 pub fn use_playbook(state: State<'_, AppState>, playbook_id: String) -> Result<(), String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -3386,7 +3298,6 @@ pub fn use_playbook(state: State<'_, AppState>, playbook_id: String) -> Result<(
 }
 
 /// Delete a playbook
-#[tauri::command]
 pub fn delete_playbook(state: State<'_, AppState>, playbook_id: String) -> Result<(), String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -3398,7 +3309,6 @@ pub fn delete_playbook(state: State<'_, AppState>, playbook_id: String) -> Resul
 // ============================================================================
 
 /// List all active action shortcuts
-#[tauri::command]
 pub fn list_action_shortcuts(
     state: State<'_, AppState>,
     category: Option<String>,
@@ -3410,7 +3320,6 @@ pub fn list_action_shortcuts(
 }
 
 /// Get an action shortcut by ID
-#[tauri::command]
 pub fn get_action_shortcut(
     state: State<'_, AppState>,
     shortcut_id: String,
@@ -3422,7 +3331,6 @@ pub fn get_action_shortcut(
 }
 
 /// Save an action shortcut (insert or update)
-#[tauri::command]
 pub fn save_action_shortcut(
     state: State<'_, AppState>,
     shortcut: crate::db::ActionShortcut,
@@ -3434,7 +3342,6 @@ pub fn save_action_shortcut(
 }
 
 /// Delete an action shortcut
-#[tauri::command]
 pub fn delete_action_shortcut(
     state: State<'_, AppState>,
     shortcut_id: String,
@@ -3446,7 +3353,6 @@ pub fn delete_action_shortcut(
 }
 
 /// List all response templates
-#[tauri::command]
 pub fn list_templates(state: State<'_, AppState>) -> Result<Vec<ResponseTemplate>, String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -3454,7 +3360,6 @@ pub fn list_templates(state: State<'_, AppState>) -> Result<Vec<ResponseTemplate
 }
 
 /// Get a single template by ID
-#[tauri::command]
 pub fn get_template(
     state: State<'_, AppState>,
     template_id: String,
@@ -3465,7 +3370,6 @@ pub fn get_template(
 }
 
 /// Save a template (insert or update)
-#[tauri::command]
 pub fn save_template(
     state: State<'_, AppState>,
     template: ResponseTemplate,
@@ -3478,7 +3382,6 @@ pub fn save_template(
 }
 
 /// Delete a template by ID
-#[tauri::command]
 pub fn delete_template(state: State<'_, AppState>, template_id: String) -> Result<(), String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -3490,7 +3393,6 @@ pub fn delete_template(state: State<'_, AppState>, template_id: String) -> Resul
 // ============================================================================
 
 /// List all custom template variables
-#[tauri::command]
 pub fn list_custom_variables(
     state: State<'_, AppState>,
 ) -> Result<Vec<crate::db::CustomVariable>, String> {
@@ -3500,7 +3402,6 @@ pub fn list_custom_variables(
 }
 
 /// Get a custom variable by ID
-#[tauri::command]
 pub fn get_custom_variable(
     state: State<'_, AppState>,
     variable_id: String,
@@ -3512,7 +3413,6 @@ pub fn get_custom_variable(
 }
 
 /// Save a custom variable (create or update)
-#[tauri::command]
 pub fn save_custom_variable(
     state: State<'_, AppState>,
     variable: crate::db::CustomVariable,
@@ -3524,7 +3424,6 @@ pub fn save_custom_variable(
 }
 
 /// Delete a custom variable by ID
-#[tauri::command]
 pub fn delete_custom_variable(
     state: State<'_, AppState>,
     variable_id: String,
@@ -3579,7 +3478,6 @@ pub struct DiskIngestResultResponse {
 /// Ingest a folder of documents from disk with source tracking
 /// Creates ingest_sources and ingest_runs entries so disk-indexed
 /// articles appear in the source management UI
-#[tauri::command]
 pub fn ingest_kb_from_disk(
     state: State<'_, AppState>,
     folder_path: String,
@@ -3647,7 +3545,6 @@ fn network_ingest_enabled_by_policy() -> bool {
 
 /// Ingest a web page URL
 /// Uses block_in_place to run async operations while holding DB lock
-#[tauri::command]
 pub fn ingest_url(
     state: State<'_, AppState>,
     url: String,
@@ -3700,7 +3597,6 @@ pub fn ingest_url(
 
 /// Ingest a YouTube video transcript
 /// Uses block_in_place to run async operations while holding DB lock
-#[tauri::command]
 pub fn ingest_youtube(
     state: State<'_, AppState>,
     url: String,
@@ -3758,7 +3654,6 @@ pub fn ingest_youtube(
 
 /// Ingest a GitHub repository (local path)
 /// Path must be within user's home directory
-#[tauri::command]
 pub fn ingest_github(
     state: State<'_, AppState>,
     repo_path: String,
@@ -3811,7 +3706,6 @@ pub fn ingest_github(
 }
 
 /// Ingest a GitHub repository from a remote HTTPS URL
-#[tauri::command]
 pub fn ingest_github_remote(
     state: State<'_, AppState>,
     repo_url: String,
@@ -3873,7 +3767,6 @@ pub fn ingest_github_remote(
 
 /// Process a YAML source file for batch ingestion
 /// Uses block_in_place to run async operations while holding DB lock
-#[tauri::command]
 pub fn process_source_file(
     state: State<'_, AppState>,
     file_path: String,
@@ -3962,7 +3855,6 @@ pub fn process_source_file(
 }
 
 /// List all namespaces
-#[tauri::command]
 pub fn list_namespaces(state: State<'_, AppState>) -> Result<Vec<crate::db::Namespace>, String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -3970,7 +3862,6 @@ pub fn list_namespaces(state: State<'_, AppState>) -> Result<Vec<crate::db::Name
 }
 
 /// List all namespaces with document and source counts (optimized single query)
-#[tauri::command]
 pub fn list_namespaces_with_counts(
     state: State<'_, AppState>,
 ) -> Result<Vec<crate::db::NamespaceWithCounts>, String> {
@@ -3980,7 +3871,6 @@ pub fn list_namespaces_with_counts(
 }
 
 /// Create a new namespace
-#[tauri::command]
 pub fn create_namespace(
     state: State<'_, AppState>,
     name: String,
@@ -3994,7 +3884,6 @@ pub fn create_namespace(
 }
 
 /// Rename a namespace
-#[tauri::command]
 pub fn rename_namespace(
     state: State<'_, AppState>,
     old_name: String,
@@ -4007,7 +3896,6 @@ pub fn rename_namespace(
 }
 
 /// Delete a namespace and all its content
-#[tauri::command]
 pub async fn delete_namespace(state: State<'_, AppState>, name: String) -> Result<(), String> {
     purge_vectors_for_namespace(state.inner(), &name).await?;
 
@@ -4017,7 +3905,6 @@ pub async fn delete_namespace(state: State<'_, AppState>, name: String) -> Resul
 }
 
 /// List ingestion sources, optionally filtered by namespace
-#[tauri::command]
 pub fn list_ingest_sources(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
@@ -4035,7 +3922,6 @@ pub fn list_ingest_sources(
 }
 
 /// Delete an ingestion source and its documents
-#[tauri::command]
 pub fn delete_ingest_source(state: State<'_, AppState>, source_id: String) -> Result<(), String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -4067,7 +3953,6 @@ pub struct SourceHealth {
     pub days_since_refresh: Option<i64>,
 }
 
-#[tauri::command]
 pub fn get_source_health(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
@@ -4146,7 +4031,6 @@ pub fn get_source_health(
 }
 
 /// Retry a failed or stale source
-#[tauri::command]
 pub fn retry_source(state: State<'_, AppState>, source_id: String) -> Result<IngestResult, String> {
     // Get source details
     let source = {
@@ -4185,7 +4069,6 @@ pub fn retry_source(state: State<'_, AppState>, source_id: String) -> Result<Ing
 }
 
 /// Mark sources as stale if they haven't been refreshed in N days
-#[tauri::command]
 pub fn mark_stale_sources(
     state: State<'_, AppState>,
     days_threshold: Option<u32>,
@@ -4209,7 +4092,6 @@ pub fn mark_stale_sources(
 }
 
 /// Get document chunks
-#[tauri::command]
 pub fn get_document_chunks(
     state: State<'_, AppState>,
     document_id: String,
@@ -4251,7 +4133,6 @@ pub struct DocumentChunk {
 }
 
 /// Delete a specific document
-#[tauri::command]
 pub async fn delete_kb_document(
     state: State<'_, AppState>,
     document_id: String,
@@ -4268,7 +4149,6 @@ pub async fn delete_kb_document(
 }
 
 /// Clear all knowledge data, optionally for a specific namespace
-#[tauri::command]
 pub async fn clear_knowledge_data(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
@@ -4326,7 +4206,6 @@ pub async fn clear_knowledge_data(
 }
 
 /// Check if yt-dlp is available
-#[tauri::command]
 pub fn check_ytdlp_available() -> Result<bool, String> {
     use std::process::Command;
 
@@ -4372,7 +4251,6 @@ impl From<Job> for JobSummary {
 }
 
 /// Create a new job
-#[tauri::command]
 pub fn create_job(
     state: State<'_, AppState>,
     job_type: String,
@@ -4396,7 +4274,6 @@ pub fn create_job(
 }
 
 /// List jobs, optionally filtered by status
-#[tauri::command]
 pub fn list_jobs(
     state: State<'_, AppState>,
     status: Option<String>,
@@ -4414,7 +4291,6 @@ pub fn list_jobs(
 }
 
 /// Get a single job by ID
-#[tauri::command]
 pub fn get_job(state: State<'_, AppState>, job_id: String) -> Result<Option<Job>, String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -4423,7 +4299,6 @@ pub fn get_job(state: State<'_, AppState>, job_id: String) -> Result<Option<Job>
 }
 
 /// Cancel a job (signals cancellation token and sets status to cancelled)
-#[tauri::command]
 pub fn cancel_job(state: State<'_, AppState>, job_id: String) -> Result<(), String> {
     // Signal cancellation to any running task
     state.jobs.cancel_job(&job_id);
@@ -4437,7 +4312,6 @@ pub fn cancel_job(state: State<'_, AppState>, job_id: String) -> Result<(), Stri
 }
 
 /// Get logs for a job
-#[tauri::command]
 pub fn get_job_logs(
     state: State<'_, AppState>,
     job_id: String,
@@ -4451,7 +4325,6 @@ pub fn get_job_logs(
 }
 
 /// Get job counts by status
-#[tauri::command]
 pub fn get_job_counts(state: State<'_, AppState>) -> Result<Vec<(String, i64)>, String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -4460,7 +4333,6 @@ pub fn get_job_counts(state: State<'_, AppState>) -> Result<Vec<(String, i64)>, 
 }
 
 /// Clean up old completed jobs
-#[tauri::command]
 pub fn cleanup_old_jobs(
     state: State<'_, AppState>,
     keep_days: Option<i64>,
@@ -4477,7 +4349,6 @@ pub fn cleanup_old_jobs(
 // ============================================================================
 
 /// List versions of a document
-#[tauri::command]
 pub fn list_document_versions(
     state: State<'_, AppState>,
     document_id: String,
@@ -4490,7 +4361,6 @@ pub fn list_document_versions(
 }
 
 /// Rollback a document to a previous version
-#[tauri::command]
 pub fn rollback_document(
     state: State<'_, AppState>,
     document_id: String,
@@ -4508,7 +4378,6 @@ pub fn rollback_document(
 // ============================================================================
 
 /// Update trust score for a source
-#[tauri::command]
 pub fn update_source_trust(
     state: State<'_, AppState>,
     source_id: String,
@@ -4522,7 +4391,6 @@ pub fn update_source_trust(
 }
 
 /// Pin or unpin a source
-#[tauri::command]
 pub fn set_source_pinned(
     state: State<'_, AppState>,
     source_id: String,
@@ -4536,7 +4404,6 @@ pub fn set_source_pinned(
 }
 
 /// Set review status for a source
-#[tauri::command]
 pub fn set_source_review_status(
     state: State<'_, AppState>,
     source_id: String,
@@ -4550,7 +4417,6 @@ pub fn set_source_review_status(
 }
 
 /// Get stale sources for review
-#[tauri::command]
 pub fn get_stale_sources(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
@@ -4567,7 +4433,6 @@ pub fn get_stale_sources(
 // ============================================================================
 
 /// Add a namespace ingestion rule
-#[tauri::command]
 pub fn add_namespace_rule(
     state: State<'_, AppState>,
     namespace_id: String,
@@ -4594,7 +4459,6 @@ pub fn add_namespace_rule(
 }
 
 /// Delete a namespace rule
-#[tauri::command]
 pub fn delete_namespace_rule(state: State<'_, AppState>, rule_id: String) -> Result<(), String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -4604,7 +4468,6 @@ pub fn delete_namespace_rule(state: State<'_, AppState>, rule_id: String) -> Res
 }
 
 /// List rules for a namespace
-#[tauri::command]
 pub fn list_namespace_rules(
     state: State<'_, AppState>,
     namespace_id: String,
@@ -4627,7 +4490,6 @@ pub fn list_namespace_rules(
 // ============================================================================
 
 /// Rate a response (1-5) with optional feedback
-#[tauri::command]
 pub async fn rate_response(
     state: State<'_, AppState>,
     id: String,
@@ -4657,7 +4519,6 @@ pub async fn rate_response(
 }
 
 /// Get the rating for a specific draft
-#[tauri::command]
 pub async fn get_draft_rating(
     state: State<'_, AppState>,
     draft_id: String,
@@ -4672,7 +4533,6 @@ pub async fn get_draft_rating(
 }
 
 /// Get aggregate rating statistics
-#[tauri::command]
 pub async fn get_rating_stats(
     state: State<'_, AppState>,
 ) -> Result<crate::db::RatingStats, String> {
@@ -4690,7 +4550,6 @@ pub async fn get_rating_stats(
 // ============================================================================
 
 /// Log an analytics event
-#[tauri::command]
 pub async fn log_analytics_event(
     state: State<'_, AppState>,
     id: String,
@@ -4708,7 +4567,6 @@ pub async fn log_analytics_event(
 }
 
 /// Get analytics summary for a time period
-#[tauri::command]
 pub async fn get_analytics_summary(
     state: State<'_, AppState>,
     period_days: Option<i64>,
@@ -4724,7 +4582,6 @@ pub async fn get_analytics_summary(
 }
 
 /// Get response quality telemetry summary for a time period
-#[tauri::command]
 pub async fn get_response_quality_summary(
     state: State<'_, AppState>,
     period_days: Option<i64>,
@@ -4740,7 +4597,6 @@ pub async fn get_response_quality_summary(
 }
 
 /// Get draft-level drill-down examples for response quality coaching signals.
-#[tauri::command]
 pub async fn get_response_quality_drilldown_examples(
     state: State<'_, AppState>,
     period_days: Option<i64>,
@@ -4757,7 +4613,6 @@ pub async fn get_response_quality_drilldown_examples(
 }
 
 /// Get KB article usage statistics
-#[tauri::command]
 pub async fn get_kb_usage_stats(
     state: State<'_, AppState>,
     period_days: Option<i64>,
@@ -4772,7 +4627,6 @@ pub async fn get_kb_usage_stats(
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
 pub async fn get_low_rating_analysis(
     state: State<'_, AppState>,
     period_days: Option<i64>,
@@ -4788,7 +4642,6 @@ pub async fn get_low_rating_analysis(
 }
 
 /// Get top KB gap detector candidates.
-#[tauri::command]
 pub async fn get_kb_gap_candidates(
     state: State<'_, AppState>,
     limit: Option<usize>,
@@ -4804,7 +4657,6 @@ pub async fn get_kb_gap_candidates(
 }
 
 /// Update KB gap status (open/accepted/resolved/ignored).
-#[tauri::command]
 pub async fn update_kb_gap_status(
     state: State<'_, AppState>,
     id: String,
@@ -4828,7 +4680,6 @@ pub struct DeploymentPreflightResult {
 }
 
 /// Run deployment preflight checks and store the run.
-#[tauri::command]
 pub async fn run_deployment_preflight(
     state: State<'_, AppState>,
     target_channel: String,
@@ -4881,7 +4732,6 @@ pub async fn run_deployment_preflight(
 }
 
 /// Record metadata for a deployment artifact.
-#[tauri::command]
 pub async fn record_deployment_artifact(
     state: State<'_, AppState>,
     artifact_type: String,
@@ -4900,7 +4750,6 @@ pub async fn record_deployment_artifact(
 }
 
 /// Get deployment health summary.
-#[tauri::command]
 pub async fn get_deployment_health_summary(
     state: State<'_, AppState>,
 ) -> Result<crate::db::DeploymentHealthSummary, String> {
@@ -4914,7 +4763,6 @@ pub async fn get_deployment_health_summary(
 }
 
 /// List deployment artifacts.
-#[tauri::command]
 pub async fn list_deployment_artifacts(
     state: State<'_, AppState>,
     limit: Option<usize>,
@@ -4929,7 +4777,6 @@ pub async fn list_deployment_artifacts(
 }
 
 /// Verify signed artifact metadata.
-#[tauri::command]
 pub async fn verify_signed_artifact(
     state: State<'_, AppState>,
     artifact_id: String,
@@ -4945,7 +4792,6 @@ pub async fn verify_signed_artifact(
 }
 
 /// Roll back a deployment run.
-#[tauri::command]
 pub async fn rollback_deployment_run(
     state: State<'_, AppState>,
     run_id: String,
@@ -4978,7 +4824,6 @@ pub struct EvalHarnessResult {
 }
 
 /// Run lightweight evaluation harness for confidence-gated output.
-#[tauri::command]
 pub async fn run_eval_harness(
     state: State<'_, AppState>,
     suite_name: String,
@@ -5048,7 +4893,6 @@ pub async fn run_eval_harness(
 }
 
 /// List evaluation harness history.
-#[tauri::command]
 pub async fn list_eval_runs(
     state: State<'_, AppState>,
     limit: Option<usize>,
@@ -5078,7 +4922,6 @@ pub struct TriageClusterOutput {
 }
 
 /// Cluster tickets for triage autopilot and persist clusters.
-#[tauri::command]
 pub async fn cluster_tickets_for_triage(
     state: State<'_, AppState>,
     tickets: Vec<TriageTicketInput>,
@@ -5117,7 +4960,6 @@ pub async fn cluster_tickets_for_triage(
 }
 
 /// Get recent triage cluster history.
-#[tauri::command]
 pub async fn list_recent_triage_clusters(
     state: State<'_, AppState>,
     limit: Option<usize>,
@@ -5132,7 +4974,6 @@ pub async fn list_recent_triage_clusters(
 }
 
 /// Start a runbook mode session.
-#[tauri::command]
 pub async fn start_runbook_session(
     state: State<'_, AppState>,
     scenario: String,
@@ -5150,7 +4991,6 @@ pub async fn start_runbook_session(
 }
 
 /// Advance runbook session progress.
-#[tauri::command]
 pub async fn advance_runbook_session(
     state: State<'_, AppState>,
     session_id: String,
@@ -5167,7 +5007,6 @@ pub async fn advance_runbook_session(
 }
 
 /// List runbook sessions.
-#[tauri::command]
 pub async fn list_runbook_sessions(
     state: State<'_, AppState>,
     limit: Option<usize>,
@@ -5188,7 +5027,6 @@ pub async fn list_runbook_sessions(
 }
 
 /// Reassign runbook sessions from one workspace scope to another.
-#[tauri::command]
 pub async fn reassign_runbook_session_scope(
     state: State<'_, AppState>,
     from_scope_key: String,
@@ -5204,7 +5042,6 @@ pub async fn reassign_runbook_session_scope(
 }
 
 /// Reassign one runbook session to a new workspace scope.
-#[tauri::command]
 pub async fn reassign_runbook_session_by_id(
     state: State<'_, AppState>,
     session_id: String,
@@ -5220,7 +5057,6 @@ pub async fn reassign_runbook_session_by_id(
 }
 
 /// Configure integration connection metadata (ServiceNow, Slack, Teams).
-#[tauri::command]
 pub async fn configure_integration(
     state: State<'_, AppState>,
     integration_type: String,
@@ -5258,7 +5094,6 @@ pub async fn configure_integration(
 }
 
 /// List integration connection statuses.
-#[tauri::command]
 pub async fn list_integrations(
     state: State<'_, AppState>,
 ) -> Result<Vec<crate::db::IntegrationConfigRecord>, String> {
@@ -5271,7 +5106,6 @@ pub async fn list_integrations(
 }
 
 /// Set workspace role mapping.
-#[tauri::command]
 pub async fn set_workspace_role(
     state: State<'_, AppState>,
     workspace_id: String,
@@ -5288,7 +5122,6 @@ pub async fn set_workspace_role(
 }
 
 /// List workspace roles for a workspace.
-#[tauri::command]
 pub async fn list_workspace_roles(
     state: State<'_, AppState>,
     workspace_id: String,
@@ -5307,7 +5140,6 @@ pub async fn list_workspace_roles(
 // ============================================================================
 
 /// Update the content of a KB chunk
-#[tauri::command]
 pub async fn update_chunk_content(
     state: State<'_, AppState>,
     chunk_id: String,
@@ -5327,7 +5159,6 @@ pub async fn update_chunk_content(
 }
 
 /// Get KB health statistics
-#[tauri::command]
 pub async fn get_kb_health_stats(
     state: State<'_, AppState>,
 ) -> Result<crate::db::KbHealthStats, String> {
@@ -5345,7 +5176,6 @@ pub async fn get_kb_health_stats(
 // ============================================================================
 
 /// Restore a draft to a previous version
-#[tauri::command]
 pub async fn restore_draft_version(
     state: State<'_, AppState>,
     draft_id: String,
@@ -5401,7 +5231,6 @@ pub struct BatchStatus {
 }
 
 /// Start a batch generation job, returns the job_id immediately
-#[tauri::command]
 pub async fn batch_generate(
     state: State<'_, AppState>,
     inputs: Vec<String>,
@@ -5618,7 +5447,6 @@ pub async fn batch_generate(
 }
 
 /// Get the status of a batch processing job
-#[tauri::command]
 pub async fn get_batch_status(
     state: State<'_, AppState>,
     job_id: String,
@@ -5663,7 +5491,6 @@ pub async fn get_batch_status(
 }
 
 /// Export batch results in a given format (csv or json)
-#[tauri::command]
 pub async fn export_batch_results(
     state: State<'_, AppState>,
     job_id: String,
@@ -5727,7 +5554,6 @@ pub async fn export_batch_results(
 // ============================================================================
 
 /// Mark a KB document as reviewed
-#[tauri::command]
 pub async fn mark_document_reviewed(
     state: State<'_, AppState>,
     document_id: String,
@@ -5744,7 +5570,6 @@ pub async fn mark_document_reviewed(
 }
 
 /// Get documents that need review (stale or never reviewed)
-#[tauri::command]
 pub async fn get_documents_needing_review(
     state: State<'_, AppState>,
     stale_days: Option<i64>,
@@ -5765,7 +5590,6 @@ pub async fn get_documents_needing_review(
 // ============================================================================
 
 /// Get per-article analytics (drafts that used this article, ratings)
-#[tauri::command]
 pub async fn get_analytics_for_article(
     state: State<'_, AppState>,
     document_id: String,
@@ -5785,7 +5609,6 @@ pub async fn get_analytics_for_article(
 // ============================================================================
 
 /// Save a response as a reusable template
-#[tauri::command]
 pub async fn save_response_as_template(
     state: State<'_, AppState>,
     source_draft_id: Option<String>,
@@ -5823,7 +5646,6 @@ pub async fn save_response_as_template(
 }
 
 /// List saved response templates
-#[tauri::command]
 pub async fn list_saved_response_templates(
     state: State<'_, AppState>,
     limit: Option<usize>,
@@ -5839,7 +5661,6 @@ pub async fn list_saved_response_templates(
 }
 
 /// Increment usage count for a saved response template
-#[tauri::command]
 pub async fn increment_saved_template_usage(
     state: State<'_, AppState>,
     template_id: String,
@@ -5855,7 +5676,6 @@ pub async fn increment_saved_template_usage(
 }
 
 /// Find saved responses similar to current input
-#[tauri::command]
 pub async fn find_similar_saved_responses(
     state: State<'_, AppState>,
     input_text: String,
@@ -5876,7 +5696,6 @@ pub async fn find_similar_saved_responses(
 // ============================================================================
 
 /// Save a response alternative
-#[tauri::command]
 pub async fn save_response_alternative(
     state: State<'_, AppState>,
     draft_id: String,
@@ -5910,7 +5729,6 @@ pub async fn save_response_alternative(
 }
 
 /// Get alternatives for a draft
-#[tauri::command]
 pub async fn get_alternatives_for_draft(
     state: State<'_, AppState>,
     draft_id: String,
@@ -5926,7 +5744,6 @@ pub async fn get_alternatives_for_draft(
 }
 
 /// Choose an alternative response
-#[tauri::command]
 pub async fn choose_alternative(
     state: State<'_, AppState>,
     alternative_id: String,
@@ -5978,7 +5795,6 @@ fn get_jira_connection(db: &crate::db::Database) -> Result<(String, String, Stri
 }
 
 /// Get available Jira transitions for a ticket
-#[tauri::command]
 pub async fn get_jira_transitions(
     state: State<'_, AppState>,
     ticket_key: String,
@@ -6002,7 +5818,6 @@ pub async fn get_jira_transitions(
 }
 
 /// Transition a Jira ticket to a new status
-#[tauri::command]
 pub async fn transition_jira_ticket(
     state: State<'_, AppState>,
     ticket_key: String,
@@ -6070,7 +5885,6 @@ pub async fn transition_jira_ticket(
 }
 
 /// Post a comment to Jira and optionally transition the ticket
-#[tauri::command]
 pub async fn post_and_transition(
     state: State<'_, AppState>,
     ticket_key: String,
@@ -6150,32 +5964,18 @@ pub async fn post_and_transition(
 // ============================================================================
 
 /// Get the last-used model state (for auto-load on startup)
-#[tauri::command]
 pub fn get_model_state(state: State<'_, AppState>) -> Result<ModelStateResult, String> {
-    model_commands::get_model_state_impl(state)
+    model_runtime::get_model_state_impl(state)
 }
 
-#[derive(serde::Serialize, Clone)]
-pub struct ModelStateResult {
-    pub llm_model_id: Option<String>,
-    pub llm_model_path: Option<String>,
-    pub llm_loaded: bool,
-    pub embeddings_model_path: Option<String>,
-    pub embeddings_loaded: bool,
-}
+pub type ModelStateResult = model_commands::ModelStateResult;
 
 /// Get the last startup metrics
-#[tauri::command]
 pub fn get_startup_metrics(state: State<'_, AppState>) -> Result<StartupMetricsResult, String> {
-    model_commands::get_startup_metrics_impl(state)
+    model_runtime::get_startup_metrics_impl(state)
 }
 
-#[derive(serde::Serialize, Clone)]
-pub struct StartupMetricsResult {
-    pub total_ms: i64,
-    pub init_app_ms: i64,
-    pub models_cached: bool,
-}
+pub type StartupMetricsResult = model_commands::StartupMetricsResult;
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,7 @@ name: lockfile-rationale
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
-    branches: [main, master]
+    branches: [master]
 
 permissions:
   contents: read
