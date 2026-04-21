@@ -8,50 +8,30 @@ import type {
   CollaborationDispatchPreview,
   SavedDraft,
 } from "../../../types/workspace";
-import type {
-  DispatchHistoryRecord,
-  TriageClusterRecord,
-} from "../../../types/queue";
-import {
-  QueueHistoryTemplatesPanel,
-  type QueueHistoryTemplatesSection,
-} from "./QueueHistoryTemplatesPanel";
+import type { DispatchHistoryRecord } from "../../../types/queue";
+import { QueueHistoryTemplatesPanel } from "./QueueHistoryTemplatesPanel";
 import { resolveRevampFlags } from "../../revamp";
 import {
-  buildQueueHandoffSnapshot,
-  buildQueueItems,
-  filterQueueItems,
   formatQueueTimestamp,
-  loadQueueHandoffSnapshot,
-  loadQueueMeta,
-  persistQueueHandoffSnapshot,
-  persistQueueMeta,
-  summarizeQueue,
   type QueueItem,
-  type QueueMetaMap,
   type QueuePriority,
-  type QueueState,
   type QueueView,
 } from "../../inbox/queueModel";
 import {
-  buildQueueCoachingSnapshot,
   buildQueueDispatchPreview,
-  buildQueueHandoffPackText,
   formatBatchTriageOutput,
-  matchesQueueFocusFilter,
   parseBatchTriageInput,
   type QueueFocusFilter,
 } from "../../inbox/queueCommandCenterHelpers";
 import { AsButton, Badge, EmptyState, Panel, Skeleton } from "../ui";
 import {
   QUEUE_OPERATOR_STORAGE_KEY,
-  QUEUE_VIEW_STORAGE_KEY,
   bandLabel,
   formatTicketLabel,
   loadOperatorName,
-  loadPreferredQueueView,
   truncate,
 } from "./queueHelpers";
+import { useQueueRenderingState } from "./useQueueRenderingState";
 import "../../../styles/revamp/index.css";
 import "./queueCommandCenter.css";
 
@@ -60,8 +40,6 @@ interface QueueCommandCenterPageProps {
   initialQueueView?: QueueView | null;
   onQueueViewConsumed?: () => void;
 }
-
-type QueueSection = "triage" | QueueHistoryTemplatesSection;
 
 const QUEUE_VIEWS: Array<{ id: QueueView; label: string }> = [
   { id: "all", label: "All" },
@@ -120,24 +98,10 @@ export function QueueCommandCenterPage({
     listDispatchHistory,
   } = useQueueOps();
   const queueFlags = useMemo(() => resolveRevampFlags(), []);
-  const [queueMetaMap, setQueueMetaMap] = useState<QueueMetaMap>(() =>
-    loadQueueMeta(),
-  );
-  const [previousHandoffSnapshot, setPreviousHandoffSnapshot] = useState(() =>
-    loadQueueHandoffSnapshot(),
-  );
-  const [queueView, setQueueView] = useState<QueueView>(loadPreferredQueueView);
-  const [queueSection, setQueueSection] = useState<QueueSection>("triage");
-  const [queueFocusFilter, setQueueFocusFilter] =
-    useState<QueueFocusFilter>("all");
-  const [searchQuery, setSearchQuery] = useState("");
   const [operatorName, setOperatorName] = useState(loadOperatorName);
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const [batchTriageInput, setBatchTriageInput] = useState("");
   const [batchTriageOutput, setBatchTriageOutput] = useState("");
   const [batchTriageBusy, setBatchTriageBusy] = useState(false);
-  const [triageHistory, setTriageHistory] = useState<TriageClusterRecord[]>([]);
-  const [handoffStatus, setHandoffStatus] = useState<string | null>(null);
   const [dispatchTarget, setDispatchTarget] =
     useState<CollaborationDispatchPreview["integration_type"]>("jira");
   const [dispatchPreview, setDispatchPreview] =
@@ -149,15 +113,41 @@ export function QueueCommandCenterPage({
     null,
   );
 
+  const rendering = useQueueRenderingState({
+    drafts,
+    initialQueueView,
+    onQueueViewConsumed,
+    listRecentTriageClusters,
+    operatorName,
+    logEvent,
+    showSuccess,
+    showError,
+  });
+  const {
+    queueView,
+    setQueueView,
+    queueSection,
+    setQueueSection,
+    queueFocusFilter,
+    setQueueFocusFilter,
+    searchQuery,
+    setSearchQuery,
+    selectedIndex,
+    setSelectedIndex,
+    triageHistory,
+    setTriageHistory,
+    queueSummary,
+    queueCoaching,
+    queueHandoffPackText,
+    filteredItems,
+    handoffStatus,
+    updateQueueMeta,
+    handleCopyHandoffPack,
+  } = rendering;
+
   useEffect(() => {
     loadDrafts(100);
   }, [loadDrafts]);
-
-  useEffect(() => {
-    listRecentTriageClusters(20)
-      .then(setTriageHistory)
-      .catch(() => setTriageHistory([]));
-  }, [listRecentTriageClusters]);
 
   useEffect(() => {
     if (!queueFlags.ASSISTSUPPORT_COLLABORATION_DISPATCH) {
@@ -171,13 +161,6 @@ export function QueueCommandCenterPage({
   }, [queueFlags.ASSISTSUPPORT_COLLABORATION_DISPATCH, listDispatchHistory]);
 
   useEffect(() => {
-    if (!initialQueueView) return;
-    setQueueSection("triage");
-    setQueueView(initialQueueView);
-    onQueueViewConsumed?.();
-  }, [initialQueueView, onQueueViewConsumed]);
-
-  useEffect(() => {
     try {
       localStorage.setItem(QUEUE_OPERATOR_STORAGE_KEY, operatorName);
     } catch {
@@ -185,18 +168,6 @@ export function QueueCommandCenterPage({
     }
   }, [operatorName]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(QUEUE_VIEW_STORAGE_KEY, queueView);
-    } catch {
-      // Keep queue workflows usable even if storage is restricted.
-    }
-  }, [queueView]);
-
-  const queueItems = useMemo(
-    () => buildQueueItems(drafts, queueMetaMap),
-    [drafts, queueMetaMap],
-  );
   const followUpsDataSource = useMemo(
     () => ({
       drafts,
@@ -230,75 +201,6 @@ export function QueueCommandCenterPage({
       templates,
       updateTemplate,
     ],
-  );
-  const queueSummary = useMemo(() => summarizeQueue(queueItems), [queueItems]);
-  const queueCoaching = useMemo(
-    () => buildQueueCoachingSnapshot(queueItems, triageHistory),
-    [queueItems, triageHistory],
-  );
-  const queueHandoffSnapshot = useMemo(
-    () => buildQueueHandoffSnapshot(queueItems),
-    [queueItems],
-  );
-  const queueHandoffPackText = useMemo(
-    () =>
-      buildQueueHandoffPackText(queueHandoffSnapshot, previousHandoffSnapshot),
-    [queueHandoffSnapshot, previousHandoffSnapshot],
-  );
-
-  const filteredItems = useMemo(() => {
-    const scoped = filterQueueItems(queueItems, queueView);
-    const focused = scoped.filter((item) =>
-      matchesQueueFocusFilter(item, queueFocusFilter, triageHistory),
-    );
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return focused;
-    return focused.filter((item) => {
-      const ticket = item.draft.ticket_id?.toLowerCase() ?? "";
-      const summary = item.draft.summary_text?.toLowerCase() ?? "";
-      const input = item.draft.input_text.toLowerCase();
-      return ticket.includes(q) || summary.includes(q) || input.includes(q);
-    });
-  }, [queueItems, queueView, queueFocusFilter, triageHistory, searchQuery]);
-
-  useEffect(() => {
-    setSelectedIndex((prev) => {
-      if (filteredItems.length === 0) return 0;
-      return Math.max(0, Math.min(prev, filteredItems.length - 1));
-    });
-  }, [filteredItems]);
-
-  const updateQueueMeta = useCallback(
-    (
-      draftId: string,
-      updates: Partial<{
-        owner: string;
-        state: QueueState;
-        priority: QueuePriority;
-      }>,
-    ) => {
-      setQueueMetaMap((prev) => {
-        const existing = prev[draftId] ?? {
-          owner: "unassigned",
-          state: "open" as QueueState,
-          priority: "normal" as QueuePriority,
-          updatedAt: new Date().toISOString(),
-        };
-
-        const next: QueueMetaMap = {
-          ...prev,
-          [draftId]: {
-            ...existing,
-            ...updates,
-            updatedAt: new Date().toISOString(),
-          },
-        };
-
-        persistQueueMeta(next);
-        return next;
-      });
-    },
-    [],
   );
 
   const handleClaim = useCallback(
@@ -359,7 +261,7 @@ export function QueueCommandCenterPage({
   const refreshTriageHistory = useCallback(async () => {
     const next = await listRecentTriageClusters(20).catch(() => []);
     setTriageHistory(next);
-  }, [listRecentTriageClusters]);
+  }, [listRecentTriageClusters, setTriageHistory]);
 
   const handleSeedBatchTriage = useCallback(() => {
     const nextInput = filteredItems
@@ -401,37 +303,6 @@ export function QueueCommandCenterPage({
     refreshTriageHistory,
     logEvent,
     operatorName,
-    showSuccess,
-    showError,
-  ]);
-
-  const handleCopyHandoffPack = useCallback(async () => {
-    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
-      setHandoffStatus("Clipboard not available in this environment.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(queueHandoffPackText);
-      persistQueueHandoffSnapshot(queueHandoffSnapshot);
-      setPreviousHandoffSnapshot(queueHandoffSnapshot);
-      setHandoffStatus("Shift handoff pack copied.");
-      void logEvent("queue_handoff_pack_copied", {
-        operator: operatorName,
-        queue_view: queueView,
-        at_risk: queueHandoffSnapshot.summary.atRisk,
-      });
-      showSuccess("Shift handoff pack copied");
-    } catch {
-      setHandoffStatus("Failed to copy shift handoff pack.");
-      showError("Failed to copy shift handoff pack");
-    }
-  }, [
-    queueHandoffPackText,
-    queueHandoffSnapshot,
-    logEvent,
-    operatorName,
-    queueView,
     showSuccess,
     showError,
   ]);
