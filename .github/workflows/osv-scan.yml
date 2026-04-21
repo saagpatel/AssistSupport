@@ -1,0 +1,54 @@
+name: OSV Scanner
+
+on:
+  pull_request:
+    branches: ["master"]
+  schedule:
+    # Monday 04:00 UTC, ahead of Dependabot's 06:00 UTC window so any new
+    # advisories surface before PRs open.
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  scan:
+    name: Scan manifests against OSV
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Run OSV-Scanner
+        # Advisory-only: reports SARIF but does not fail the job. The
+        # dependency-watch workflow still owns the blocking cargo/pnpm
+        # audit gate. Remove the `|| true` once the baseline is clean.
+        uses: google/osv-scanner-action/osv-scanner-action@c51854704019a247608d928f370c98740469d4b5
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml
+            --lockfile=search-api/requirements.txt
+            --lockfile=src-tauri/Cargo.lock
+            --format=sarif
+            --output=osv-scan.sarif
+        continue-on-error: true
+
+      - name: Upload SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@865f5f5c36632f18690a3d569fa0a764f2da0c3e
+        with:
+          sarif_file: osv-scan.sarif
+          category: osv-scanner
+
+      - name: Upload raw OSV output as artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: osv-scan-report
+          path: osv-scan.sarif
+          if-no-files-found: warn
+          retention-days: 30
