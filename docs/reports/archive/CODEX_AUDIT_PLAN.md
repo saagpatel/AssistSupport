@@ -1,3 +1,8 @@
+> **Archived 2026-04-21.** Superseded by
+> [docs/plans/product-improvements-roadmap.md](../../plans/product-improvements-roadmap.md)
+> and [docs/plans/current-remediation-plan.md](../../plans/current-remediation-plan.md).
+> Retained for historical reference only.
+
 # AssistSupport Audit Plan
 
 ## Summary
