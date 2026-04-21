@@ -14,6 +14,7 @@ import { ResponsePanel } from "./ResponsePanel";
 import { AlternativePanel } from "./AlternativePanel";
 import { SavedResponsesSuggestion } from "./SavedResponsesSuggestion";
 import { ConversationThread, ConversationEntry } from "./ConversationThread";
+import { useDraftApproval } from "./useDraftApproval";
 import { ConversationInput } from "./ConversationInput";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 import { WorkspaceModeShell } from "./WorkspaceModeShell";
@@ -64,7 +65,7 @@ import type {
   ChecklistItem,
   FirstResponseTone,
 } from "../../types/llm";
-import type { ContextSource, SearchResult } from "../../types/knowledge";
+import type { ContextSource } from "../../types/knowledge";
 import type {
   CaseIntake,
   GuidedRunbookTemplate,
@@ -293,6 +294,29 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     const modelLoaded = appStatus.llmLoaded;
     const loadedModelName = appStatus.llmModelName;
 
+    const {
+      approvalQuery,
+      setApprovalQuery,
+      approvalResults,
+      setApprovalResults,
+      approvalSearching,
+      approvalSummary,
+      setApprovalSummary,
+      approvalSummarizing,
+      approvalSources,
+      setApprovalSources,
+      approvalError,
+      setApprovalError,
+      handleApprovalSearch,
+      handleApprovalSummarize,
+      resetApproval,
+    } = useDraftApproval({
+      searchKb,
+      generateWithContextParams,
+      modelLoaded,
+      onShowError: showError,
+    });
+
     const [input, setInput] = useState("");
     const [ocrText, setOcrText] = useState<string | null>(null);
     const [diagnosticNotes, setDiagnosticNotes] = useState("");
@@ -309,13 +333,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       useState<FirstResponseTone>("slack");
     const [firstResponseGenerating, setFirstResponseGenerating] =
       useState(false);
-    const [approvalQuery, setApprovalQuery] = useState("");
-    const [approvalResults, setApprovalResults] = useState<SearchResult[]>([]);
-    const [approvalSearching, setApprovalSearching] = useState(false);
-    const [approvalSummary, setApprovalSummary] = useState("");
-    const [approvalSummarizing, setApprovalSummarizing] = useState(false);
-    const [approvalSources, setApprovalSources] = useState<ContextSource[]>([]);
-    const [approvalError, setApprovalError] = useState<string | null>(null);
     const [response, setResponse] = useState("");
     const [sources, setSources] = useState<ContextSource[]>([]);
     const [metrics, setMetrics] = useState<GenerationMetrics | null>(null);
@@ -865,56 +882,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setChecklistError(null);
     }, []);
 
-    const handleApprovalSearch = useCallback(async () => {
-      if (!approvalQuery.trim()) {
-        setApprovalError("Enter a search term to look up approvals.");
-        return;
-      }
-
-      setApprovalSearching(true);
-      setApprovalError(null);
-      try {
-        const results = await searchKb(approvalQuery.trim(), 5);
-        setApprovalResults(results);
-      } catch (e) {
-        console.error("Approval search failed:", e);
-        setApprovalError("Approval search failed.");
-      } finally {
-        setApprovalSearching(false);
-      }
-    }, [approvalQuery, searchKb]);
-
-    const handleApprovalSummarize = useCallback(async () => {
-      if (!approvalQuery.trim()) {
-        setApprovalError("Enter a search term to summarize approvals.");
-        return;
-      }
-
-      if (!modelLoaded) {
-        showError("No model loaded. Go to Settings to load a model.");
-        return;
-      }
-
-      setApprovalSummarizing(true);
-      setApprovalError(null);
-      try {
-        const prompt = `Summarize the approval steps and owner(s) for: ${approvalQuery.trim()}. Keep it concise. If sources do not mention it, say so.`;
-        const result = await generateWithContextParams({
-          user_input: prompt,
-          kb_limit: 5,
-          response_length: "Short",
-        });
-
-        setApprovalSummary(result.text);
-        setApprovalSources(result.sources);
-      } catch (e) {
-        console.error("Approval summary failed:", e);
-        setApprovalError("Approval summary failed.");
-      } finally {
-        setApprovalSummarizing(false);
-      }
-    }, [approvalQuery, modelLoaded, generateWithContextParams, showError]);
-
     const handleApplyTemplate = useCallback((content: string) => {
       setResponse(content);
     }, []);
@@ -1077,13 +1044,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setFirstResponse("");
       setFirstResponseTone("slack");
       setFirstResponseGenerating(false);
-      setApprovalQuery("");
-      setApprovalResults([]);
-      setApprovalSummary("");
-      setApprovalSources([]);
-      setApprovalError(null);
-      setApprovalSearching(false);
-      setApprovalSummarizing(false);
+      resetApproval();
       setResponse("");
       setOriginalResponse("");
       setIsResponseEdited(false);
@@ -2194,15 +2155,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     useEffect(() => {
       loadTemplates();
     }, [loadTemplates]);
-
-    useEffect(() => {
-      if (!approvalQuery.trim()) {
-        setApprovalResults([]);
-        setApprovalSummary("");
-        setApprovalSources([]);
-        setApprovalError(null);
-      }
-    }, [approvalQuery]);
 
     const handleCopyResponse = useCallback(async () => {
       if (!response) return;
