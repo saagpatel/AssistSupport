@@ -15,6 +15,7 @@ import { AlternativePanel } from "./AlternativePanel";
 import { SavedResponsesSuggestion } from "./SavedResponsesSuggestion";
 import { ConversationThread, ConversationEntry } from "./ConversationThread";
 import { useDraftApproval } from "./useDraftApproval";
+import { useDraftFirstResponse } from "./useDraftFirstResponse";
 import { ConversationInput } from "./ConversationInput";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 import { WorkspaceModeShell } from "./WorkspaceModeShell";
@@ -63,7 +64,6 @@ import type {
   GenerationMetrics,
   GroundedClaim,
   ChecklistItem,
-  FirstResponseTone,
 } from "../../types/llm";
 import type { ContextSource } from "../../types/knowledge";
 import type {
@@ -328,11 +328,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     const [checklistGenerating, setChecklistGenerating] = useState(false);
     const [checklistUpdating, setChecklistUpdating] = useState(false);
     const [checklistError, setChecklistError] = useState<string | null>(null);
-    const [firstResponse, setFirstResponse] = useState("");
-    const [firstResponseTone, setFirstResponseTone] =
-      useState<FirstResponseTone>("slack");
-    const [firstResponseGenerating, setFirstResponseGenerating] =
-      useState(false);
     const [response, setResponse] = useState("");
     const [sources, setSources] = useState<ContextSource[]>([]);
     const [metrics, setMetrics] = useState<GenerationMetrics | null>(null);
@@ -406,6 +401,26 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     >(undefined);
     const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
     const firstDraftStartMsRef = useRef<number | null>(null);
+
+    const {
+      firstResponse,
+      setFirstResponse,
+      firstResponseTone,
+      setFirstResponseTone,
+      firstResponseGenerating,
+      handleGenerateFirstResponse,
+      handleCopyFirstResponse,
+      handleClearFirstResponse,
+      resetFirstResponse,
+    } = useDraftFirstResponse({
+      input,
+      ocrText,
+      currentTicket,
+      modelLoaded,
+      generateFirstResponse,
+      onShowSuccess: showSuccess,
+      onShowError: showError,
+    });
 
     const {
       resolutionKits,
@@ -674,66 +689,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       savedDraftId,
       currentTicketId,
     ]);
-
-    const handleGenerateFirstResponse = useCallback(async () => {
-      if (firstResponseGenerating) return;
-
-      if (!modelLoaded) {
-        showError("No model loaded. Go to Settings to load a model.");
-        return;
-      }
-
-      const ticketFallback = currentTicket
-        ? `${currentTicket.summary}${currentTicket.description ? `\n\n${currentTicket.description}` : ""}`
-        : "";
-      const promptInput =
-        input.trim() || ticketFallback.trim() || ocrText?.trim() || "";
-      if (!promptInput) {
-        showError(
-          "Add ticket details or notes before generating a first response.",
-        );
-        return;
-      }
-
-      setFirstResponseGenerating(true);
-      try {
-        const result = await generateFirstResponse({
-          user_input: promptInput,
-          tone: firstResponseTone,
-          ocr_text: ocrText ?? undefined,
-          jira_ticket: currentTicket ?? undefined,
-        });
-        setFirstResponse(result.text);
-      } catch (e) {
-        console.error("First response generation failed:", e);
-        showError(`First response failed: ${e}`);
-      } finally {
-        setFirstResponseGenerating(false);
-      }
-    }, [
-      input,
-      firstResponseGenerating,
-      modelLoaded,
-      generateFirstResponse,
-      firstResponseTone,
-      ocrText,
-      currentTicket,
-      showError,
-    ]);
-
-    const handleCopyFirstResponse = useCallback(async () => {
-      if (!firstResponse.trim()) return;
-      try {
-        await navigator.clipboard.writeText(firstResponse);
-        showSuccess("First response copied to clipboard");
-      } catch {
-        showError("Failed to copy first response");
-      }
-    }, [firstResponse, showSuccess, showError]);
-
-    const handleClearFirstResponse = useCallback(() => {
-      setFirstResponse("");
-    }, []);
 
     const handleChecklistGenerate = useCallback(async () => {
       if (checklistGenerating) return;
@@ -1041,9 +996,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setChecklistError(null);
       setChecklistGenerating(false);
       setChecklistUpdating(false);
-      setFirstResponse("");
-      setFirstResponseTone("slack");
-      setFirstResponseGenerating(false);
+      resetFirstResponse();
       resetApproval();
       setResponse("");
       setOriginalResponse("");
