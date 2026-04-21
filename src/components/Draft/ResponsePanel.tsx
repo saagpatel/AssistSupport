@@ -19,9 +19,11 @@ import {
   getScoreBarClassName,
 } from "./responsePanelHelpers";
 import { useResponsePanelCopy } from "./useResponsePanelCopy";
+import {
+  ResponsePanelSections,
+  type ResponseSection,
+} from "./ResponsePanelSections";
 import "./ResponsePanel.css";
-
-type ResponseSection = "output" | "instructions";
 
 interface ResponsePanelProps {
   response: string;
@@ -330,45 +332,13 @@ export function ResponsePanel({
               </div>
             )}
 
-            {parsed.hasSections && (
-              <div className="response-section-tabs">
-                <button
-                  className={`response-section-tab${activeSection === "output" ? " active" : ""}`}
-                  onClick={() => setActiveSection("output")}
-                >
-                  Output
-                  <span className="section-tab-hint">Copy &amp; Send</span>
-                </button>
-                <button
-                  className={`response-section-tab${activeSection === "instructions" ? " active" : ""}`}
-                  onClick={() => setActiveSection("instructions")}
-                >
-                  IT Support Instructions
-                </button>
-              </div>
-            )}
-
-            {(!parsed.hasSections || activeSection === "output") && (
-              <textarea
-                className="response-textarea"
-                value={parsed.hasSections ? parsed.output : response}
-                onChange={(e) => {
-                  if (!parsed.hasSections) {
-                    onResponseChange?.(e.target.value);
-                  } else {
-                    // Reconstruct full response with edited output
-                    const newFull = `### OUTPUT\n${e.target.value}\n\n### IT SUPPORT INSTRUCTIONS\n${parsed.instructions}`;
-                    onResponseChange?.(newFull);
-                  }
-                }}
-                placeholder="Response will appear here..."
-                readOnly={!onResponseChange}
-              />
-            )}
-
-            {parsed.hasSections && activeSection === "instructions" && (
-              <div className="instructions-content">{parsed.instructions}</div>
-            )}
+            <ResponsePanelSections
+              parsed={parsed}
+              response={response}
+              activeSection={activeSection}
+              onSelectSection={setActiveSection}
+              onResponseChange={onResponseChange}
+            />
 
             {showSources && sources.length > 0 && (
               <div className="sources-panel">
