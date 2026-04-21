@@ -20,6 +20,7 @@ import {
 import type { KbGapCandidate } from "../../types/insights";
 import { ArticleDetailPanel } from "./ArticleDetailPanel";
 import { PilotDashboard, PilotQueryTester } from "../Pilot";
+import { RatingDistribution } from "./RatingDistribution";
 import "./AnalyticsTab.css";
 
 type Period = 7 | 30 | 90 | null; // null = all time
@@ -719,56 +720,6 @@ function formatDrilldownMetric(
     default:
       return String(metricValue);
   }
-}
-
-function RatingDistribution({ summary }: { summary: AnalyticsSummary }) {
-  // Derive rating distribution from summary data.
-  // The backend provides average_rating and total_ratings.
-  // We display a placeholder distribution based on available data.
-  const totalRatings = summary.total_ratings;
-
-  // If we have no ratings, show empty state
-  if (totalRatings === 0) {
-    return (
-      <div className="rating-distribution">
-        <div className="section-title">Rating Distribution</div>
-        <div className="analytics-empty">
-          <div className="analytics-empty-description">No ratings yet</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Use real per-star counts from the backend
-  const ratingDistribution = Array.isArray(summary.rating_distribution)
-    ? summary.rating_distribution
-    : [];
-  const distribution = [5, 4, 3, 2, 1].map((stars) => ({
-    stars,
-    count: ratingDistribution[stars - 1] ?? 0,
-  }));
-
-  const maxCount = Math.max(...distribution.map((d) => d.count), 1);
-
-  return (
-    <div className="rating-distribution">
-      <div className="section-title">Rating Distribution</div>
-      {distribution.map(({ stars, count }) => (
-        <div key={stars} className="rating-row">
-          <div className="rating-label">
-            {stars} star{stars !== 1 ? "s" : ""}
-          </div>
-          <div className="rating-bar-track">
-            <div
-              className="rating-bar-fill"
-              style={{ width: `${(count / maxCount) * 100}%` }}
-            />
-          </div>
-          <div className="rating-count">{count}</div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function KbUsageTable({
