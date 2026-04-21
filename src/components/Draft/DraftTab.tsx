@@ -1,7 +1,6 @@
 import {
   useState,
   useCallback,
-  useEffect,
   forwardRef,
   useImperativeHandle,
   useMemo,
@@ -15,6 +14,7 @@ import { useDraftChecklist } from "./useDraftChecklist";
 import { useDraftFirstResponse } from "./useDraftFirstResponse";
 import { useDraftGeneration } from "./useDraftGeneration";
 import { useDraftIntake } from "./useDraftIntake";
+import { useDraftLifecycle } from "./useDraftLifecycle";
 import { useDraftPersistence } from "./useDraftPersistence";
 import { useGuidedRunbook } from "./useGuidedRunbook";
 import { useResponseActions } from "./useResponseActions";
@@ -175,19 +175,6 @@ function createWorkspaceScopeSeed(): string {
 
 function createWorkspaceRunbookScopeKey(): string {
   return `workspace:${createWorkspaceScopeSeed()}`;
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-  const tag = target.tagName.toLowerCase();
-  return (
-    tag === "input" ||
-    tag === "textarea" ||
-    tag === "select" ||
-    target.isContentEditable
-  );
 }
 
 export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
@@ -448,10 +435,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       },
     });
 
-    useEffect(() => {
-      void refreshWorkspaceCatalog();
-    }, [refreshWorkspaceCatalog]);
-
     const {
       caseIntake,
       setCaseIntake,
@@ -571,21 +554,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setSuggestionsDismissed(true);
     }, []);
 
-    // Find similar saved responses when input changes
-    useEffect(() => {
-      if (input.trim().length >= 10) {
-        setSuggestionsDismissed(false);
-        findSimilar(input);
-      }
-    }, [input, findSimilar]);
-
-    // Load alternatives when draft is loaded/saved
-    useEffect(() => {
-      if (savedDraftId) {
-        loadAlternatives(savedDraftId);
-      }
-    }, [savedDraftId, loadAlternatives]);
-
     const handleClear = useCallback(() => {
       setInput("");
       setOcrText(null);
@@ -701,34 +669,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       },
       [modelLoaded, responseLength, generateStreaming, clearStreamingText],
     );
-
-    useEffect(() => {
-      if (viewMode !== "panels") {
-        return;
-      }
-      const handleKeydown = (event: KeyboardEvent) => {
-        if (!event.metaKey || event.altKey || event.ctrlKey) {
-          return;
-        }
-        if (isEditableTarget(event.target)) {
-          return;
-        }
-
-        if (event.key === "1") {
-          event.preventDefault();
-          handlePanelDensityModeChange("balanced");
-        } else if (event.key === "2") {
-          event.preventDefault();
-          handlePanelDensityModeChange("focus-intake");
-        } else if (event.key === "3") {
-          event.preventDefault();
-          handlePanelDensityModeChange("focus-response");
-        }
-      };
-
-      window.addEventListener("keydown", handleKeydown);
-      return () => window.removeEventListener("keydown", handleKeydown);
-    }, [viewMode, handlePanelDensityModeChange]);
 
     const buildDiagnosisJson = useCallback(() => {
       const completedIds = Object.keys(checklistCompleted).filter(
@@ -1146,17 +1086,19 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       onShowError: showError,
     });
 
-    // Load initial draft if provided
-    useEffect(() => {
-      if (initialDraft) {
-        handleLoadDraft(initialDraft);
-      }
-    }, [initialDraft, handleLoadDraft]);
-
-    // Load templates on mount
-    useEffect(() => {
-      loadTemplates();
-    }, [loadTemplates]);
+    useDraftLifecycle({
+      initialDraft,
+      viewMode,
+      input,
+      savedDraftId,
+      refreshWorkspaceCatalog,
+      findSimilar,
+      loadAlternatives,
+      loadTemplates,
+      handleLoadDraft,
+      onPanelDensityModeChange: handlePanelDensityModeChange,
+      setSuggestionsDismissed,
+    });
 
     // Expose functions to parent via ref
     useImperativeHandle(
