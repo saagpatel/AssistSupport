@@ -31,7 +31,7 @@ interface UseQueueRenderingStateArgs {
   drafts: SavedDraft[];
   initialQueueView?: QueueView | null;
   onQueueViewConsumed?: () => void;
-  listRecentTriageClusters: (limit: number) => Promise<TriageClusterRecord[]>;
+  listRecentTriageClusters: (limit?: number) => Promise<TriageClusterRecord[]>;
   operatorName: string;
   logEvent: (
     eventName: string,

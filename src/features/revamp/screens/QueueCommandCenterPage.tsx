@@ -19,8 +19,6 @@ import {
 } from "../../inbox/queueModel";
 import {
   buildQueueDispatchPreview,
-  formatBatchTriageOutput,
-  parseBatchTriageInput,
   type QueueFocusFilter,
 } from "../../inbox/queueCommandCenterHelpers";
 import { AsButton, Badge, EmptyState, Panel, Skeleton } from "../ui";
@@ -32,6 +30,7 @@ import {
   truncate,
 } from "./queueHelpers";
 import { useQueueRenderingState } from "./useQueueRenderingState";
+import { useBatchTriageManager } from "./useBatchTriageManager";
 import "../../../styles/revamp/index.css";
 import "./queueCommandCenter.css";
 
@@ -99,9 +98,6 @@ export function QueueCommandCenterPage({
   } = useQueueOps();
   const queueFlags = useMemo(() => resolveRevampFlags(), []);
   const [operatorName, setOperatorName] = useState(loadOperatorName);
-  const [batchTriageInput, setBatchTriageInput] = useState("");
-  const [batchTriageOutput, setBatchTriageOutput] = useState("");
-  const [batchTriageBusy, setBatchTriageBusy] = useState(false);
   const [dispatchTarget, setDispatchTarget] =
     useState<CollaborationDispatchPreview["integration_type"]>("jira");
   const [dispatchPreview, setDispatchPreview] =
@@ -144,6 +140,25 @@ export function QueueCommandCenterPage({
     updateQueueMeta,
     handleCopyHandoffPack,
   } = rendering;
+
+  const batchTriage = useBatchTriageManager({
+    filteredItems,
+    operatorName,
+    clusterTicketsForTriage,
+    listRecentTriageClusters,
+    setTriageHistory,
+    logEvent,
+    showSuccess,
+    showError,
+  });
+  const {
+    batchTriageInput,
+    setBatchTriageInput,
+    batchTriageOutput,
+    batchTriageBusy,
+    handleSeedBatchTriage,
+    handleRunBatchTriage,
+  } = batchTriage;
 
   useEffect(() => {
     loadDrafts(100);
@@ -257,55 +272,6 @@ export function QueueCommandCenterPage({
     },
     [currentItem],
   );
-
-  const refreshTriageHistory = useCallback(async () => {
-    const next = await listRecentTriageClusters(20).catch(() => []);
-    setTriageHistory(next);
-  }, [listRecentTriageClusters, setTriageHistory]);
-
-  const handleSeedBatchTriage = useCallback(() => {
-    const nextInput = filteredItems
-      .slice(0, 25)
-      .map(
-        (item) =>
-          `${formatTicketLabel(item.draft)}|${item.draft.summary_text || item.draft.input_text}`,
-      )
-      .join("\n");
-    setBatchTriageInput(nextInput);
-  }, [filteredItems]);
-
-  const handleRunBatchTriage = useCallback(async () => {
-    const tickets = parseBatchTriageInput(batchTriageInput);
-    if (tickets.length === 0) {
-      showError("Add at least one ticket before running batch triage");
-      return;
-    }
-
-    setBatchTriageBusy(true);
-    try {
-      const clusters = await clusterTicketsForTriage(tickets);
-      setBatchTriageOutput(formatBatchTriageOutput(clusters));
-      await refreshTriageHistory();
-      void logEvent("queue_batch_triage_ran", {
-        operator: operatorName,
-        ticket_count: tickets.length,
-        cluster_count: clusters.length,
-      });
-      showSuccess("Batch triage completed");
-    } catch (error) {
-      showError(`Batch triage failed: ${error}`);
-    } finally {
-      setBatchTriageBusy(false);
-    }
-  }, [
-    batchTriageInput,
-    clusterTicketsForTriage,
-    refreshTriageHistory,
-    logEvent,
-    operatorName,
-    showSuccess,
-    showError,
-  ]);
 
   const handlePreviewDispatch = useCallback(() => {
     if (!currentItem) {
