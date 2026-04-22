@@ -2826,13 +2826,16 @@ const JIRA_BASE_URL_SETTING: &str = "jira_base_url";
 const JIRA_EMAIL_SETTING: &str = "jira_email";
 
 /// Check if Jira is configured
+// NOTE: This wrapper is unregistered dead code (registry points at
+// jira_commands::is_jira_configured directly). Kept as a bridge until the full
+// block of dead mod.rs Jira duplicates is deleted in a follow-up.
 pub fn is_jira_configured(state: State<'_, AppState>) -> Result<bool, String> {
-    jira_commands::is_jira_configured_impl(state)
+    jira_commands::is_jira_configured_impl(state).map_err(|e| e.to_string())
 }
 
 /// Get Jira configuration (without token)
 pub fn get_jira_config(state: State<'_, AppState>) -> Result<Option<JiraConfig>, String> {
-    jira_commands::get_jira_config_impl(state)
+    jira_commands::get_jira_config_impl(state).map_err(|e| e.to_string())
 }
 
 /// Configure Jira (tests connection before saving)
@@ -2845,12 +2848,14 @@ pub async fn configure_jira(
     api_token: String,
     allow_http: Option<bool>,
 ) -> Result<(), String> {
-    jira_commands::configure_jira_impl(state, base_url, email, api_token, allow_http).await
+    jira_commands::configure_jira_impl(state, base_url, email, api_token, allow_http)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Clear Jira configuration
 pub fn clear_jira_config(state: State<'_, AppState>) -> Result<(), String> {
-    jira_commands::clear_jira_config_impl(state)
+    jira_commands::clear_jira_config_impl(state).map_err(|e| e.to_string())
 }
 
 /// Get a Jira ticket by key

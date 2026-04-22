@@ -503,6 +503,47 @@ impl From<crate::security::SecurityError> for AppError {
     }
 }
 
+impl From<crate::jira::JiraError> for AppError {
+    fn from(e: crate::jira::JiraError) -> Self {
+        use crate::jira::JiraError;
+        match e {
+            JiraError::Request(inner) => Self::connection_failed(inner.to_string()),
+            JiraError::Api(msg) => Self::new(
+                ErrorCode::NETWORK_CONNECTION_FAILED,
+                "Jira API error",
+                ErrorCategory::Network,
+            )
+            .with_detail(msg),
+            JiraError::Parse(msg) => Self::new(
+                ErrorCode::VALIDATION_INVALID_FORMAT,
+                "Failed to parse Jira response",
+                ErrorCategory::Validation,
+            )
+            .with_detail(msg),
+            JiraError::NotConfigured => Self::new(
+                ErrorCode::SECURITY_AUTH_FAILED,
+                "Jira is not configured",
+                ErrorCategory::Security,
+            ),
+            JiraError::AuthFailed => {
+                Self::auth_failed("Jira authentication failed - check your API token")
+            }
+            JiraError::RateLimited => Self::new(
+                ErrorCode::NETWORK_RATE_LIMITED,
+                "Jira rate limit exceeded - try again later",
+                ErrorCategory::Network,
+            )
+            .retryable(),
+            JiraError::Timeout => Self::new(
+                ErrorCode::NETWORK_TIMEOUT,
+                "Jira request timed out",
+                ErrorCategory::Network,
+            )
+            .retryable(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
