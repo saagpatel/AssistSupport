@@ -162,7 +162,7 @@ pub(crate) async fn generate_kb_embeddings_internal(
     // `vector_runtime` still returns `Result<_, String>` — bridge to AppError.
     ensure_vector_store_initialized(state)
         .await
-        .map_err(internal_err)?;
+        ?;
 
     let chunks: Vec<ChunkEmbeddingRecord> = {
         let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
@@ -182,7 +182,7 @@ pub(crate) async fn generate_kb_embeddings_internal(
             .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
         vector_store_requires_rebuild(tracked_vector_version, store)
             .await
-            .map_err(internal_err)?
+            ?
     };
 
     if reset_table || requires_rebuild {
@@ -317,7 +317,7 @@ pub(crate) async fn generate_kb_embeddings_internal(
 pub(crate) async fn init_vector_store_impl(state: State<'_, AppState>) -> Result<(), AppError> {
     ensure_vector_store_initialized(state.inner())
         .await
-        .map_err(internal_err)?;
+        ?;
 
     let ready = {
         let tracked_vector_version = {
@@ -331,7 +331,7 @@ pub(crate) async fn init_vector_store_impl(state: State<'_, AppState>) -> Result
             .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
         !vector_store_requires_rebuild(tracked_vector_version, store)
             .await
-            .map_err(internal_err)?
+            ?
     };
 
     if ready {
@@ -358,7 +358,7 @@ pub(crate) async fn set_vector_enabled_impl(
 ) -> Result<(), AppError> {
     ensure_vector_store_initialized(state.inner())
         .await
-        .map_err(internal_err)?;
+        ?;
 
     if enabled {
         let tracked_vector_version = {
@@ -372,7 +372,7 @@ pub(crate) async fn set_vector_enabled_impl(
             .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
         if vector_store_requires_rebuild(tracked_vector_version, store)
             .await
-            .map_err(internal_err)?
+            ?
         {
             return Err(AppError::invalid_format(
                 "Vector store requires rebuild before it can be enabled",

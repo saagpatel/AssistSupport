@@ -248,6 +248,10 @@ fn process_ocr_bytes_rejects_oversized_payload() {
     let oversized = "A".repeat(10 * 1024 * 1024 + 1);
     match process_ocr_bytes(oversized) {
         Ok(_) => panic!("oversized payload should fail"),
-        Err(err) => assert!(err.contains("Image too large")),
+        Err(err) => {
+            // AppError::Display emits "[CODE] message".
+            assert!(err.to_string().contains("Image too large"));
+            assert_eq!(err.code, "VALIDATION_INPUT_TOO_LARGE");
+        }
     }
 }

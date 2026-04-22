@@ -269,8 +269,7 @@ pub(crate) fn load_model_impl(
     n_gpu_layers: Option<u32>,
 ) -> Result<ModelInfo, AppError> {
     let load_start = std::time::Instant::now();
-    let (_, filename) =
-        get_model_source(&model_id).map_err(|e| AppError::invalid_format(e))?;
+    let (_, filename) = get_model_source(&model_id)?;
     let models_dir = crate::db::get_models_dir();
     let path = models_dir.join(filename);
 

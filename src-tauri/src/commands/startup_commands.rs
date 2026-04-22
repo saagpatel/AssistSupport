@@ -188,7 +188,7 @@ async fn finalize_initialized_app(
                     };
                     let ready =
                         !vector_store_requires_rebuild(tracked_vector_version, &vector_store)
-                            .await?;
+                            .await.map_err(|e| e.to_string())?;
 
                     if ready {
                         vector_store.enable(true).map_err(|e| e.to_string())?;

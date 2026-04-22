@@ -340,37 +340,37 @@ pub fn get_recommended_models() -> Vec<ModelSource> {
 }
 
 #[tauri::command]
-pub fn list_downloaded_models() -> Result<Vec<String>, String> {
+pub fn list_downloaded_models() -> Result<Vec<String>, AppError> {
     list_downloaded_models_impl()
 }
 
 #[tauri::command]
-pub fn get_embedding_model_path(model_id: String) -> Result<Option<String>, String> {
+pub fn get_embedding_model_path(model_id: String) -> Result<Option<String>, AppError> {
     get_embedding_model_path_impl(model_id)
 }
 
 #[tauri::command]
-pub fn is_embedding_model_downloaded() -> Result<bool, String> {
+pub fn is_embedding_model_downloaded() -> Result<bool, AppError> {
     is_embedding_model_downloaded_impl()
 }
 
 #[tauri::command]
-pub fn get_models_dir() -> Result<String, String> {
+pub fn get_models_dir() -> Result<String, AppError> {
     get_models_dir_impl()
 }
 
 #[tauri::command]
-pub fn delete_downloaded_model(filename: String) -> Result<(), String> {
+pub fn delete_downloaded_model(filename: String) -> Result<(), AppError> {
     delete_downloaded_model_impl(filename)
 }
 
 #[tauri::command]
-pub fn process_ocr(image_path: String) -> Result<OcrResult, String> {
+pub fn process_ocr(image_path: String) -> Result<OcrResult, AppError> {
     process_ocr_impl(image_path)
 }
 
 #[tauri::command]
-pub fn process_ocr_bytes(image_base64: String) -> Result<OcrResult, String> {
+pub fn process_ocr_bytes(image_base64: String) -> Result<OcrResult, AppError> {
     process_ocr_bytes_impl(image_base64)
 }
 
@@ -455,12 +455,15 @@ pub fn cancel_generation() -> Result<(), AppError> {
 }
 
 #[tauri::command]
-pub async fn download_model(window: tauri::Window, model_id: String) -> Result<String, String> {
+pub async fn download_model(
+    window: tauri::Window,
+    model_id: String,
+) -> Result<String, AppError> {
     download_model_impl(window, model_id).await
 }
 
 #[tauri::command]
-pub fn cancel_download() -> Result<(), String> {
+pub fn cancel_download() -> Result<(), AppError> {
     DOWNLOAD_CANCEL_FLAG.store(true, std::sync::atomic::Ordering::SeqCst);
     Ok(())
 }
