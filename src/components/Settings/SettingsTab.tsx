@@ -14,7 +14,7 @@ import { useDownload } from "../../hooks/useDownload";
 import { useEmbedding } from "../../hooks/useEmbedding";
 import { useJira } from "../../hooks/useJira";
 import { useKb } from "../../hooks/useKb";
-import { useLlm } from "../../hooks/useLlm";
+import { useLlmModel } from "../../hooks/useLlmModel";
 import { useSearchApiEmbedding } from "../../hooks/useSearchApiEmbedding";
 import { useSettingsOps } from "../../hooks/useSettingsOps";
 import {
@@ -72,7 +72,7 @@ export function SettingsTab() {
     setContextWindow,
     loadCustomModel,
     validateGgufFile,
-  } = useLlm();
+  } = useLlmModel();
   const {
     setKbFolder,
     getKbFolder,
