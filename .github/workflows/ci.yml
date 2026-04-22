@@ -148,6 +148,13 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          workspaces: src-tauri
+          shared-key: macos-rust
+          cache-on-failure: true
+
       - name: Run backend health lane
         run: pnpm run health:repo:backend
 
@@ -306,6 +313,13 @@ jobs:
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
         with:
           toolchain: stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          workspaces: src-tauri
+          shared-key: macos-rust
+          cache-on-failure: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
