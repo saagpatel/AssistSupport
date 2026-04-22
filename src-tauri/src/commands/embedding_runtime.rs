@@ -2,19 +2,47 @@ use super::vector_runtime::{ensure_vector_store_initialized, vector_store_requir
 use crate::audit;
 use crate::commands::model_commands::{EmbeddingGenerationResult, VectorStats};
 use crate::db::{ChunkEmbeddingRecord, CURRENT_VECTOR_STORE_VERSION};
+use crate::error::{AppError, ErrorCategory, ErrorCode};
 use crate::kb::embeddings::EmbeddingModelInfo;
 use crate::kb::vectors::VectorMetadata;
-use crate::validation::{validate_within_home, ValidationError};
+use crate::validation::validate_within_home;
 use crate::AppState;
 use tauri::Emitter;
 use tauri::State;
 
-pub(crate) fn init_embedding_engine_impl(state: State<'_, AppState>) -> Result<(), String> {
+/// Map a DB-layer error to a categorized AppError with upstream detail.
+fn db_query_err(e: impl std::fmt::Display) -> AppError {
+    AppError::db_query_failed(e.to_string())
+}
+
+/// Bridge stringly-typed errors from `vector_runtime` and vector-store calls
+/// to AppError. These upstream APIs still return `Result<_, String>`, so we
+/// classify them as internal errors with the original message as detail.
+fn internal_err(e: impl std::fmt::Display) -> AppError {
+    AppError::internal(e.to_string())
+}
+
+/// Map embedding-engine errors to `MODEL_GENERATION_FAILED` — used for
+/// `embed_batch` and similar calls where the underlying engine failure
+/// should surface as a model-category error.
+fn embedding_err(e: impl std::fmt::Display) -> AppError {
+    AppError::new(
+        ErrorCode::MODEL_GENERATION_FAILED,
+        "Embedding generation failed",
+        ErrorCategory::Model,
+    )
+    .with_detail(e.to_string())
+}
+
+pub(crate) fn init_embedding_engine_impl(state: State<'_, AppState>) -> Result<(), AppError> {
     if state.embeddings.read().is_some() {
         return Ok(());
     }
-    let backend = state.llama_backend()?;
-    let engine = crate::kb::embeddings::EmbeddingEngine::new(backend).map_err(|e| e.to_string())?;
+    let backend = state
+        .llama_backend()
+        .map_err(|e| AppError::model_load_failed(e))?;
+    let engine = crate::kb::embeddings::EmbeddingEngine::new(backend)
+        .map_err(|e| AppError::model_load_failed(e.to_string()))?;
     *state.embeddings.write() = Some(engine);
     Ok(())
 }
@@ -23,34 +51,26 @@ pub(crate) fn load_embedding_model_impl(
     state: State<'_, AppState>,
     path: String,
     n_gpu_layers: Option<u32>,
-) -> Result<EmbeddingModelInfo, String> {
+) -> Result<EmbeddingModelInfo, AppError> {
     use std::path::Path;
 
     let emb_guard = state.embeddings.read();
     let engine = emb_guard
         .as_ref()
-        .ok_or("Embedding engine not initialized")?;
+        .ok_or_else(|| AppError::engine_not_initialized("Embedding"))?;
 
     let path = Path::new(&path);
     if !path.exists() {
-        return Err(format!(
-            "Embedding model file not found: {}",
-            path.display()
-        ));
+        return Err(AppError::file_not_found(&path.display().to_string()));
     }
 
-    let validated_path = validate_within_home(path).map_err(|e| match e {
-        ValidationError::PathTraversal => {
-            "Embedding model file must be within your home directory".to_string()
-        }
-        ValidationError::InvalidFormat(msg) if msg.contains("sensitive") => {
-            "This path is blocked because it contains sensitive data".to_string()
-        }
-        _ => format!("Invalid embedding model path: {}", e),
-    })?;
+    // `validate_within_home` errors map via `From<ValidationError>`.
+    let validated_path = validate_within_home(path)?;
 
     if !validated_path.is_file() {
-        return Err("Embedding model path is not a file".into());
+        return Err(AppError::invalid_format(
+            "Embedding model path is not a file",
+        ));
     }
 
     let load_start = std::time::Instant::now();
@@ -58,7 +78,7 @@ pub(crate) fn load_embedding_model_impl(
 
     let info = engine
         .load_model(&validated_path, layers)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::model_load_failed(e.to_string()))?;
 
     let load_time_ms = load_start.elapsed().as_millis() as i64;
     if let Ok(db_lock) = state.db.lock() {
@@ -76,11 +96,11 @@ pub(crate) fn load_embedding_model_impl(
     Ok(info)
 }
 
-pub(crate) fn unload_embedding_model_impl(state: State<'_, AppState>) -> Result<(), String> {
+pub(crate) fn unload_embedding_model_impl(state: State<'_, AppState>) -> Result<(), AppError> {
     let emb_guard = state.embeddings.read();
     let engine = emb_guard
         .as_ref()
-        .ok_or("Embedding engine not initialized")?;
+        .ok_or_else(|| AppError::engine_not_initialized("Embedding"))?;
     engine.unload_model();
     if let Ok(db_lock) = state.db.lock() {
         if let Some(db) = db_lock.as_ref() {
@@ -92,15 +112,17 @@ pub(crate) fn unload_embedding_model_impl(state: State<'_, AppState>) -> Result<
 
 pub(crate) fn get_embedding_model_info_impl(
     state: State<'_, AppState>,
-) -> Result<Option<EmbeddingModelInfo>, String> {
+) -> Result<Option<EmbeddingModelInfo>, AppError> {
     let emb_guard = state.embeddings.read();
     let engine = emb_guard
         .as_ref()
-        .ok_or("Embedding engine not initialized")?;
+        .ok_or_else(|| AppError::engine_not_initialized("Embedding"))?;
     Ok(engine.model_info())
 }
 
-pub(crate) fn is_embedding_model_loaded_impl(state: State<'_, AppState>) -> Result<bool, String> {
+pub(crate) fn is_embedding_model_loaded_impl(
+    state: State<'_, AppState>,
+) -> Result<bool, AppError> {
     let emb_guard = state.embeddings.read();
     match emb_guard.as_ref() {
         Some(engine) => Ok(engine.is_model_loaded()),
@@ -112,77 +134,83 @@ pub(crate) async fn generate_kb_embeddings_internal(
     state: &AppState,
     app_handle: &tauri::AppHandle,
     reset_table: bool,
-) -> Result<EmbeddingGenerationResult, String> {
+) -> Result<EmbeddingGenerationResult, AppError> {
     let consent_enabled = {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-        let db = db_lock.as_ref().ok_or("Database not initialized")?;
-        db.get_vector_consent()
-            .map_err(|e| e.to_string())?
-            .enabled
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+        db.get_vector_consent().map_err(db_query_err)?.enabled
     };
 
     if !consent_enabled {
-        return Err("Vector search is disabled".into());
+        return Err(AppError::new(
+            ErrorCode::MODEL_ENGINE_NOT_INITIALIZED,
+            "Vector search is disabled",
+            ErrorCategory::Model,
+        ));
     }
 
     {
         let embeddings_lock = state.embeddings.read();
         let embeddings = embeddings_lock
             .as_ref()
-            .ok_or("Embedding engine not initialized")?;
+            .ok_or_else(|| AppError::engine_not_initialized("Embedding"))?;
         if !embeddings.is_model_loaded() {
-            return Err("Embedding model not loaded".into());
+            return Err(AppError::model_not_loaded());
         }
     }
 
-    ensure_vector_store_initialized(state).await?;
+    // `vector_runtime` still returns `Result<_, String>` — bridge to AppError.
+    ensure_vector_store_initialized(state)
+        .await
+        .map_err(internal_err)?;
 
     let chunks: Vec<ChunkEmbeddingRecord> = {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-        let db = db_lock.as_ref().ok_or("Database not initialized")?;
-        db.get_all_chunks_for_embedding()
-            .map_err(|e| e.to_string())?
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+        db.get_all_chunks_for_embedding().map_err(db_query_err)?
     };
 
     let requires_rebuild = {
         let tracked_vector_version = {
-            let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-            let db = db_lock.as_ref().ok_or("Database not initialized")?;
-            db.get_vector_store_version().map_err(|e| e.to_string())?
+            let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+            let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+            db.get_vector_store_version().map_err(db_query_err)?
         };
         let vectors_lock = state.vectors.read().await;
         let store = vectors_lock
             .as_ref()
-            .ok_or("Vector store not initialized")?;
-        vector_store_requires_rebuild(tracked_vector_version, store).await?
+            .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
+        vector_store_requires_rebuild(tracked_vector_version, store)
+            .await
+            .map_err(internal_err)?
     };
 
     if reset_table || requires_rebuild {
         {
-            let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-            let db = db_lock.as_ref().ok_or("Database not initialized")?;
-            db.set_vector_store_version(0).map_err(|e| e.to_string())?;
+            let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+            let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+            db.set_vector_store_version(0).map_err(db_query_err)?;
         }
 
         let mut vectors_lock = state.vectors.write().await;
         let store = vectors_lock
             .as_mut()
-            .ok_or("Vector store not initialized")?;
+            .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
         store.disable();
-        store.reset_table().await.map_err(|e| e.to_string())?;
+        store.reset_table().await.map_err(internal_err)?;
     }
 
     if chunks.is_empty() {
         {
-            let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-            let db = db_lock.as_ref().ok_or("Database not initialized")?;
+            let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+            let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
             db.set_vector_store_version(CURRENT_VECTOR_STORE_VERSION)
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
         }
 
         let mut vectors_lock = state.vectors.write().await;
         if let Some(store) = vectors_lock.as_mut() {
-            store.enable(true).map_err(|e| e.to_string())?;
+            store.enable(true).map_err(internal_err)?;
         }
 
         let _ = app_handle.emit(
@@ -226,19 +254,19 @@ pub(crate) async fn generate_kb_embeddings_internal(
             let embeddings_lock = state.embeddings.read();
             let engine = embeddings_lock
                 .as_ref()
-                .ok_or("Embedding engine not available")?;
-            engine
-                .embed_batch(&chunk_texts)
-                .map_err(|e| e.to_string())?
+                .ok_or_else(|| AppError::engine_not_initialized("Embedding"))?;
+            engine.embed_batch(&chunk_texts).map_err(embedding_err)?
         };
 
         {
             let vectors_lock = state.vectors.read().await;
-            let vectors = vectors_lock.as_ref().ok_or("Vector store not available")?;
+            let vectors = vectors_lock
+                .as_ref()
+                .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
             vectors
                 .insert_embeddings_with_metadata(&chunk_ids, &embeddings, &metadata)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(internal_err)?;
         }
 
         vectors_created += embeddings.len();
@@ -255,16 +283,16 @@ pub(crate) async fn generate_kb_embeddings_internal(
     }
 
     {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-        let db = db_lock.as_ref().ok_or("Database not initialized")?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
         db.set_vector_store_version(CURRENT_VECTOR_STORE_VERSION)
-            .map_err(|e| e.to_string())?;
+            .map_err(db_query_err)?;
     }
 
     {
         let mut vectors_lock = state.vectors.write().await;
         if let Some(store) = vectors_lock.as_mut() {
-            store.enable(true).map_err(|e| e.to_string())?;
+            store.enable(true).map_err(internal_err)?;
         }
     }
 
@@ -286,35 +314,37 @@ pub(crate) async fn generate_kb_embeddings_internal(
     })
 }
 
-pub(crate) async fn init_vector_store_impl(state: State<'_, AppState>) -> Result<(), String> {
-    ensure_vector_store_initialized(state.inner()).await?;
+pub(crate) async fn init_vector_store_impl(state: State<'_, AppState>) -> Result<(), AppError> {
+    ensure_vector_store_initialized(state.inner())
+        .await
+        .map_err(internal_err)?;
 
     let ready = {
         let tracked_vector_version = {
-            let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-            let db = db_lock.as_ref().ok_or("Database not initialized")?;
-            db.get_vector_store_version().map_err(|e| e.to_string())?
+            let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+            let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+            db.get_vector_store_version().map_err(db_query_err)?
         };
         let vectors_lock = state.vectors.read().await;
         let store = vectors_lock
             .as_ref()
-            .ok_or("Vector store not initialized")?;
-        !vector_store_requires_rebuild(tracked_vector_version, store).await?
+            .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
+        !vector_store_requires_rebuild(tracked_vector_version, store)
+            .await
+            .map_err(internal_err)?
     };
 
     if ready {
         let consented = {
-            let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-            let db = db_lock.as_ref().ok_or("Database not initialized")?;
-            db.get_vector_consent()
-                .map_err(|e| e.to_string())?
-                .enabled
+            let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+            let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+            db.get_vector_consent().map_err(db_query_err)?.enabled
         };
 
         if consented {
             let mut vectors_lock = state.vectors.write().await;
             if let Some(store) = vectors_lock.as_mut() {
-                store.enable(true).map_err(|e| e.to_string())?;
+                store.enable(true).map_err(internal_err)?;
             }
         }
     }
@@ -325,31 +355,38 @@ pub(crate) async fn init_vector_store_impl(state: State<'_, AppState>) -> Result
 pub(crate) async fn set_vector_enabled_impl(
     state: State<'_, AppState>,
     enabled: bool,
-) -> Result<(), String> {
-    ensure_vector_store_initialized(state.inner()).await?;
+) -> Result<(), AppError> {
+    ensure_vector_store_initialized(state.inner())
+        .await
+        .map_err(internal_err)?;
 
     if enabled {
         let tracked_vector_version = {
-            let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-            let db = db_lock.as_ref().ok_or("Database not initialized")?;
-            db.get_vector_store_version().map_err(|e| e.to_string())?
+            let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+            let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+            db.get_vector_store_version().map_err(db_query_err)?
         };
         let vectors_lock = state.vectors.read().await;
         let store = vectors_lock
             .as_ref()
-            .ok_or("Vector store not initialized")?;
-        if vector_store_requires_rebuild(tracked_vector_version, store).await? {
-            return Err("Vector store requires rebuild before it can be enabled".into());
+            .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
+        if vector_store_requires_rebuild(tracked_vector_version, store)
+            .await
+            .map_err(internal_err)?
+        {
+            return Err(AppError::invalid_format(
+                "Vector store requires rebuild before it can be enabled",
+            ));
         }
     }
 
     let mut vectors_lock = state.vectors.write().await;
     let store = vectors_lock
         .as_mut()
-        .ok_or("Vector store not initialized")?;
+        .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
 
     if enabled {
-        store.enable(true).map_err(|e| e.to_string())?;
+        store.enable(true).map_err(internal_err)?;
     } else {
         store.disable();
     }
@@ -357,7 +394,7 @@ pub(crate) async fn set_vector_enabled_impl(
     Ok(())
 }
 
-pub(crate) async fn is_vector_enabled_impl(state: State<'_, AppState>) -> Result<bool, String> {
+pub(crate) async fn is_vector_enabled_impl(state: State<'_, AppState>) -> Result<bool, AppError> {
     let vectors_lock = state.vectors.read().await;
     Ok(vectors_lock
         .as_ref()
@@ -365,13 +402,15 @@ pub(crate) async fn is_vector_enabled_impl(state: State<'_, AppState>) -> Result
         .unwrap_or(false))
 }
 
-pub(crate) async fn get_vector_stats_impl(state: State<'_, AppState>) -> Result<VectorStats, String> {
+pub(crate) async fn get_vector_stats_impl(
+    state: State<'_, AppState>,
+) -> Result<VectorStats, AppError> {
     let vectors_lock = state.vectors.read().await;
     let store = vectors_lock
         .as_ref()
-        .ok_or("Vector store not initialized")?;
+        .ok_or_else(|| AppError::engine_not_initialized("Vector store"))?;
 
-    let count = store.count().await.map_err(|e| e.to_string())?;
+    let count = store.count().await.map_err(internal_err)?;
 
     Ok(VectorStats {
         enabled: store.is_enabled(),

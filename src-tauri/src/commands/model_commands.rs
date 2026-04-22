@@ -1,4 +1,5 @@
 use crate::downloads::ModelSource;
+use crate::error::AppError;
 use crate::kb::embeddings::EmbeddingModelInfo;
 use crate::llm::{GenerationParams as LlmGenerationParams, ModelInfo};
 use crate::prompts::{ResponseLength, TreeDecisions};
@@ -271,17 +272,17 @@ pub struct VectorStats {
 pub type DecisionTree = crate::db::DecisionTree;
 
 #[tauri::command]
-pub fn get_model_state(state: State<'_, AppState>) -> Result<ModelStateResult, String> {
+pub fn get_model_state(state: State<'_, AppState>) -> Result<ModelStateResult, AppError> {
     get_model_state_impl(state)
 }
 
 #[tauri::command]
-pub fn get_startup_metrics(state: State<'_, AppState>) -> Result<StartupMetricsResult, String> {
+pub fn get_startup_metrics(state: State<'_, AppState>) -> Result<StartupMetricsResult, AppError> {
     get_startup_metrics_impl(state)
 }
 
 #[tauri::command]
-pub fn init_llm_engine(state: State<'_, AppState>) -> Result<(), String> {
+pub fn init_llm_engine(state: State<'_, AppState>) -> Result<(), AppError> {
     init_llm_engine_impl(state)
 }
 
@@ -290,7 +291,7 @@ pub fn load_model(
     state: State<'_, AppState>,
     model_id: String,
     n_gpu_layers: Option<u32>,
-) -> Result<ModelInfo, String> {
+) -> Result<ModelInfo, AppError> {
     load_model_impl(state, model_id, n_gpu_layers)
 }
 
@@ -299,37 +300,37 @@ pub fn load_custom_model(
     state: State<'_, AppState>,
     model_path: String,
     n_gpu_layers: Option<u32>,
-) -> Result<ModelInfo, String> {
+) -> Result<ModelInfo, AppError> {
     load_custom_model_impl(state, model_path, n_gpu_layers)
 }
 
 #[tauri::command]
-pub fn validate_gguf_file(model_path: String) -> Result<GgufFileInfo, String> {
+pub fn validate_gguf_file(model_path: String) -> Result<GgufFileInfo, AppError> {
     validate_gguf_file_impl(model_path)
 }
 
 #[tauri::command]
-pub fn unload_model(state: State<'_, AppState>) -> Result<(), String> {
+pub fn unload_model(state: State<'_, AppState>) -> Result<(), AppError> {
     unload_model_impl(state)
 }
 
 #[tauri::command]
-pub fn get_model_info(state: State<'_, AppState>) -> Result<Option<ModelInfo>, String> {
+pub fn get_model_info(state: State<'_, AppState>) -> Result<Option<ModelInfo>, AppError> {
     get_model_info_impl(state)
 }
 
 #[tauri::command]
-pub fn is_model_loaded(state: State<'_, AppState>) -> Result<bool, String> {
+pub fn is_model_loaded(state: State<'_, AppState>) -> Result<bool, AppError> {
     is_model_loaded_impl(state)
 }
 
 #[tauri::command]
-pub fn get_context_window(state: State<'_, AppState>) -> Result<Option<u32>, String> {
+pub fn get_context_window(state: State<'_, AppState>) -> Result<Option<u32>, AppError> {
     get_context_window_impl(state)
 }
 
 #[tauri::command]
-pub fn set_context_window(state: State<'_, AppState>, size: Option<u32>) -> Result<(), String> {
+pub fn set_context_window(state: State<'_, AppState>, size: Option<u32>) -> Result<(), AppError> {
     set_context_window_impl(state, size)
 }
 
@@ -398,7 +399,7 @@ pub async fn generate_text(
     state: State<'_, AppState>,
     prompt: String,
     params: Option<GenerateParams>,
-) -> Result<GenerationResult, String> {
+) -> Result<GenerationResult, AppError> {
     generate_text_impl(state, prompt, params).await
 }
 
@@ -406,7 +407,7 @@ pub async fn generate_text(
 pub async fn generate_with_context(
     state: State<'_, AppState>,
     params: GenerateWithContextParams,
-) -> Result<GenerateWithContextResult, String> {
+) -> Result<GenerateWithContextResult, AppError> {
     generate_with_context_impl(state, params).await
 }
 
@@ -415,7 +416,7 @@ pub async fn generate_streaming(
     window: tauri::Window,
     state: State<'_, AppState>,
     params: GenerateWithContextParams,
-) -> Result<GenerateWithContextResult, String> {
+) -> Result<GenerateWithContextResult, AppError> {
     generate_streaming_impl(window, state, params).await
 }
 
@@ -423,7 +424,7 @@ pub async fn generate_streaming(
 pub async fn generate_first_response(
     state: State<'_, AppState>,
     params: FirstResponseParams,
-) -> Result<FirstResponseResult, String> {
+) -> Result<FirstResponseResult, AppError> {
     generate_first_response_impl(state, params).await
 }
 
@@ -431,7 +432,7 @@ pub async fn generate_first_response(
 pub async fn generate_troubleshooting_checklist(
     state: State<'_, AppState>,
     params: ChecklistGenerateParams,
-) -> Result<ChecklistResult, String> {
+) -> Result<ChecklistResult, AppError> {
     generate_troubleshooting_checklist_impl(state, params).await
 }
 
@@ -439,17 +440,17 @@ pub async fn generate_troubleshooting_checklist(
 pub async fn update_troubleshooting_checklist(
     state: State<'_, AppState>,
     params: ChecklistUpdateParams,
-) -> Result<ChecklistResult, String> {
+) -> Result<ChecklistResult, AppError> {
     update_troubleshooting_checklist_impl(state, params).await
 }
 
 #[tauri::command]
-pub async fn test_model(state: State<'_, AppState>) -> Result<TestModelResult, String> {
+pub async fn test_model(state: State<'_, AppState>) -> Result<TestModelResult, AppError> {
     test_model_impl(state).await
 }
 
 #[tauri::command]
-pub fn cancel_generation() -> Result<(), String> {
+pub fn cancel_generation() -> Result<(), AppError> {
     cancel_generation_impl()
 }
 
@@ -468,12 +469,12 @@ pub fn cancel_download() -> Result<(), String> {
 pub async fn generate_kb_embeddings(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<EmbeddingGenerationResult, String> {
+) -> Result<EmbeddingGenerationResult, AppError> {
     generate_kb_embeddings_internal(state.inner(), &app_handle, true).await
 }
 
 #[tauri::command]
-pub fn init_embedding_engine(state: State<'_, AppState>) -> Result<(), String> {
+pub fn init_embedding_engine(state: State<'_, AppState>) -> Result<(), AppError> {
     init_embedding_engine_impl(state)
 }
 
@@ -482,29 +483,29 @@ pub fn load_embedding_model(
     state: State<'_, AppState>,
     path: String,
     n_gpu_layers: Option<u32>,
-) -> Result<EmbeddingModelInfo, String> {
+) -> Result<EmbeddingModelInfo, AppError> {
     load_embedding_model_impl(state, path, n_gpu_layers)
 }
 
 #[tauri::command]
-pub fn unload_embedding_model(state: State<'_, AppState>) -> Result<(), String> {
+pub fn unload_embedding_model(state: State<'_, AppState>) -> Result<(), AppError> {
     unload_embedding_model_impl(state)
 }
 
 #[tauri::command]
 pub fn get_embedding_model_info(
     state: State<'_, AppState>,
-) -> Result<Option<EmbeddingModelInfo>, String> {
+) -> Result<Option<EmbeddingModelInfo>, AppError> {
     get_embedding_model_info_impl(state)
 }
 
 #[tauri::command]
-pub fn is_embedding_model_loaded(state: State<'_, AppState>) -> Result<bool, String> {
+pub fn is_embedding_model_loaded(state: State<'_, AppState>) -> Result<bool, AppError> {
     is_embedding_model_loaded_impl(state)
 }
 
 #[tauri::command]
-pub async fn init_vector_store(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn init_vector_store(state: State<'_, AppState>) -> Result<(), AppError> {
     init_vector_store_impl(state).await
 }
 
@@ -512,16 +513,16 @@ pub async fn init_vector_store(state: State<'_, AppState>) -> Result<(), String>
 pub async fn set_vector_enabled(
     state: State<'_, AppState>,
     enabled: bool,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     set_vector_enabled_impl(state, enabled).await
 }
 
 #[tauri::command]
-pub async fn is_vector_enabled(state: State<'_, AppState>) -> Result<bool, String> {
+pub async fn is_vector_enabled(state: State<'_, AppState>) -> Result<bool, AppError> {
     is_vector_enabled_impl(state).await
 }
 
 #[tauri::command]
-pub async fn get_vector_stats(state: State<'_, AppState>) -> Result<VectorStats, String> {
+pub async fn get_vector_stats(state: State<'_, AppState>) -> Result<VectorStats, AppError> {
     get_vector_stats_impl(state).await
 }

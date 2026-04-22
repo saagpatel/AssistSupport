@@ -3960,14 +3960,18 @@ pub async fn get_documents_needing_review(
 // ============================================================================
 
 /// Get the last-used model state (for auto-load on startup)
-pub fn get_model_state(state: State<'_, AppState>) -> Result<ModelStateResult, String> {
+pub fn get_model_state(
+    state: State<'_, AppState>,
+) -> Result<ModelStateResult, crate::error::AppError> {
     model_runtime::get_model_state_impl(state)
 }
 
 pub type ModelStateResult = model_commands::ModelStateResult;
 
 /// Get the last startup metrics
-pub fn get_startup_metrics(state: State<'_, AppState>) -> Result<StartupMetricsResult, String> {
+pub fn get_startup_metrics(
+    state: State<'_, AppState>,
+) -> Result<StartupMetricsResult, crate::error::AppError> {
     model_runtime::get_startup_metrics_impl(state)
 }
 
