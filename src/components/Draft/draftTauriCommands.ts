@@ -12,9 +12,11 @@ export function auditResponseCopyOverride(
   return invoke("audit_response_copy_override", { ...params });
 }
 
+export type ExportDraftFormat = "Markdown" | "PlainText" | "Html";
+
 interface ExportDraftParams {
   responseText: string;
-  format: "Markdown";
+  format: ExportDraftFormat;
 }
 
 export function exportDraft(params: ExportDraftParams): Promise<boolean> {

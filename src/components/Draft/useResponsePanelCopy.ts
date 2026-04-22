@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import type { ConfidenceAssessment } from "../../types/llm";
 import type { ParsedResponse } from "./responsePanelHelpers";
+import { auditResponseCopyOverride, exportDraft } from "./draftTauriCommands";
 
 export type ExportFormat = "Markdown" | "PlainText" | "Html";
 
@@ -10,8 +10,8 @@ interface UseResponsePanelCopyArgs {
   parsed: ParsedResponse;
   confidenceMode: ConfidenceAssessment["mode"] | undefined;
   sourcesCount: number;
-  showSuccess: (msg: string) => void;
-  showError: (msg: string) => void;
+  onShowSuccess: (msg: string) => void;
+  onShowError: (msg: string) => void;
 }
 
 export interface UseResponsePanelCopyResult {
@@ -35,8 +35,8 @@ export function useResponsePanelCopy({
   parsed,
   confidenceMode,
   sourcesCount,
-  showSuccess,
-  showError,
+  onShowSuccess,
+  onShowError,
 }: UseResponsePanelCopyArgs): UseResponsePanelCopyResult {
   const [copied, setCopied] = useState(false);
   const [showCopyOverride, setShowCopyOverride] = useState(false);
@@ -63,19 +63,19 @@ export function useResponsePanelCopy({
     async (format: ExportFormat) => {
       if (!response) return;
       try {
-        const saved = await invoke<boolean>("export_draft", {
+        const saved = await exportDraft({
           responseText: response,
           format,
         });
         if (saved) {
-          showSuccess("Response exported successfully");
+          onShowSuccess("Response exported successfully");
         }
       } catch (err) {
-        showError(`Export failed: ${err}`);
+        onShowError(`Export failed: ${err}`);
       }
       setShowExportMenu(false);
     },
-    [response, showSuccess, showError],
+    [response, onShowSuccess, onShowError],
   );
 
   const handleCopy = useCallback(async () => {
@@ -94,21 +94,21 @@ export function useResponsePanelCopy({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      showError(`Copy failed: ${err}`);
+      onShowError(`Copy failed: ${err}`);
     }
-  }, [response, parsed, confidenceMode, sourcesCount, showError]);
+  }, [response, parsed, confidenceMode, sourcesCount, onShowError]);
 
   const handleConfirmCopyOverride = useCallback(async () => {
     if (!response) return;
     const reason = copyOverrideReason.trim();
     if (!reason) {
-      showError("Reason is required to override copy gating.");
+      onShowError("Reason is required to override copy gating.");
       return;
     }
 
     try {
       setCopyOverrideSubmitting(true);
-      await invoke("audit_response_copy_override", {
+      await auditResponseCopyOverride({
         reason,
         confidenceMode: confidenceMode ?? null,
         sourcesCount,
@@ -120,9 +120,9 @@ export function useResponsePanelCopy({
       setTimeout(() => setCopied(false), 2000);
       setShowCopyOverride(false);
       setCopyOverrideReason("");
-      showSuccess("Response copied (override logged)");
+      onShowSuccess("Response copied (override logged)");
     } catch (err) {
-      showError(`Copy override failed: ${err}`);
+      onShowError(`Copy override failed: ${err}`);
     } finally {
       setCopyOverrideSubmitting(false);
     }
@@ -132,8 +132,8 @@ export function useResponsePanelCopy({
     copyOverrideReason,
     confidenceMode,
     sourcesCount,
-    showError,
-    showSuccess,
+    onShowError,
+    onShowSuccess,
   ]);
 
   const cancelCopyOverride = useCallback(() => {
