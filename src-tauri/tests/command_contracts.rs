@@ -237,7 +237,9 @@ async fn submit_search_feedback_rejects_invalid_rating_before_network() {
     .await
     .expect_err("invalid rating should fail");
 
-    assert!(err.contains("Invalid rating"));
+    // AppError::Display emits "[CODE] message".
+    assert!(err.to_string().contains("Invalid rating"));
+    assert_eq!(err.code, "VALIDATION_INVALID_FORMAT");
 }
 
 #[test]

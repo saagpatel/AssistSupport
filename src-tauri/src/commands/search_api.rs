@@ -4,6 +4,7 @@
 //! which performs adaptive hybrid BM25 + HNSW vector search against PostgreSQL.
 
 use crate::db::get_app_data_dir;
+use crate::error::{AppError, ErrorCategory, ErrorCode};
 use crate::security::{FileKeyStore, TOKEN_SEARCH_API};
 use crate::validation::validate_loopback_http_base_url;
 use reqwest::StatusCode;
@@ -160,20 +161,53 @@ struct ReadyApiResponse {
     checks: std::collections::HashMap<String, ReadyCheckResponse>,
 }
 
-fn search_api_base() -> Result<String, String> {
+// ── AppError helpers for the search-api domain ────────────────────────────────
+
+/// Network-layer failure (DNS, connect, TLS, timeout, reqwest::Error).
+fn search_api_network_err(op: &str, e: impl std::fmt::Display) -> AppError {
+    AppError::connection_failed(format!("Search API {}: {}", op, e))
+}
+
+/// Non-2xx HTTP response — carry the status + body as detail.
+fn search_api_http_err(op: &str, status: StatusCode, body: &str) -> AppError {
+    AppError::new(
+        ErrorCode::NETWORK_CONNECTION_FAILED,
+        format!("Search API {} failed ({})", op, status),
+        ErrorCategory::Network,
+    )
+    .with_detail(body.to_string())
+}
+
+/// JSON decoding failed — the server sent a malformed payload.
+fn search_api_parse_err(op: &str, e: impl std::fmt::Display) -> AppError {
+    AppError::new(
+        ErrorCode::VALIDATION_INVALID_FORMAT,
+        format!("Failed to parse Search API {} response", op),
+        ErrorCategory::Validation,
+    )
+    .with_detail(e.to_string())
+}
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+fn search_api_base() -> Result<String, AppError> {
     let from_env = std::env::var("ASSISTSUPPORT_SEARCH_API_BASE_URL")
         .ok()
         .map(|v| v.trim().trim_end_matches('/').to_string())
         .filter(|v| !v.is_empty());
 
     match from_env {
-        Some(candidate) => validate_loopback_http_base_url(&candidate)
-            .map_err(|e| format!("ASSISTSUPPORT_SEARCH_API_BASE_URL rejected: {}", e)),
+        Some(candidate) => validate_loopback_http_base_url(&candidate).map_err(|e| {
+            AppError::invalid_url(format!(
+                "ASSISTSUPPORT_SEARCH_API_BASE_URL rejected: {}",
+                e
+            ))
+        }),
         None => Ok(SEARCH_API_BASE.to_string()),
     }
 }
 
-fn search_api_auth_token() -> Result<String, String> {
+fn search_api_auth_token() -> Result<String, AppError> {
     // Avoid secure-store access in unit tests to prevent keychain prompts/hangs.
     if !cfg!(test) {
         if let Ok(Some(value)) = FileKeyStore::get_token(TOKEN_SEARCH_API) {
@@ -193,10 +227,11 @@ fn search_api_auth_token() -> Result<String, String> {
         }
     }
 
-    Err(
-        "Search API token is not configured. Set ASSISTSUPPORT_SEARCH_API_KEY (or ASSISTSUPPORT_API_KEY) and restart AssistSupport."
-            .to_string(),
-    )
+    Err(AppError::new(
+        ErrorCode::SECURITY_AUTH_FAILED,
+        "Search API token is not configured. Set ASSISTSUPPORT_SEARCH_API_KEY (or ASSISTSUPPORT_API_KEY) and restart AssistSupport.",
+        ErrorCategory::Security,
+    ))
 }
 
 fn sanitize_top_k(top_k: Option<usize>) -> usize {
@@ -379,18 +414,24 @@ fn repo_search_api_manager_script() -> Option<PathBuf> {
 
 fn parse_embedding_manager_output(
     output: std::process::Output,
-) -> Result<SearchApiEmbeddingModelStatus, String> {
+) -> Result<SearchApiEmbeddingModelStatus, AppError> {
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
 
-    let parsed = serde_json::from_str::<SearchApiEmbeddingModelStatus>(&stdout)
-        .map_err(|e| format!("Failed to parse embedding manager output: {}", e))?;
+    let parsed = serde_json::from_str::<SearchApiEmbeddingModelStatus>(&stdout).map_err(|e| {
+        AppError::new(
+            ErrorCode::VALIDATION_INVALID_FORMAT,
+            "Failed to parse embedding manager output",
+            ErrorCategory::Validation,
+        )
+        .with_detail(e.to_string())
+    })?;
 
     if output.status.success() {
         return Ok(parsed);
     }
 
-    Err(parsed.error.unwrap_or_else(|| {
+    let message = parsed.error.unwrap_or_else(|| {
         if !stderr.is_empty() {
             stderr
         } else if !stdout.is_empty() {
@@ -398,17 +439,23 @@ fn parse_embedding_manager_output(
         } else {
             "Embedding manager failed".to_string()
         }
-    }))
+    });
+    Err(AppError::new(
+        ErrorCode::MODEL_LOAD_FAILED,
+        "Embedding manager reported failure",
+        ErrorCategory::Model,
+    )
+    .with_detail(message))
 }
 
 fn run_search_api_embedding_manager(
     app: &tauri::AppHandle,
     action: &str,
-) -> Result<SearchApiEmbeddingModelStatus, String> {
+) -> Result<SearchApiEmbeddingModelStatus, AppError> {
     let app_data_dir = get_app_data_dir();
     let app_data_dir_str = app_data_dir
         .to_str()
-        .ok_or("App data directory contains invalid UTF-8")?;
+        .ok_or_else(|| AppError::internal("App data directory contains invalid UTF-8"))?;
 
     if let Some(runner) = dev_search_api_runner() {
         let output = Command::new(&runner)
@@ -418,13 +465,15 @@ fn run_search_api_embedding_manager(
             .arg("--app-data-dir")
             .arg(app_data_dir_str)
             .output()
-            .map_err(|e| format!("Failed to run search-api model manager: {}", e))?;
+            .map_err(|e| {
+                AppError::internal(format!("Failed to run search-api model manager: {}", e))
+            })?;
         return parse_embedding_manager_output(output);
     }
 
     let script_path = bundled_search_api_manager_script(app)
         .or_else(repo_search_api_manager_script)
-        .ok_or("Managed embedding model script is unavailable")?;
+        .ok_or_else(|| AppError::internal("Managed embedding model script is unavailable"))?;
 
     let output = Command::new("python3")
         .arg(script_path)
@@ -433,7 +482,12 @@ fn run_search_api_embedding_manager(
         .arg("--app-data-dir")
         .arg(app_data_dir_str)
         .output()
-        .map_err(|e| format!("Failed to run python3 for search-api model manager: {}", e))?;
+        .map_err(|e| {
+            AppError::internal(format!(
+                "Failed to run python3 for search-api model manager: {}",
+                e
+            ))
+        })?;
     parse_embedding_manager_output(output)
 }
 
@@ -442,19 +496,19 @@ fn run_search_api_embedding_manager(
 #[tauri::command]
 pub async fn get_search_api_embedding_model_status(
     app: tauri::AppHandle,
-) -> Result<SearchApiEmbeddingModelStatus, String> {
+) -> Result<SearchApiEmbeddingModelStatus, AppError> {
     tokio::task::spawn_blocking(move || run_search_api_embedding_manager(&app, "status"))
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| AppError::internal(format!("embedding-manager task: {}", e)))?
 }
 
 #[tauri::command]
 pub async fn install_search_api_embedding_model(
     app: tauri::AppHandle,
-) -> Result<SearchApiEmbeddingModelStatus, String> {
+) -> Result<SearchApiEmbeddingModelStatus, AppError> {
     tokio::task::spawn_blocking(move || run_search_api_embedding_manager(&app, "install"))
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| AppError::internal(format!("embedding-manager task: {}", e)))?
 }
 
 /// Execute a hybrid search against the PostgreSQL search API.
@@ -462,7 +516,7 @@ pub async fn install_search_api_embedding_model(
 pub async fn hybrid_search(
     query: String,
     top_k: Option<usize>,
-) -> Result<HybridSearchResponse, String> {
+) -> Result<HybridSearchResponse, AppError> {
     let client = reqwest::Client::new();
     let base_url = search_api_base()?;
     let auth_token = search_api_auth_token()?;
@@ -479,18 +533,18 @@ pub async fn hybrid_search(
         .json(&request)
         .send()
         .await
-        .map_err(|e| format!("Search API unavailable: {}", e))?;
+        .map_err(|e| search_api_network_err("search request", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("Search API error ({}): {}", status, body));
+        return Err(search_api_http_err("search", status, &body));
     }
 
     response
         .json::<HybridSearchResponse>()
         .await
-        .map_err(|e| format!("Failed to parse search response: {}", e))
+        .map_err(|e| search_api_parse_err("search", e))
 }
 
 /// Submit feedback on a search result (helpful / not_helpful / incorrect).
@@ -500,12 +554,12 @@ pub async fn submit_search_feedback(
     result_rank: usize,
     rating: String,
     comment: Option<String>,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     if !is_valid_feedback_rating(&rating) {
-        return Err(format!(
+        return Err(AppError::invalid_format(format!(
             "Invalid rating '{}': must be helpful, not_helpful, or incorrect",
             rating
-        ));
+        )));
     }
 
     let client = reqwest::Client::new();
@@ -525,12 +579,12 @@ pub async fn submit_search_feedback(
         .json(&feedback)
         .send()
         .await
-        .map_err(|e| format!("Feedback submission failed: {}", e))?;
+        .map_err(|e| search_api_network_err("feedback submission", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("Feedback API error ({}): {}", status, body));
+        return Err(search_api_http_err("feedback", status, &body));
     }
 
     Ok("Feedback submitted".to_string())
@@ -538,7 +592,7 @@ pub async fn submit_search_feedback(
 
 /// Get search monitoring statistics (last 24 hours).
 #[tauri::command]
-pub async fn get_search_api_stats() -> Result<SearchApiStatsData, String> {
+pub async fn get_search_api_stats() -> Result<SearchApiStatsData, AppError> {
     let client = reqwest::Client::new();
     let base_url = search_api_base()?;
     let auth_token = search_api_auth_token()?;
@@ -548,36 +602,36 @@ pub async fn get_search_api_stats() -> Result<SearchApiStatsData, String> {
         .bearer_auth(auth_token)
         .send()
         .await
-        .map_err(|e| format!("Stats API unavailable: {}", e))?;
+        .map_err(|e| search_api_network_err("stats request", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        return Err(format!("Stats API error ({}): {}", status, body));
+        return Err(search_api_http_err("stats", status, &body));
     }
 
     let stats: StatsApiResponse = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse stats response: {}", e))?;
+        .map_err(|e| search_api_parse_err("stats", e))?;
 
     Ok(stats.data)
 }
 
 /// Diagnose search API health with actionable status.
 #[tauri::command]
-pub async fn get_search_api_health_status() -> Result<SearchApiHealthStatus, String> {
+pub async fn get_search_api_health_status() -> Result<SearchApiHealthStatus, AppError> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::internal(format!("reqwest client builder: {}", e)))?;
     let base_url = match search_api_base() {
         Ok(value) => value,
-        Err(message) => {
+        Err(err) => {
             return Ok(SearchApiHealthStatus {
                 healthy: false,
                 status: "invalid-config".to_string(),
-                message,
+                message: err.to_string(),
                 base_url: SEARCH_API_BASE.to_string(),
             });
         }
@@ -590,7 +644,7 @@ pub async fn get_search_api_health_status() -> Result<SearchApiHealthStatus, Str
                     .get(format!("{}/health", base_url))
                     .send()
                     .await
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| search_api_network_err("health fallback", e))?;
                 let status_code = fallback.status();
                 let content_type = fallback
                     .headers()
@@ -633,7 +687,7 @@ pub async fn get_search_api_health_status() -> Result<SearchApiHealthStatus, Str
 
 /// Check if the search API is healthy.
 #[tauri::command]
-pub async fn check_search_api_health() -> Result<bool, String> {
+pub async fn check_search_api_health() -> Result<bool, AppError> {
     Ok(get_search_api_health_status().await?.healthy)
 }
 
@@ -775,9 +829,10 @@ mod tests {
         .await;
 
         assert!(result.is_err());
-        assert!(result
-            .expect_err("must reject invalid rating")
-            .contains("Invalid rating"));
+        // AppError::to_string() emits "[CODE] message" via Display.
+        let err_text = result.expect_err("must reject invalid rating").to_string();
+        assert!(err_text.contains("Invalid rating"));
+        assert!(err_text.contains("VALIDATION_INVALID_FORMAT"));
     }
 
     #[test]
