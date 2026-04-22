@@ -100,8 +100,8 @@ export function ResponsePanel({
     parsed,
     confidenceMode: confidence?.mode,
     sourcesCount: sources.length,
-    showSuccess,
-    showError,
+    onShowSuccess: showSuccess,
+    onShowError: showError,
   });
 
   useEffect(() => {
