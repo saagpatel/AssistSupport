@@ -2200,12 +2200,12 @@ use crate::kb::indexer::{IndexResult, IndexStats};
 /// Path must be within user's home directory (auto-creates if needed)
 /// Blocks sensitive directories like .ssh, .aws, .gnupg, .config
 pub fn set_kb_folder(state: State<'_, AppState>, folder_path: String) -> Result<(), String> {
-    kb_commands::set_kb_folder_impl(state, folder_path)
+    kb_commands::set_kb_folder_impl(state, folder_path).map_err(|e| e.to_string())
 }
 
 /// Get the current KB folder path
 pub fn get_kb_folder(state: State<'_, AppState>) -> Result<Option<String>, String> {
-    kb_commands::get_kb_folder_impl(state)
+    kb_commands::get_kb_folder_impl(state).map_err(|e| e.to_string())
 }
 
 /// Index the KB folder with progress events
@@ -2213,12 +2213,14 @@ pub async fn index_kb(
     window: tauri::Window,
     state: State<'_, AppState>,
 ) -> Result<IndexResult, String> {
-    kb_commands::index_kb_impl(window, state).await
+    kb_commands::index_kb_impl(window, state)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get KB statistics
 pub fn get_kb_stats(state: State<'_, AppState>) -> Result<IndexStats, String> {
-    kb_commands::get_kb_stats_impl(state)
+    kb_commands::get_kb_stats_impl(state).map_err(|e| e.to_string())
 }
 
 /// List indexed KB documents, optionally filtered by namespace and/or source
@@ -2227,7 +2229,7 @@ pub fn list_kb_documents(
     namespace_id: Option<String>,
     source_id: Option<String>,
 ) -> Result<Vec<KbDocumentInfo>, String> {
-    kb_commands::list_kb_documents_impl(state, namespace_id, source_id)
+    kb_commands::list_kb_documents_impl(state, namespace_id, source_id).map_err(|e| e.to_string())
 }
 
 /// KB document info for API responses
@@ -2238,7 +2240,9 @@ pub async fn remove_kb_document(
     file_path: String,
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
-    kb_commands::remove_kb_document_impl(file_path, state).await
+    kb_commands::remove_kb_document_impl(file_path, state)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Start watching KB folder for changes
@@ -2246,17 +2250,19 @@ pub async fn start_kb_watcher(
     window: tauri::Window,
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
-    kb_commands::start_kb_watcher_impl(window, state).await
+    kb_commands::start_kb_watcher_impl(window, state)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Stop watching KB folder
 pub fn stop_kb_watcher() -> Result<bool, String> {
-    kb_commands::stop_kb_watcher_impl()
+    kb_commands::stop_kb_watcher_impl().map_err(|e| e.to_string())
 }
 
 /// Check if KB watcher is running
 pub fn is_kb_watcher_running() -> Result<bool, String> {
-    kb_commands::is_kb_watcher_running_impl()
+    kb_commands::is_kb_watcher_running_impl().map_err(|e| e.to_string())
 }
 
 pub(super) async fn generate_kb_embeddings_internal(
