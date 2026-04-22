@@ -121,20 +121,38 @@ impl fmt::Display for ErrorCode {
     }
 }
 
-/// Application error type for all commands
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Application error type for all commands.
+///
+/// **Wire format:** serializes as a string in the form `[CODE] message` (see
+/// `Display` impl) so that the frontend's existing template-string error
+/// handling (`${err}`, `String(err)`, etc.) continues to work unchanged.
+/// Structured fields (`retryable`, `category`, `detail`) are kept for
+/// backend-side logging, routing, and retry logic. Switching to object-form
+/// serialization in the future is a one-line change in `impl Serialize`
+/// once the frontend is ready to consume structured errors (see ADR 0012).
+#[derive(Debug, Clone)]
 pub struct AppError {
     /// Stable error code for frontend handling
     pub code: String,
     /// User-friendly error message
     pub message: String,
     /// Optional internal details for logging (not shown to user)
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
     /// Whether the operation can be retried
     pub retryable: bool,
     /// Error category for grouping
     pub category: ErrorCategory,
+}
+
+impl Serialize for AppError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Emit the Display form so Tauri delivers a plain string to the
+        // frontend — matches the pre-AppError wire contract.
+        serializer.collect_str(self)
+    }
 }
 
 impl AppError {
@@ -491,10 +509,14 @@ mod tests {
 
     #[test]
     fn test_error_serialization() {
+        // AppError serializes as its Display form — a plain JSON string
+        // `"[CODE] message"` — to preserve the pre-AppError wire contract.
         let err = AppError::path_traversal();
         let json = serde_json::to_string(&err).unwrap();
-        assert!(json.contains("VALIDATION_PATH_TRAVERSAL"));
-        assert!(json.contains("validation"));
+        assert_eq!(
+            json,
+            "\"[VALIDATION_PATH_TRAVERSAL] Path must be within your home directory\""
+        );
     }
 
     #[test]

@@ -95,19 +95,25 @@ static DOWNLOAD_CANCEL_FLAG: Lazy<Arc<AtomicBool>> = Lazy::new(|| Arc::new(Atomi
 const GITHUB_TOKEN_PREFIX: &str = "github_token:";
 const ALLOW_UNVERIFIED_LOCAL_MODELS_KEY: &str = "allow_unverified_local_models";
 
-fn normalize_github_host(host: &str) -> Result<String, String> {
+fn normalize_github_host(host: &str) -> Result<String, crate::error::AppError> {
+    use crate::error::AppError;
     let trimmed = host.trim();
     if trimmed.is_empty() {
-        return Err("GitHub host cannot be empty".to_string());
+        return Err(AppError::empty_input("GitHub host"));
     }
     if trimmed.contains("://") || trimmed.contains('/') {
-        return Err("GitHub host must be a hostname (no scheme or path)".to_string());
+        return Err(AppError::invalid_format(
+            "GitHub host must be a hostname (no scheme or path)",
+        ));
     }
 
-    let re =
-        regex_lite::Regex::new(r"^[A-Za-z0-9.-]+(:[0-9]{1,5})?$").map_err(|e| e.to_string())?;
+    // Regex is a known-good constant — unwrap is safe, but prefer explicit err.
+    let re = regex_lite::Regex::new(r"^[A-Za-z0-9.-]+(:[0-9]{1,5})?$")
+        .map_err(|e| AppError::internal(format!("host-validation regex: {}", e)))?;
     if !re.is_match(trimmed) {
-        return Err("GitHub host contains invalid characters".to_string());
+        return Err(AppError::invalid_format(
+            "GitHub host contains invalid characters",
+        ));
     }
 
     Ok(trimmed.to_lowercase())
@@ -1955,85 +1961,87 @@ pub fn delete_downloaded_model(filename: String) -> Result<(), String> {
 
 /// Get HuggingFace token status (not the actual token for security)
 #[tauri::command]
-pub fn has_hf_token() -> Result<bool, String> {
+pub fn has_hf_token() -> Result<bool, crate::error::AppError> {
     security_commands::has_hf_token_impl()
 }
 
 /// Store HuggingFace token
 #[tauri::command]
-pub fn set_hf_token(token: String) -> Result<(), String> {
+pub fn set_hf_token(token: String) -> Result<(), crate::error::AppError> {
     security_commands::set_hf_token_impl(token)
 }
 
 /// Delete HuggingFace token
 #[tauri::command]
-pub fn clear_hf_token() -> Result<(), String> {
+pub fn clear_hf_token() -> Result<(), crate::error::AppError> {
     security_commands::clear_hf_token_impl()
 }
 
 /// Get Search API bearer token status (not the actual token for security)
 #[tauri::command]
-pub fn has_search_api_token() -> Result<bool, String> {
+pub fn has_search_api_token() -> Result<bool, crate::error::AppError> {
     security_commands::has_search_api_token_impl()
 }
 
 /// Store Search API bearer token
 #[tauri::command]
-pub fn set_search_api_token(token: String) -> Result<(), String> {
+pub fn set_search_api_token(token: String) -> Result<(), crate::error::AppError> {
     security_commands::set_search_api_token_impl(token)
 }
 
 /// Delete Search API bearer token
 #[tauri::command]
-pub fn clear_search_api_token() -> Result<(), String> {
+pub fn clear_search_api_token() -> Result<(), crate::error::AppError> {
     security_commands::clear_search_api_token_impl()
 }
 
 /// Get MemoryKernel service token status (not the actual token for security)
 #[tauri::command]
-pub fn has_memorykernel_service_token() -> Result<bool, String> {
+pub fn has_memorykernel_service_token() -> Result<bool, crate::error::AppError> {
     security_commands::has_memorykernel_service_token_impl()
 }
 
 /// Store MemoryKernel service bearer token
 #[tauri::command]
-pub fn set_memorykernel_service_token(token: String) -> Result<(), String> {
+pub fn set_memorykernel_service_token(token: String) -> Result<(), crate::error::AppError> {
     security_commands::set_memorykernel_service_token_impl(token)
 }
 
 /// Delete MemoryKernel service bearer token
 #[tauri::command]
-pub fn clear_memorykernel_service_token() -> Result<(), String> {
+pub fn clear_memorykernel_service_token() -> Result<(), crate::error::AppError> {
     security_commands::clear_memorykernel_service_token_impl()
 }
 
 /// Store GitHub token for a specific host (HTTPS only)
 #[tauri::command]
-pub fn set_github_token(host: String, token: String) -> Result<(), String> {
+pub fn set_github_token(host: String, token: String) -> Result<(), crate::error::AppError> {
     security_commands::set_github_token_impl(host, token)
 }
 
 /// Delete GitHub token for a specific host
 #[tauri::command]
-pub fn clear_github_token(host: String) -> Result<(), String> {
+pub fn clear_github_token(host: String) -> Result<(), crate::error::AppError> {
     security_commands::clear_github_token_impl(host)
 }
 
 /// Check if a GitHub token exists for a host (does not return the token)
 #[tauri::command]
-pub fn has_github_token(host: String) -> Result<bool, String> {
+pub fn has_github_token(host: String) -> Result<bool, crate::error::AppError> {
     security_commands::has_github_token_impl(host)
 }
 
 /// Read audit log entries (most recent first if limit is set)
 #[tauri::command]
-pub fn get_audit_entries(limit: Option<usize>) -> Result<Vec<crate::audit::AuditEntry>, String> {
+pub fn get_audit_entries(
+    limit: Option<usize>,
+) -> Result<Vec<crate::audit::AuditEntry>, crate::error::AppError> {
     security_commands::get_audit_entries_impl(limit)
 }
 
 /// Export audit log entries to a JSON file
 #[tauri::command]
-pub fn export_audit_log(export_path: String) -> Result<String, String> {
+pub fn export_audit_log(export_path: String) -> Result<String, crate::error::AppError> {
     security_commands::export_audit_log_impl(export_path)
 }
 
@@ -3722,7 +3730,8 @@ pub fn ingest_github_remote(
 
     // Parse and validate repo URL
     let remote = parse_https_repo_url(&repo_url).map_err(|e| e.to_string())?;
-    let host_key = normalize_github_host(&remote.host_port)?;
+    // normalize_github_host returns AppError; bridge to String via Display.
+    let host_key = normalize_github_host(&remote.host_port).map_err(|e| e.to_string())?;
     let token_key = format!("{}{}", GITHUB_TOKEN_PREFIX, host_key);
     let token = FileKeyStore::get_token(&token_key).map_err(|e| e.to_string())?;
 
