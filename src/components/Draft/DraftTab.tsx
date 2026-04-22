@@ -28,6 +28,7 @@ import { useDraftIntake } from "./useDraftIntake";
 import { useDraftLifecycle } from "./useDraftLifecycle";
 import { useDraftPersistence } from "./useDraftPersistence";
 import { useGuidedRunbook } from "./useGuidedRunbook";
+import { useNextActionHandler } from "./useNextActionHandler";
 import { useResponseActions } from "./useResponseActions";
 import { useWorkspaceArtifacts } from "./useWorkspaceArtifacts";
 import { useWorkspaceClipboardPacks } from "./useWorkspaceClipboardPacks";
@@ -53,10 +54,7 @@ import { useWorkspaceCatalog } from "../../features/workspace/useWorkspaceCatalo
 import { useWorkspaceDerivedArtifacts } from "../../features/workspace/useWorkspaceDerivedArtifacts";
 import { useWorkspaceCommandBridge } from "../../features/workspace/useWorkspaceCommandBridge";
 import { useWorkspaceDraftState } from "../../features/workspace/useWorkspaceDraftState";
-import {
-  compactLines,
-  parseCaseIntake,
-} from "../../features/workspace/workspaceAssistant";
+import { parseCaseIntake } from "../../features/workspace/workspaceAssistant";
 import { countWords } from "../../features/analytics/qualityMetrics";
 import type { JiraTicket } from "../../hooks/useJira";
 import type {
@@ -66,7 +64,6 @@ import type {
 } from "../../types/llm";
 import type { ContextSource } from "../../types/knowledge";
 import type {
-  NextActionRecommendation,
   ResponseLength,
   SavedDraft,
   SimilarCase,
@@ -813,92 +810,24 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       ],
     );
 
-    const handleAcceptNextAction = useCallback(
-      (action: NextActionRecommendation) => {
-        void logEvent("workspace_next_action_accepted", {
-          ticket_id: currentTicketId,
-          action_kind: action.kind,
-          action_id: action.id,
-        });
-
-        if (action.kind === "answer") {
-          void handleGenerate();
-          return;
-        }
-
-        if (action.kind === "clarify") {
-          const clarifyPrompt = compactLines([
-            diagnosticNotes,
-            "Clarifying questions to ask:",
-            ...missingQuestions.map((question) => `- ${question.question}`),
-          ]);
-          setDiagnosticNotes(clarifyPrompt);
-          setPanelDensityMode("focus-intake");
-          showSuccess("Added clarifying questions to the diagnostic notes");
-          return;
-        }
-
-        if (action.kind === "approval") {
-          const querySeed = compactLines([
-            caseIntake.issue,
-            currentTicket?.summary,
-            input,
-          ]);
-          setApprovalQuery(`${querySeed || "support request"} policy approval`);
-          setPanelDensityMode("focus-intake");
-          showSuccess("Primed the approval search query");
-          return;
-        }
-
-        if (action.kind === "runbook") {
-          setPanelDensityMode("focus-intake");
-          setDiagnosticNotes((prev) =>
-            compactLines([
-              prev,
-              "Runbook kickoff:",
-              `- ${action.rationale}`,
-              ...action.prerequisites.map((item) => `- ${item}`),
-            ]),
-          );
-          const incidentTemplate = runbookTemplates.find((template) =>
-            /incident|security/i.test(`${template.name} ${template.scenario}`),
-          );
-          if (incidentTemplate) {
-            void handleStartGuidedRunbook(incidentTemplate.id);
-          }
-          showSuccess("Prepared the workspace for guided runbook steps");
-          return;
-        }
-
-        if (action.kind === "escalate") {
-          setCaseIntake((prev) => ({
-            ...prev,
-            note_audience: "escalation-note",
-          }));
-          setDiagnosticNotes((prev) =>
-            compactLines([prev, "Escalation focus:", `- ${action.rationale}`]),
-          );
-          showSuccess("Switched the workspace into escalation-note mode");
-          return;
-        }
-
-        void handleCopyKbDraft();
-      },
-      [
-        logEvent,
-        currentTicketId,
-        handleGenerate,
-        diagnosticNotes,
-        missingQuestions,
-        showSuccess,
-        caseIntake.issue,
-        currentTicket?.summary,
-        input,
-        runbookTemplates,
-        handleStartGuidedRunbook,
-        handleCopyKbDraft,
-      ],
-    );
+    const handleAcceptNextAction = useNextActionHandler({
+      currentTicketId,
+      currentTicketSummary: currentTicket?.summary,
+      diagnosticNotes,
+      input,
+      caseIntakeIssue: caseIntake.issue,
+      missingQuestions,
+      runbookTemplates,
+      setDiagnosticNotes,
+      setPanelDensityMode,
+      setApprovalQuery,
+      setCaseIntake,
+      handleGenerate,
+      handleStartGuidedRunbook,
+      handleCopyKbDraft,
+      logEvent,
+      onShowSuccess: showSuccess,
+    });
 
     useWorkspaceCommandBridge({
       enabled: workspaceRailEnabled,
