@@ -2,11 +2,6 @@ use crate::AppState;
 use tauri::State;
 
 #[tauri::command]
-pub fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
 pub fn check_fts5_enabled(state: State<'_, AppState>) -> Result<bool, String> {
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;

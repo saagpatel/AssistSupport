@@ -4,7 +4,6 @@
 identifier = "startup-core"
 description = "Enables startup, unlock, and base session commands required by the main desktop shell."
 commands.allow = [
-  "greet",
   "initialize_app",
   "unlock_with_passphrase",
   "check_db_integrity",
