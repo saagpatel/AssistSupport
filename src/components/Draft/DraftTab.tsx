@@ -406,7 +406,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
           return next;
         });
       },
-      [savedDraftId],
+      [savedDraftId, setCaseIntake],
     );
 
     const {
