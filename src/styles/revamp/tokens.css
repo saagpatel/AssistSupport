@@ -1,7 +1,11 @@
 :root {
   /* Typography */
-  --as-font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --as-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --as-font-sans:
+    "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --as-font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
 
   /* Density + rhythm */
   --as-font-size-0: 12px;
@@ -70,14 +74,14 @@
   /* Accent button surfaces (revamp primitives) */
   --as-accent-btn-bg: rgba(79, 209, 197, 0.16);
   --as-accent-btn-bg-hover: rgba(79, 209, 197, 0.22);
-  --as-accent-btn-border: rgba(79, 209, 197, 0.30);
-  --as-accent-btn-border-hover: rgba(79, 209, 197, 0.40);
+  --as-accent-btn-border: rgba(79, 209, 197, 0.3);
+  --as-accent-btn-border-hover: rgba(79, 209, 197, 0.4);
   --as-accent-btn-text: rgba(225, 255, 252, 0.96);
 
   /* Danger button surfaces (revamp primitives) */
   --as-danger-btn-bg: rgba(251, 113, 133, 0.14);
-  --as-danger-btn-bg-hover: rgba(251, 113, 133, 0.20);
-  --as-danger-btn-border: rgba(251, 113, 133, 0.30);
+  --as-danger-btn-bg-hover: rgba(251, 113, 133, 0.2);
+  --as-danger-btn-border: rgba(251, 113, 133, 0.3);
   --as-danger-btn-border-hover: rgba(251, 113, 133, 0.38);
   --as-danger-btn-text: rgba(255, 229, 233, 0.98);
 
@@ -100,4 +104,67 @@
 
   /* Panel surfaces (revamp primitives) */
   --as-panel-header-bg: rgba(0, 0, 0, 0.18);
+
+  /* Shell background glows — swapped by [data-accent] below */
+  --as-glow-1: rgba(79, 209, 197, 0.16);
+  --as-glow-2: rgba(96, 165, 250, 0.12);
+}
+
+/*
+ * Accent swap — Claude Design handoff (feat/claude-design-reskin)
+ * Applying [data-accent="..."] to the revamp shell rewrites the 4 accent
+ * tokens plus the radial-glow tokens used by the shell background.
+ * Default (no attribute) is teal, matching the base palette above.
+ */
+[data-accent="teal"] {
+  --as-accent-1: #4fd1c5;
+  --as-accent-2: #2aa198;
+  --as-accent-surface-1: rgba(79, 209, 197, 0.07);
+  --as-accent-border-1: rgba(79, 209, 197, 0.35);
+  --as-accent-btn-bg: rgba(79, 209, 197, 0.16);
+  --as-accent-btn-bg-hover: rgba(79, 209, 197, 0.22);
+  --as-accent-btn-border: rgba(79, 209, 197, 0.3);
+  --as-accent-btn-border-hover: rgba(79, 209, 197, 0.4);
+  --as-focus: rgba(79, 209, 197, 0.55);
+  --as-glow-1: rgba(79, 209, 197, 0.16);
+  --as-glow-2: rgba(96, 165, 250, 0.12);
+}
+
+[data-accent="violet"] {
+  --as-accent-1: #a78bfa;
+  --as-accent-2: #7c3aed;
+  --as-accent-surface-1: rgba(167, 139, 250, 0.07);
+  --as-accent-border-1: rgba(167, 139, 250, 0.35);
+  --as-accent-btn-bg: rgba(167, 139, 250, 0.16);
+  --as-accent-btn-bg-hover: rgba(167, 139, 250, 0.22);
+  --as-accent-btn-border: rgba(167, 139, 250, 0.3);
+  --as-accent-btn-border-hover: rgba(167, 139, 250, 0.4);
+  --as-focus: rgba(167, 139, 250, 0.55);
+  --as-glow-1: rgba(167, 139, 250, 0.18);
+  --as-glow-2: rgba(244, 114, 182, 0.12);
+}
+
+[data-accent="amber"] {
+  --as-accent-1: #fbbf24;
+  --as-accent-2: #d97706;
+  --as-accent-surface-1: rgba(251, 191, 36, 0.07);
+  --as-accent-border-1: rgba(251, 191, 36, 0.35);
+  --as-accent-btn-bg: rgba(251, 191, 36, 0.14);
+  --as-accent-btn-bg-hover: rgba(251, 191, 36, 0.2);
+  --as-accent-btn-border: rgba(251, 191, 36, 0.3);
+  --as-accent-btn-border-hover: rgba(251, 191, 36, 0.4);
+  --as-focus: rgba(251, 191, 36, 0.55);
+  --as-glow-1: rgba(251, 191, 36, 0.14);
+  --as-glow-2: rgba(251, 113, 133, 0.1);
+}
+
+/* Density multipliers — consumed by components that honor it */
+[data-density="compact"] {
+  --as-density: 0.82;
+}
+[data-density="cozy"] {
+  --as-density: 1;
+}
+[data-density="comfy"] {
+  --as-density: 1.18;
 }
