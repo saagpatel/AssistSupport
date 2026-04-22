@@ -16,7 +16,6 @@ import {
 interface BuildCommandsParams {
   activeTab: TabId;
   revampCommandPaletteV2Enabled: boolean;
-  queueFirstInboxEnabled: boolean;
   revampFlags: RevampFlags;
   setActiveTab: (tab: TabId) => void;
   openQueueView: (queueView: QueueView) => void;
@@ -32,7 +31,6 @@ interface BuildCommandsParams {
 export function buildAppShellCommands({
   activeTab,
   revampCommandPaletteV2Enabled,
-  queueFirstInboxEnabled,
   revampFlags,
   setActiveTab,
   openQueueView,
@@ -47,7 +45,6 @@ export function buildAppShellCommands({
   const draftTabEnabled = isTabEnabled("draft", revampFlags);
   const workspaceCommandPaletteEnabled =
     draftTabEnabled &&
-    revampFlags.ASSISTSUPPORT_REVAMP_WORKSPACE &&
     revampFlags.ASSISTSUPPORT_TICKET_WORKSPACE_V2 &&
     revampFlags.ASSISTSUPPORT_WORKSPACE_COMMAND_PALETTE;
 
@@ -286,7 +283,6 @@ export function buildAppShellCommands({
         icon: "followups",
         category: "action",
         action: () => openQueueView("unassigned"),
-        disabled: !queueFirstInboxEnabled,
       },
       {
         id: "queue-open-at-risk",
@@ -295,7 +291,6 @@ export function buildAppShellCommands({
         icon: "alert-triangle",
         category: "action",
         action: () => openQueueView("at_risk"),
-        disabled: !queueFirstInboxEnabled,
       },
       {
         id: "queue-open-in-progress",
@@ -304,7 +299,6 @@ export function buildAppShellCommands({
         icon: "play",
         category: "action",
         action: () => openQueueView("in_progress"),
-        disabled: !queueFirstInboxEnabled,
       },
       {
         id: "queue-open-resolved",
@@ -313,7 +307,6 @@ export function buildAppShellCommands({
         icon: "check",
         category: "action",
         action: () => openQueueView("resolved"),
-        disabled: !queueFirstInboxEnabled,
       },
     );
   }

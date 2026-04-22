@@ -9,7 +9,6 @@ import { OpsPage } from "../ops";
 import type { SavedDraft } from "../../types/workspace";
 import type { TabId } from "./types";
 import type { RefObject } from "react";
-import type { RevampFlags } from "../revamp";
 import type { QueueView } from "../inbox/queueModel";
 
 export interface RenderActiveTabProps {
@@ -20,9 +19,7 @@ export interface RenderActiveTabProps {
   onSearchQueryConsumed: () => void;
   onQueueViewConsumed: () => void;
   onNavigateToSource: (searchQuery: string) => void;
-  onNavigateToQueue: (queueView: QueueView) => void;
   onLoadDraft: (draft: SavedDraft) => void;
-  revampFlags: RevampFlags;
 }
 
 export function renderActiveTab({
@@ -33,9 +30,7 @@ export function renderActiveTab({
   onSearchQueryConsumed,
   onQueueViewConsumed,
   onNavigateToSource,
-  onNavigateToQueue,
   onLoadDraft,
-  revampFlags,
 }: RenderActiveTabProps) {
   switch (activeTab) {
     case "draft":
@@ -44,8 +39,6 @@ export function renderActiveTab({
           <WorkspacePage
             ref={draftRef}
             onNavigateToSource={onNavigateToSource}
-            onNavigateToQueue={onNavigateToQueue}
-            appShellRevampEnabled={revampFlags.ASSISTSUPPORT_REVAMP_APP_SHELL}
           />
         </ErrorBoundary>
       );

@@ -35,17 +35,7 @@ function AppContent() {
   const draftRef = useRef<DraftTabHandle>(null);
   const commandPalette = useCommandPalette();
   const shortcutsHelp = useKeyboardShortcutsHelp();
-  const revampFlags = useMemo(() => {
-    const resolved = resolveRevampFlags();
-    return {
-      ...resolved,
-      ASSISTSUPPORT_REVAMP_APP_SHELL: true,
-      // Batch 2 pins the operator workflow to the canonical shell, workspace,
-      // and queue surfaces while preserving legacy follow-up workflows inside Queue.
-      ASSISTSUPPORT_REVAMP_INBOX: true,
-      ASSISTSUPPORT_REVAMP_WORKSPACE: true,
-    };
-  }, []);
+  const revampFlags = useMemo(() => resolveRevampFlags(), []);
 
   const {
     activeTab,
@@ -99,7 +89,6 @@ function AppContent() {
     activeTab,
     revampCommandPaletteV2Enabled:
       revampFlags.ASSISTSUPPORT_REVAMP_COMMAND_PALETTE_V2,
-    queueFirstInboxEnabled: revampFlags.ASSISTSUPPORT_REVAMP_INBOX,
     revampFlags,
     setActiveTab,
     openQueueView: handleNavigateToQueue,
@@ -161,9 +150,7 @@ function AppContent() {
     onSearchQueryConsumed: consumeSourceSearchQuery,
     onQueueViewConsumed: consumePendingQueueView,
     onNavigateToSource: handleNavigateToSource,
-    onNavigateToQueue: handleNavigateToQueue,
     onLoadDraft: handleLoadDraft,
-    revampFlags,
   });
 
   const activeTabContent = <div className="app-main">{renderedTabContent}</div>;

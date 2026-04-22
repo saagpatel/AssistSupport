@@ -7,7 +7,6 @@ import type { RevampFlags } from "../revamp";
 interface UseAppShellCommandsParams {
   activeTab: TabId;
   revampCommandPaletteV2Enabled: boolean;
-  queueFirstInboxEnabled: boolean;
   revampFlags: RevampFlags;
   setActiveTab: (tab: TabId) => void;
   openQueueView: (queueView: QueueView) => void;
@@ -23,7 +22,6 @@ interface UseAppShellCommandsParams {
 export function useAppShellCommands({
   activeTab,
   revampCommandPaletteV2Enabled,
-  queueFirstInboxEnabled,
   revampFlags,
   setActiveTab,
   openQueueView,
@@ -40,7 +38,6 @@ export function useAppShellCommands({
       buildAppShellCommands({
         activeTab,
         revampCommandPaletteV2Enabled,
-        queueFirstInboxEnabled,
         revampFlags,
         setActiveTab,
         openQueueView,
@@ -55,7 +52,6 @@ export function useAppShellCommands({
     [
       activeTab,
       revampCommandPaletteV2Enabled,
-      queueFirstInboxEnabled,
       revampFlags,
       setActiveTab,
       openQueueView,
