@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   useRef,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -77,6 +78,120 @@ const defaultState: AppStatusState = {
   lastUpdated: null,
 };
 
+// ---------------------------------------------------------------------------
+// Compute helpers — pure async functions returning the partial state slice
+// for each backend probe. Intentionally free of setState so the caller can
+// batch updates from multiple probes into a single render.
+// ---------------------------------------------------------------------------
+
+async function computeLlmStatus(): Promise<Partial<AppStatusState>> {
+  try {
+    const isLoaded = await invoke<boolean>("is_model_loaded");
+    if (isLoaded) {
+      const info = await invoke<ModelInfo | null>("get_model_info");
+      return {
+        llmLoaded: true,
+        llmModelName: info?.name ?? info?.id ?? "Unknown",
+        llmModelInfo: info,
+        llmLoading: false,
+      };
+    }
+    return {
+      llmLoaded: false,
+      llmModelName: null,
+      llmModelInfo: null,
+      llmLoading: false,
+    };
+  } catch (e) {
+    console.error("Failed to check LLM status:", e);
+    return {};
+  }
+}
+
+async function computeEmbeddingsStatus(): Promise<Partial<AppStatusState>> {
+  try {
+    const isLoaded = await invoke<boolean>("is_embedding_model_loaded");
+    return {
+      embeddingsLoaded: isLoaded,
+      embeddingsModelName: isLoaded ? "default" : null,
+    };
+  } catch {
+    // Embedding check may not exist
+    return {};
+  }
+}
+
+async function computeVectorStatus(): Promise<Partial<AppStatusState>> {
+  try {
+    const consent = await invoke<{
+      enabled: boolean;
+      consented_at: string | null;
+    }>("get_vector_consent");
+    return {
+      vectorEnabled: consent.enabled,
+      vectorConsent: consent.enabled,
+    };
+  } catch {
+    // Vector consent may not be available
+    return {};
+  }
+}
+
+async function computeKbStatus(): Promise<Partial<AppStatusState>> {
+  try {
+    const stats = await invoke<{
+      document_count: number;
+      chunk_count: number;
+      namespace_count: number;
+    }>("get_kb_stats");
+    return {
+      kbIndexed: stats.chunk_count > 0,
+      kbDocumentCount: stats.document_count,
+      kbChunkCount: stats.chunk_count,
+    };
+  } catch {
+    // KB stats may fail if not initialized
+    return {};
+  }
+}
+
+async function computeMemoryKernelStatus(): Promise<Partial<AppStatusState>> {
+  try {
+    const preflight = await invoke<MemoryKernelPreflightStatus>(
+      "get_memory_kernel_preflight_status",
+    );
+    return {
+      memoryKernelFeatureEnabled: preflight.enabled,
+      memoryKernelReady: preflight.ready && preflight.enrichment_enabled,
+      memoryKernelStatus: preflight.status,
+      memoryKernelDetail: preflight.message,
+      memoryKernelReleaseTag: preflight.release_tag ?? null,
+      memoryKernelCommitSha: preflight.commit_sha ?? null,
+      memoryKernelServiceContract:
+        preflight.service_contract_version ??
+        preflight.expected_service_contract_version ??
+        null,
+      memoryKernelApiContract:
+        preflight.api_contract_version ??
+        preflight.expected_api_contract_version ??
+        null,
+      memoryKernelIntegrationBaseline: preflight.integration_baseline ?? null,
+    };
+  } catch (err) {
+    return {
+      memoryKernelFeatureEnabled: false,
+      memoryKernelReady: false,
+      memoryKernelStatus: "error",
+      memoryKernelDetail: `Preflight unavailable: ${String(err)}`,
+      memoryKernelReleaseTag: null,
+      memoryKernelCommitSha: null,
+      memoryKernelServiceContract: null,
+      memoryKernelApiContract: null,
+      memoryKernelIntegrationBaseline: null,
+    };
+  }
+}
+
 const AppStatusContext = createContext<AppStatusContextValue | null>(null);
 
 interface Props {
@@ -89,139 +204,41 @@ export function AppStatusProvider({ children, pollInterval = 10000 }: Props) {
   const pollRef = useRef<number | null>(null);
 
   const refreshLlm = useCallback(async () => {
-    try {
-      const isLoaded = await invoke<boolean>("is_model_loaded");
-      if (isLoaded) {
-        const info = await invoke<ModelInfo | null>("get_model_info");
-        setState((prev) => ({
-          ...prev,
-          llmLoaded: true,
-          llmModelName: info?.name ?? info?.id ?? "Unknown",
-          llmModelInfo: info,
-          llmLoading: false,
-        }));
-      } else {
-        setState((prev) => ({
-          ...prev,
-          llmLoaded: false,
-          llmModelName: null,
-          llmModelInfo: null,
-          llmLoading: false,
-        }));
-      }
-    } catch (e) {
-      console.error("Failed to check LLM status:", e);
-    }
-  }, []);
-
-  const refreshEmbeddings = useCallback(async () => {
-    try {
-      const isLoaded = await invoke<boolean>("is_embedding_model_loaded");
-      setState((prev) => ({
-        ...prev,
-        embeddingsLoaded: isLoaded,
-        embeddingsModelName: isLoaded ? "default" : null,
-      }));
-    } catch {
-      // Embedding check may not exist
-    }
-  }, []);
-
-  const refreshVector = useCallback(async () => {
-    try {
-      const consent = await invoke<{
-        enabled: boolean;
-        consented_at: string | null;
-      }>("get_vector_consent");
-      setState((prev) => ({
-        ...prev,
-        vectorEnabled: consent.enabled,
-        vectorConsent: consent.enabled,
-      }));
-    } catch {
-      // Vector consent may not be available
+    const partial = await computeLlmStatus();
+    if (Object.keys(partial).length > 0) {
+      setState((prev) => ({ ...prev, ...partial }));
     }
   }, []);
 
   const refreshKb = useCallback(async () => {
-    try {
-      const stats = await invoke<{
-        document_count: number;
-        chunk_count: number;
-        namespace_count: number;
-      }>("get_kb_stats");
-      setState((prev) => ({
-        ...prev,
-        kbIndexed: stats.chunk_count > 0,
-        kbDocumentCount: stats.document_count,
-        kbChunkCount: stats.chunk_count,
-      }));
-    } catch {
-      // KB stats may fail if not initialized
-    }
-  }, []);
-
-  const refreshMemoryKernel = useCallback(async () => {
-    try {
-      const preflight = await invoke<MemoryKernelPreflightStatus>(
-        "get_memory_kernel_preflight_status",
-      );
-      setState((prev) => ({
-        ...prev,
-        memoryKernelFeatureEnabled: preflight.enabled,
-        memoryKernelReady: preflight.ready && preflight.enrichment_enabled,
-        memoryKernelStatus: preflight.status,
-        memoryKernelDetail: preflight.message,
-        memoryKernelReleaseTag: preflight.release_tag ?? null,
-        memoryKernelCommitSha: preflight.commit_sha ?? null,
-        memoryKernelServiceContract:
-          preflight.service_contract_version ??
-          preflight.expected_service_contract_version ??
-          null,
-        memoryKernelApiContract:
-          preflight.api_contract_version ??
-          preflight.expected_api_contract_version ??
-          null,
-        memoryKernelIntegrationBaseline: preflight.integration_baseline ?? null,
-      }));
-    } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        memoryKernelFeatureEnabled: false,
-        memoryKernelReady: false,
-        memoryKernelStatus: "error",
-        memoryKernelDetail: `Preflight unavailable: ${String(err)}`,
-        memoryKernelReleaseTag: null,
-        memoryKernelCommitSha: null,
-        memoryKernelServiceContract: null,
-        memoryKernelApiContract: null,
-        memoryKernelIntegrationBaseline: null,
-      }));
+    const partial = await computeKbStatus();
+    if (Object.keys(partial).length > 0) {
+      setState((prev) => ({ ...prev, ...partial }));
     }
   }, []);
 
   const refresh = useCallback(async () => {
-    await Promise.all([
-      refreshLlm(),
-      refreshEmbeddings(),
-      refreshVector(),
-      refreshKb(),
-      refreshMemoryKernel(),
+    const [llm, embeddings, vector, kb, memoryKernel] = await Promise.all([
+      computeLlmStatus(),
+      computeEmbeddingsStatus(),
+      computeVectorStatus(),
+      computeKbStatus(),
+      computeMemoryKernelStatus(),
     ]);
     setState((prev) => ({
       ...prev,
+      ...llm,
+      ...embeddings,
+      ...vector,
+      ...kb,
+      ...memoryKernel,
       initialized: true,
       lastUpdated: new Date(),
     }));
-  }, [
-    refreshLlm,
-    refreshEmbeddings,
-    refreshVector,
-    refreshKb,
-    refreshMemoryKernel,
-  ]);
+  }, []);
 
-  // Initial load and polling
+  // Initial load and polling. `refresh` has stable identity (empty deps),
+  // so the effect only re-arms when `pollInterval` changes.
   useEffect(() => {
     refresh();
 
@@ -236,12 +253,15 @@ export function AppStatusProvider({ children, pollInterval = 10000 }: Props) {
     };
   }, [refresh, pollInterval]);
 
-  const value: AppStatusContextValue = {
-    ...state,
-    refresh,
-    refreshLlm,
-    refreshKb,
-  };
+  const value = useMemo<AppStatusContextValue>(
+    () => ({
+      ...state,
+      refresh,
+      refreshLlm,
+      refreshKb,
+    }),
+    [state, refresh, refreshLlm, refreshKb],
+  );
 
   return (
     <AppStatusContext.Provider value={value}>
