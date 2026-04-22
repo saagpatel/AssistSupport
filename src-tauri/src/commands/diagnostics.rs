@@ -7,19 +7,23 @@ use crate::diagnostics::{
     HealthStatus, LlmResourceLimits, RepairResult, ResourceMetrics, SystemHealth,
     VectorMaintenanceInfo,
 };
+use crate::error::AppError;
 use crate::AppState;
 use tauri::State;
 
 /// Get comprehensive system health status
 #[tauri::command]
-pub async fn get_system_health(state: State<'_, AppState>) -> Result<SystemHealth, String> {
+pub async fn get_system_health(state: State<'_, AppState>) -> Result<SystemHealth, AppError> {
     // Check database
     let database = {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
         match db_lock.as_ref() {
             Some(db) => check_database_health(db),
             None => {
-                let recovery_lock = state.recovery.lock().map_err(|e| e.to_string())?;
+                let recovery_lock = state
+                    .recovery
+                    .lock()
+                    .map_err(|_| AppError::lock_failed("recovery context"))?;
                 if let Some(recovery) = recovery_lock.as_ref() {
                     ComponentHealth::error(
                         "Database",
@@ -76,26 +80,30 @@ pub async fn get_system_health(state: State<'_, AppState>) -> Result<SystemHealt
 
 /// Attempt to repair the database
 #[tauri::command]
-pub fn repair_database_cmd(state: State<'_, AppState>) -> Result<RepairResult, String> {
+pub fn repair_database_cmd(state: State<'_, AppState>) -> Result<RepairResult, AppError> {
     {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
         if let Some(db) = db_lock.as_ref() {
             return Ok(repair_database(db));
         }
     }
 
-    let recovery_lock = state.recovery.lock().map_err(|e| e.to_string())?;
-    let recovery = recovery_lock.as_ref().ok_or("Database not initialized")?;
-    let db_path = recovery
-        .db_path
+    let recovery_lock = state
+        .recovery
+        .lock()
+        .map_err(|_| AppError::lock_failed("recovery context"))?;
+    let recovery = recovery_lock
         .as_ref()
-        .ok_or("Database repair is not available for this recovery issue")?;
-    let master_key = recovery
-        .master_key
-        .as_ref()
-        .ok_or("Database repair is not available for this recovery issue")?;
+        .ok_or_else(AppError::db_not_initialized)?;
+    let db_path = recovery.db_path.as_ref().ok_or_else(|| {
+        AppError::invalid_format("Database repair is not available for this recovery issue")
+    })?;
+    let master_key = recovery.master_key.as_ref().ok_or_else(|| {
+        AppError::invalid_format("Database repair is not available for this recovery issue")
+    })?;
 
-    let db = crate::db::Database::open(db_path, master_key).map_err(|e| e.to_string())?;
+    let db = crate::db::Database::open(db_path, master_key)
+        .map_err(|e| AppError::db_query_failed(e.to_string()))?;
     Ok(repair_database(&db))
 }
 
@@ -104,9 +112,12 @@ pub fn repair_database_cmd(state: State<'_, AppState>) -> Result<RepairResult, S
 pub async fn rebuild_vector_store(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<RepairResult, String> {
-    let result =
-        crate::commands::generate_kb_embeddings_internal(state.inner(), &app_handle, true).await?;
+) -> Result<RepairResult, AppError> {
+    // generate_kb_embeddings_internal is still on Result<_, String>; bridge via
+    // AppError::internal until its domain migrates.
+    let result = crate::commands::generate_kb_embeddings_internal(state.inner(), &app_handle, true)
+        .await
+        .map_err(AppError::internal)?;
 
     Ok(RepairResult {
         component: "Vector Store".to_string(),
@@ -129,7 +140,7 @@ pub fn get_failure_modes_cmd() -> Vec<FailureMode> {
 #[tauri::command]
 pub async fn run_quick_health_check(
     state: State<'_, AppState>,
-) -> Result<QuickHealthResult, String> {
+) -> Result<QuickHealthResult, AppError> {
     let mut checks_passed = 0;
     let mut checks_total = 0;
     let mut issues: Vec<String> = Vec::new();
@@ -137,7 +148,7 @@ pub async fn run_quick_health_check(
     // Check 1: Database accessible
     checks_total += 1;
     {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
         if let Some(db) = db_lock.as_ref() {
             if db.check_integrity().is_ok() {
                 checks_passed += 1;
@@ -145,7 +156,10 @@ pub async fn run_quick_health_check(
                 issues.push("Database integrity check failed".to_string());
             }
         } else {
-            let recovery_lock = state.recovery.lock().map_err(|e| e.to_string())?;
+            let recovery_lock = state
+                .recovery
+                .lock()
+                .map_err(|_| AppError::lock_failed("recovery context"))?;
             if let Some(recovery) = recovery_lock.as_ref() {
                 issues.push(recovery.issue.summary.clone());
             } else {
@@ -157,7 +171,7 @@ pub async fn run_quick_health_check(
     // Check 2: Can query KB
     checks_total += 1;
     {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
         if let Some(db) = db_lock.as_ref() {
             if db
                 .conn()
@@ -214,22 +228,22 @@ pub struct QuickHealthResult {
 
 /// Get database statistics for monitoring
 #[tauri::command]
-pub fn get_database_stats_cmd(state: State<'_, AppState>) -> Result<DatabaseStats, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+pub fn get_database_stats_cmd(state: State<'_, AppState>) -> Result<DatabaseStats, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let db_path = dirs::data_dir()
         .map(|d| d.join("AssistSupport/assistsupport.db"))
-        .ok_or("Could not determine database path")?;
+        .ok_or_else(|| AppError::internal("Could not determine database path"))?;
 
-    get_database_stats(db, &db_path)
+    get_database_stats(db, &db_path).map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 /// Run scheduled database maintenance (VACUUM if needed)
 #[tauri::command]
-pub fn run_database_maintenance_cmd(state: State<'_, AppState>) -> Result<RepairResult, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+pub fn run_database_maintenance_cmd(state: State<'_, AppState>) -> Result<RepairResult, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     Ok(run_database_maintenance(db))
 }
 
@@ -241,9 +255,11 @@ pub fn get_resource_metrics_cmd() -> ResourceMetrics {
 
 /// Get LLM resource limits configuration
 #[tauri::command]
-pub fn get_llm_resource_limits(state: State<'_, AppState>) -> Result<LlmResourceLimits, String> {
+pub fn get_llm_resource_limits(
+    state: State<'_, AppState>,
+) -> Result<LlmResourceLimits, AppError> {
     // Try to load from settings, otherwise return defaults
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
     if let Some(db) = db_lock.as_ref() {
         if let Ok(json) = db.conn().query_row::<String, _, _>(
             "SELECT value FROM settings WHERE key = 'llm_resource_limits'",
@@ -263,17 +279,18 @@ pub fn get_llm_resource_limits(state: State<'_, AppState>) -> Result<LlmResource
 pub fn set_llm_resource_limits(
     state: State<'_, AppState>,
     limits: LlmResourceLimits,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    let json = serde_json::to_string(&limits).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string(&limits)
+        .map_err(|e| AppError::internal(format!("Failed to serialize limits: {}", e)))?;
     db.conn()
         .execute(
             "INSERT OR REPLACE INTO settings (key, value) VALUES ('llm_resource_limits', ?)",
             [&json],
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::db_query_failed(e.to_string()))?;
 
     Ok(())
 }
@@ -282,7 +299,7 @@ pub fn set_llm_resource_limits(
 #[tauri::command]
 pub async fn get_vector_maintenance_info_cmd(
     state: State<'_, AppState>,
-) -> Result<Option<VectorMaintenanceInfo>, String> {
+) -> Result<Option<VectorMaintenanceInfo>, AppError> {
     let vectors = state.vectors.read().await;
     Ok(get_vector_maintenance_info(vectors.as_ref()).await)
 }
