@@ -632,12 +632,14 @@ fn fallback_result(
 }
 
 #[tauri::command]
-pub async fn get_memory_kernel_integration_pin() -> Result<MemoryKernelIntegrationPin, String> {
+pub async fn get_memory_kernel_integration_pin(
+) -> Result<MemoryKernelIntegrationPin, crate::error::AppError> {
     Ok(INTEGRATION_PIN.clone())
 }
 
 #[tauri::command]
-pub async fn get_memory_kernel_preflight_status() -> Result<MemoryKernelPreflightStatus, String> {
+pub async fn get_memory_kernel_preflight_status(
+) -> Result<MemoryKernelPreflightStatus, crate::error::AppError> {
     let pin = INTEGRATION_PIN.clone();
     let enabled = integration_enabled();
     let base_url = match integration_base_url(&pin) {
@@ -655,7 +657,9 @@ pub async fn get_memory_kernel_preflight_status() -> Result<MemoryKernelPrefligh
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_millis(timeout_ms))
         .build()
-        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+        .map_err(|e| {
+            crate::error::AppError::internal(format!("Failed to build HTTP client: {}", e))
+        })?;
     Ok(run_preflight_with_cache(
         &client,
         &pin,
@@ -672,10 +676,10 @@ pub async fn get_memory_kernel_preflight_status() -> Result<MemoryKernelPrefligh
 #[tauri::command]
 pub async fn memory_kernel_query_ask(
     user_input: String,
-) -> Result<MemoryKernelEnrichmentResult, String> {
+) -> Result<MemoryKernelEnrichmentResult, crate::error::AppError> {
     let trimmed = user_input.trim();
     if trimmed.is_empty() {
-        return Err("user_input cannot be empty".to_string());
+        return Err(crate::error::AppError::empty_input("user_input"));
     }
 
     let pin = INTEGRATION_PIN.clone();
@@ -701,7 +705,9 @@ pub async fn memory_kernel_query_ask(
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_millis(timeout_ms))
         .build()
-        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+        .map_err(|e| {
+            crate::error::AppError::internal(format!("Failed to build HTTP client: {}", e))
+        })?;
     let preflight = run_preflight_with_cache(
         &client,
         &pin,
