@@ -1,6 +1,7 @@
 //! Backup, restore, and export commands
 
 use crate::backup::{ExportSummary, ImportPreview, ImportSummary};
+use crate::error::AppError;
 use crate::AppState;
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
@@ -57,13 +58,23 @@ impl ExportFormat {
     }
 }
 
+/// Map a `crate::backup` error to AppError, preserving the detail for logs.
+fn backup_err(op: &str, e: impl std::fmt::Display) -> AppError {
+    AppError::new(
+        crate::error::ErrorCode::INTERNAL_ERROR,
+        format!("Backup {} failed", op),
+        crate::error::ErrorCategory::Internal,
+    )
+    .with_detail(e.to_string())
+}
+
 /// Export a draft response to a file
 #[tauri::command]
 pub async fn export_draft(
     app: tauri::AppHandle,
     response_text: String,
     format: ExportFormat,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     let content = format.format_content(&response_text);
     let default_filename = format!("response.{}", format.extension());
 
@@ -77,18 +88,17 @@ pub async fn export_draft(
 
     match file_handle {
         Some(path) => {
-            // Get the actual path
             let file_path = path
                 .as_path()
-                .ok_or_else(|| "Invalid file path".to_string())?;
+                .ok_or_else(|| AppError::invalid_path("Invalid file path"))?;
 
-            std::fs::write(file_path, content)
-                .map_err(|e| format!("Failed to write file: {}", e))?;
+            std::fs::write(file_path, content).map_err(AppError::from)?;
 
             Ok(true)
         }
         None => {
-            // User cancelled
+            // User cancelled — return Ok(false) to preserve the existing
+            // "cancelled is not an error" semantic for this command.
             Ok(false)
         }
     }
@@ -104,9 +114,9 @@ pub async fn export_backup(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     password: Option<String>,
-) -> Result<ExportSummary, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<ExportSummary, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     // Determine file extension based on encryption
     let (filename, filter_name, extensions) = if password.is_some() {
@@ -127,12 +137,12 @@ pub async fn export_backup(
         Some(path) => {
             let file_path = path
                 .as_path()
-                .ok_or_else(|| "Invalid file path".to_string())?;
+                .ok_or_else(|| AppError::invalid_path("Invalid file path"))?;
 
             crate::backup::export_backup(db, file_path, password.as_deref())
-                .map_err(|e| e.to_string())
+                .map_err(|e| backup_err("export", e))
         }
-        None => Err("Export cancelled".to_string()),
+        None => Err(AppError::cancelled()),
     }
 }
 
@@ -141,7 +151,7 @@ pub async fn export_backup(
 pub async fn preview_backup_import(
     app: tauri::AppHandle,
     password: Option<String>,
-) -> Result<ImportPreview, String> {
+) -> Result<ImportPreview, AppError> {
     // Show open file dialog (accept both ZIP and encrypted backups)
     let file_handle = app
         .dialog()
@@ -155,11 +165,12 @@ pub async fn preview_backup_import(
         Some(path) => {
             let file_path = path
                 .as_path()
-                .ok_or_else(|| "Invalid file path".to_string())?;
+                .ok_or_else(|| AppError::invalid_path("Invalid file path"))?;
 
-            crate::backup::preview_import(file_path, password.as_deref()).map_err(|e| e.to_string())
+            crate::backup::preview_import(file_path, password.as_deref())
+                .map_err(|e| backup_err("preview", e))
         }
-        None => Err("Import cancelled".to_string()),
+        None => Err(AppError::cancelled()),
     }
 }
 
@@ -169,7 +180,7 @@ pub async fn import_backup(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     password: Option<String>,
-) -> Result<ImportSummary, String> {
+) -> Result<ImportSummary, AppError> {
     // Show open file dialog (accept both ZIP and encrypted backups)
     let file_handle = app
         .dialog()
@@ -183,27 +194,35 @@ pub async fn import_backup(
         Some(path) => {
             let file_path = path
                 .as_path()
-                .ok_or_else(|| "Invalid file path".to_string())?;
+                .ok_or_else(|| AppError::invalid_path("Invalid file path"))?;
 
             {
-                let db_lock = state.db.lock().map_err(|e| e.to_string())?;
+                let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
                 if let Some(db) = db_lock.as_ref() {
                     return crate::backup::import_backup(db, file_path, password.as_deref())
-                        .map_err(|e| e.to_string());
+                        .map_err(|e| backup_err("import", e));
                 }
             }
 
+            // No live DB — fall back to the recovery-mode restore path.
             let restore_result = {
-                let recovery_lock = state.recovery.lock().map_err(|e| e.to_string())?;
-                let recovery = recovery_lock.as_ref().ok_or("Database not initialized")?;
-                let db_path = recovery
-                    .db_path
+                let recovery_lock = state
+                    .recovery
+                    .lock()
+                    .map_err(|_| AppError::lock_failed("recovery context"))?;
+                let recovery = recovery_lock
                     .as_ref()
-                    .ok_or("Backup restore is not available for this recovery issue")?;
-                let master_key = recovery
-                    .master_key
-                    .as_ref()
-                    .ok_or("Backup restore is not available for this recovery issue")?;
+                    .ok_or_else(AppError::db_not_initialized)?;
+                let db_path = recovery.db_path.as_ref().ok_or_else(|| {
+                    AppError::invalid_format(
+                        "Backup restore is not available for this recovery issue",
+                    )
+                })?;
+                let master_key = recovery.master_key.as_ref().ok_or_else(|| {
+                    AppError::invalid_format(
+                        "Backup restore is not available for this recovery issue",
+                    )
+                })?;
 
                 crate::backup::restore_backup_into_fresh_database(
                     db_path,
@@ -214,12 +233,15 @@ pub async fn import_backup(
             };
 
             if restore_result.is_ok() {
-                let mut recovery_lock = state.recovery.lock().map_err(|e| e.to_string())?;
+                let mut recovery_lock = state
+                    .recovery
+                    .lock()
+                    .map_err(|_| AppError::lock_failed("recovery context"))?;
                 *recovery_lock = None;
             }
 
-            restore_result.map_err(|e| e.to_string())
+            restore_result.map_err(|e| backup_err("restore", e))
         }
-        None => Err("Import cancelled".to_string()),
+        None => Err(AppError::cancelled()),
     }
 }

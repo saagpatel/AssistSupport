@@ -42,7 +42,7 @@ export function RecoveryScreen({ issue }: RecoveryScreenProps) {
         `Backup restored: ${result.drafts_imported} drafts, ${result.templates_imported} templates, ${result.variables_imported} variables, and ${result.trees_imported} trees imported. Restart AssistSupport to continue.`,
       );
     } catch (err) {
-      if (String(err) !== "Import cancelled") {
+      if (!String(err).startsWith("[CANCELLED_BY_USER]")) {
         setError(String(err));
       }
     } finally {
