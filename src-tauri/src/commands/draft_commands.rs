@@ -2,6 +2,7 @@ use crate::db::{
     ActionShortcut, CustomVariable, Playbook, ResponseAlternative, ResponseTemplate, SavedDraft,
     SavedResponseTemplate,
 };
+use crate::error::AppError;
 use crate::exports::{
     format_draft, format_for_clipboard, ExportFormat as DraftExportFormat, ExportedSource,
     SafeExportOptions,
@@ -9,11 +10,18 @@ use crate::exports::{
 use crate::AppState;
 use tauri::State;
 
+/// Map a DB-layer error (DbError or any Display error) to a categorized
+/// AppError with the upstream message as detail. Used as the sole `.map_err`
+/// closure for every DB call in this file.
+fn db_query_err(e: impl std::fmt::Display) -> AppError {
+    AppError::db_query_failed(e.to_string())
+}
+
 #[tauri::command]
 pub fn list_drafts(
     state: State<'_, AppState>,
     limit: Option<usize>,
-) -> Result<Vec<SavedDraft>, String> {
+) -> Result<Vec<SavedDraft>, AppError> {
     list_drafts_impl(state, limit)
 }
 
@@ -22,22 +30,22 @@ pub fn search_drafts(
     state: State<'_, AppState>,
     query: String,
     limit: Option<usize>,
-) -> Result<Vec<SavedDraft>, String> {
+) -> Result<Vec<SavedDraft>, AppError> {
     search_drafts_impl(state, query, limit)
 }
 
 #[tauri::command]
-pub fn get_draft(state: State<'_, AppState>, draft_id: String) -> Result<SavedDraft, String> {
+pub fn get_draft(state: State<'_, AppState>, draft_id: String) -> Result<SavedDraft, AppError> {
     get_draft_impl(state, draft_id)
 }
 
 #[tauri::command]
-pub fn save_draft(state: State<'_, AppState>, draft: SavedDraft) -> Result<String, String> {
+pub fn save_draft(state: State<'_, AppState>, draft: SavedDraft) -> Result<String, AppError> {
     save_draft_impl(state, draft)
 }
 
 #[tauri::command]
-pub fn delete_draft(state: State<'_, AppState>, draft_id: String) -> Result<(), String> {
+pub fn delete_draft(state: State<'_, AppState>, draft_id: String) -> Result<(), AppError> {
     delete_draft_impl(state, draft_id)
 }
 
@@ -47,10 +55,10 @@ pub fn export_draft_formatted(
     draft_id: String,
     format: String,
     safe_export: Option<SafeExportOptions>,
-) -> Result<String, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    let draft = db.get_draft(&draft_id).map_err(|e| e.to_string())?;
+) -> Result<String, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    let draft = db.get_draft(&draft_id).map_err(db_query_err)?;
 
     let response_text = draft.response_text.as_deref().unwrap_or("");
     let sources: Vec<ExportedSource> = draft
@@ -89,10 +97,10 @@ pub fn format_draft_for_clipboard(
     state: State<'_, AppState>,
     draft_id: String,
     include_sources: bool,
-) -> Result<String, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    let draft = db.get_draft(&draft_id).map_err(|e| e.to_string())?;
+) -> Result<String, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    let draft = db.get_draft(&draft_id).map_err(db_query_err)?;
 
     let response_text = draft.response_text.as_deref().unwrap_or("");
     let sources: Vec<ExportedSource> = draft
@@ -121,7 +129,7 @@ pub fn format_draft_for_clipboard(
 pub fn list_autosaves(
     state: State<'_, AppState>,
     limit: Option<usize>,
-) -> Result<Vec<SavedDraft>, String> {
+) -> Result<Vec<SavedDraft>, AppError> {
     list_autosaves_impl(state, limit)
 }
 
@@ -129,7 +137,7 @@ pub fn list_autosaves(
 pub fn cleanup_autosaves(
     state: State<'_, AppState>,
     keep_count: Option<usize>,
-) -> Result<usize, String> {
+) -> Result<usize, AppError> {
     cleanup_autosaves_impl(state, keep_count)
 }
 
@@ -137,10 +145,10 @@ pub fn cleanup_autosaves(
 pub fn get_draft_versions(
     state: State<'_, AppState>,
     input_hash: String,
-) -> Result<Vec<SavedDraft>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.get_draft_versions(&input_hash).map_err(|e| e.to_string())
+) -> Result<Vec<SavedDraft>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_draft_versions(&input_hash).map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -148,21 +156,21 @@ pub fn create_draft_version(
     state: State<'_, AppState>,
     draft_id: String,
     change_reason: Option<String>,
-) -> Result<String, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<String, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.create_draft_version(&draft_id, change_reason.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn list_draft_versions(
     state: State<'_, AppState>,
     draft_id: String,
-) -> Result<Vec<crate::db::DraftVersion>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.list_draft_versions(&draft_id).map_err(|e| e.to_string())
+) -> Result<Vec<crate::db::DraftVersion>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.list_draft_versions(&draft_id).map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -170,18 +178,18 @@ pub fn finalize_draft(
     state: State<'_, AppState>,
     draft_id: String,
     finalized_by: Option<String>,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.finalize_draft(&draft_id, finalized_by.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
-pub fn archive_draft(state: State<'_, AppState>, draft_id: String) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.archive_draft(&draft_id).map_err(|e| e.to_string())
+pub fn archive_draft(state: State<'_, AppState>, draft_id: String) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.archive_draft(&draft_id).map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -189,171 +197,166 @@ pub fn update_draft_handoff(
     state: State<'_, AppState>,
     draft_id: String,
     handoff_summary: String,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.update_draft_handoff(&draft_id, &handoff_summary)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn list_playbooks(
     state: State<'_, AppState>,
     category: Option<String>,
-) -> Result<Vec<Playbook>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.list_playbooks(category.as_deref())
-        .map_err(|e| e.to_string())
+) -> Result<Vec<Playbook>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.list_playbooks(category.as_deref()).map_err(db_query_err)
 }
 
 #[tauri::command]
-pub fn get_playbook(state: State<'_, AppState>, playbook_id: String) -> Result<Playbook, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.get_playbook(&playbook_id).map_err(|e| e.to_string())
+pub fn get_playbook(state: State<'_, AppState>, playbook_id: String) -> Result<Playbook, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_playbook(&playbook_id).map_err(db_query_err)
 }
 
 #[tauri::command]
-pub fn save_playbook(state: State<'_, AppState>, playbook: Playbook) -> Result<String, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.save_playbook(&playbook).map_err(|e| e.to_string())
+pub fn save_playbook(state: State<'_, AppState>, playbook: Playbook) -> Result<String, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.save_playbook(&playbook).map_err(db_query_err)
 }
 
 #[tauri::command]
-pub fn use_playbook(state: State<'_, AppState>, playbook_id: String) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+pub fn use_playbook(state: State<'_, AppState>, playbook_id: String) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.increment_playbook_usage(&playbook_id)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
-pub fn delete_playbook(state: State<'_, AppState>, playbook_id: String) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.delete_playbook(&playbook_id).map_err(|e| e.to_string())
+pub fn delete_playbook(state: State<'_, AppState>, playbook_id: String) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.delete_playbook(&playbook_id).map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn list_action_shortcuts(
     state: State<'_, AppState>,
     category: Option<String>,
-) -> Result<Vec<ActionShortcut>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<ActionShortcut>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.list_action_shortcuts(category.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn get_action_shortcut(
     state: State<'_, AppState>,
     shortcut_id: String,
-) -> Result<ActionShortcut, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.get_action_shortcut(&shortcut_id)
-        .map_err(|e| e.to_string())
+) -> Result<ActionShortcut, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_action_shortcut(&shortcut_id).map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn save_action_shortcut(
     state: State<'_, AppState>,
     shortcut: ActionShortcut,
-) -> Result<String, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.save_action_shortcut(&shortcut)
-        .map_err(|e| e.to_string())
+) -> Result<String, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.save_action_shortcut(&shortcut).map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn delete_action_shortcut(
     state: State<'_, AppState>,
     shortcut_id: String,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.delete_action_shortcut(&shortcut_id)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
-pub fn list_templates(state: State<'_, AppState>) -> Result<Vec<ResponseTemplate>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.list_templates().map_err(|e| e.to_string())
+pub fn list_templates(state: State<'_, AppState>) -> Result<Vec<ResponseTemplate>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.list_templates().map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn get_template(
     state: State<'_, AppState>,
     template_id: String,
-) -> Result<ResponseTemplate, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.get_template(&template_id).map_err(|e| e.to_string())
+) -> Result<ResponseTemplate, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_template(&template_id).map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn save_template(
     state: State<'_, AppState>,
     template: ResponseTemplate,
-) -> Result<String, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<String, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     let template_id = template.id.clone();
-    db.save_template(&template).map_err(|e| e.to_string())?;
+    db.save_template(&template).map_err(db_query_err)?;
     Ok(template_id)
 }
 
 #[tauri::command]
-pub fn delete_template(state: State<'_, AppState>, template_id: String) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.delete_template(&template_id).map_err(|e| e.to_string())
+pub fn delete_template(state: State<'_, AppState>, template_id: String) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.delete_template(&template_id).map_err(db_query_err)
 }
 
 #[tauri::command]
-pub fn list_custom_variables(state: State<'_, AppState>) -> Result<Vec<CustomVariable>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.list_custom_variables().map_err(|e| e.to_string())
+pub fn list_custom_variables(state: State<'_, AppState>) -> Result<Vec<CustomVariable>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.list_custom_variables().map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn get_custom_variable(
     state: State<'_, AppState>,
     variable_id: String,
-) -> Result<CustomVariable, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.get_custom_variable(&variable_id)
-        .map_err(|e| e.to_string())
+) -> Result<CustomVariable, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_custom_variable(&variable_id).map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn save_custom_variable(
     state: State<'_, AppState>,
     variable: CustomVariable,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.save_custom_variable(&variable)
-        .map_err(|e| e.to_string())
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.save_custom_variable(&variable).map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn delete_custom_variable(
     state: State<'_, AppState>,
     variable_id: String,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.delete_custom_variable(&variable_id)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -361,11 +364,11 @@ pub fn restore_draft_version(
     state: State<'_, AppState>,
     draft_id: String,
     version_id: String,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.restore_draft_version(&draft_id, &version_id)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -377,12 +380,13 @@ pub fn save_response_as_template(
     category: Option<String>,
     content: String,
     variables_json: Option<String>,
-) -> Result<String, String> {
-    crate::validation::validate_non_empty(&name).map_err(|e| e.to_string())?;
-    crate::validation::validate_non_empty(&content).map_err(|e| e.to_string())?;
+) -> Result<String, AppError> {
+    // ValidationError has a From<ValidationError> for AppError impl.
+    crate::validation::validate_non_empty(&name)?;
+    crate::validation::validate_non_empty(&content)?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let now = chrono::Utc::now().to_rfc3339();
     let template = SavedResponseTemplate {
@@ -399,29 +403,29 @@ pub fn save_response_as_template(
     };
 
     db.save_response_as_template(&template)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn list_saved_response_templates(
     state: State<'_, AppState>,
     limit: Option<usize>,
-) -> Result<Vec<SavedResponseTemplate>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<SavedResponseTemplate>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.list_saved_response_templates(limit.unwrap_or(20))
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn increment_saved_template_usage(
     state: State<'_, AppState>,
     template_id: String,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.increment_saved_template_usage(&template_id)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -429,11 +433,11 @@ pub fn find_similar_saved_responses(
     state: State<'_, AppState>,
     input_text: String,
     limit: Option<usize>,
-) -> Result<Vec<SavedResponseTemplate>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<SavedResponseTemplate>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.find_similar_saved_responses(&input_text, limit.unwrap_or(5))
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -445,9 +449,9 @@ pub fn save_response_alternative(
     sources_json: Option<String>,
     metrics_json: Option<String>,
     generation_params_json: Option<String>,
-) -> Result<String, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<String, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let now = chrono::Utc::now().to_rfc3339();
     let alternative = ResponseAlternative {
@@ -463,18 +467,18 @@ pub fn save_response_alternative(
     };
 
     db.save_response_alternative(&alternative)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn get_alternatives_for_draft(
     state: State<'_, AppState>,
     draft_id: String,
-) -> Result<Vec<ResponseAlternative>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<ResponseAlternative>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.get_alternatives_for_draft(&draft_id)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -482,81 +486,81 @@ pub fn choose_alternative(
     state: State<'_, AppState>,
     alternative_id: String,
     choice: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     if choice != "original" && choice != "alternative" {
-        return Err("Choice must be 'original' or 'alternative'".to_string());
+        return Err(AppError::invalid_format(
+            "Choice must be 'original' or 'alternative'",
+        ));
     }
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.choose_alternative(&alternative_id, &choice)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 pub(crate) fn list_drafts_impl(
     state: State<'_, AppState>,
     limit: Option<usize>,
-) -> Result<Vec<SavedDraft>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.list_drafts(limit.unwrap_or(50))
-        .map_err(|e| e.to_string())
+) -> Result<Vec<SavedDraft>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.list_drafts(limit.unwrap_or(50)).map_err(db_query_err)
 }
 
 pub(crate) fn search_drafts_impl(
     state: State<'_, AppState>,
     query: String,
     limit: Option<usize>,
-) -> Result<Vec<SavedDraft>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<SavedDraft>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.search_drafts(&query, limit.unwrap_or(50))
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 pub(crate) fn get_draft_impl(
     state: State<'_, AppState>,
     draft_id: String,
-) -> Result<SavedDraft, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.get_draft(&draft_id).map_err(|e| e.to_string())
+) -> Result<SavedDraft, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_draft(&draft_id).map_err(db_query_err)
 }
 
 pub(crate) fn save_draft_impl(
     state: State<'_, AppState>,
     draft: SavedDraft,
-) -> Result<String, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.save_draft(&draft).map_err(|e| e.to_string())
+) -> Result<String, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.save_draft(&draft).map_err(db_query_err)
 }
 
 pub(crate) fn delete_draft_impl(
     state: State<'_, AppState>,
     draft_id: String,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.delete_draft(&draft_id).map_err(|e| e.to_string())
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.delete_draft(&draft_id).map_err(db_query_err)
 }
 
 pub(crate) fn list_autosaves_impl(
     state: State<'_, AppState>,
     limit: Option<usize>,
-) -> Result<Vec<SavedDraft>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.list_autosaves(limit.unwrap_or(10))
-        .map_err(|e| e.to_string())
+) -> Result<Vec<SavedDraft>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.list_autosaves(limit.unwrap_or(10)).map_err(db_query_err)
 }
 
 pub(crate) fn cleanup_autosaves_impl(
     state: State<'_, AppState>,
     keep_count: Option<usize>,
-) -> Result<usize, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<usize, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.cleanup_autosaves(keep_count.unwrap_or(10))
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
