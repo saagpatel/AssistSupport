@@ -5,6 +5,7 @@ import {
   useImperativeHandle,
   useMemo,
 } from "react";
+import { auditResponseCopyOverride, exportDraft } from "./draftTauriCommands";
 import { DraftResponsePanel } from "./DraftResponsePanel";
 import { InputPanel } from "./InputPanel";
 import { DiagnosisPanel, TreeResult } from "./DiagnosisPanel";
@@ -529,6 +530,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       streamingText,
       cancelGeneration,
       saveAsTemplate,
+      auditResponseCopyOverride,
+      exportDraft,
       logEvent,
       setResponse,
       setOriginalResponse,

@@ -1,13 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const invokeMock = vi.fn();
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: (command: string, payload?: Record<string, unknown>) =>
-    invokeMock(command, payload),
-}));
-
 import { useResponseActions } from "./useResponseActions";
 
 type HookOptions = Parameters<typeof useResponseActions>[0];
@@ -16,8 +9,6 @@ const writeText = vi.fn().mockResolvedValue(undefined);
 
 beforeEach(() => {
   writeText.mockClear();
-  invokeMock.mockReset();
-  invokeMock.mockResolvedValue(true);
   Object.defineProperty(navigator, "clipboard", {
     value: { writeText },
     configurable: true,
@@ -38,6 +29,8 @@ function makeOptions(overrides: Partial<HookOptions> = {}): HookOptions {
 
     cancelGeneration: vi.fn(),
     saveAsTemplate: vi.fn().mockResolvedValue("tpl-1"),
+    auditResponseCopyOverride: vi.fn().mockResolvedValue(undefined),
+    exportDraft: vi.fn().mockResolvedValue(true),
     logEvent: vi.fn(),
 
     setResponse: vi.fn(),
@@ -62,10 +55,7 @@ describe("useResponseActions", () => {
     });
 
     expect(writeText).toHaveBeenCalledWith("generated text");
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      "audit_response_copy_override",
-      expect.anything(),
-    );
+    expect(options.auditResponseCopyOverride).not.toHaveBeenCalled();
     expect(options.setHandoffTouched).toHaveBeenCalledWith(true);
     expect(options.onShowSuccess).toHaveBeenCalledWith(
       "Response copied to clipboard",
@@ -84,7 +74,7 @@ describe("useResponseActions", () => {
     });
 
     expect(promptSpy).toHaveBeenCalled();
-    expect(invokeMock).toHaveBeenCalledWith("audit_response_copy_override", {
+    expect(options.auditResponseCopyOverride).toHaveBeenCalledWith({
       reason: "ops needs this now",
       confidenceMode: "answer",
       sourcesCount: 0,
@@ -115,7 +105,7 @@ describe("useResponseActions", () => {
       await result.current.handleExportResponse();
     });
 
-    expect(invokeMock).toHaveBeenCalledWith("export_draft", {
+    expect(options.exportDraft).toHaveBeenCalledWith({
       responseText: "generated text",
       format: "Markdown",
     });

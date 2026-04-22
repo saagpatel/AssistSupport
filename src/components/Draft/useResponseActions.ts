@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useState } from "react";
 import {
   calculateEditRatio,
@@ -12,6 +11,17 @@ interface TemplateSaveOptions {
   sourceRating?: number;
   category?: string;
   variablesJson?: string;
+}
+
+interface AuditResponseCopyOverrideParams {
+  reason: string;
+  confidenceMode: string | null;
+  sourcesCount: number;
+}
+
+interface ExportDraftParams {
+  responseText: string;
+  format: "Markdown";
 }
 
 interface UseResponseActionsOptions {
@@ -29,6 +39,10 @@ interface UseResponseActionsOptions {
     content: string,
     options: TemplateSaveOptions,
   ) => Promise<string | null>;
+  auditResponseCopyOverride: (
+    params: AuditResponseCopyOverrideParams,
+  ) => Promise<unknown>;
+  exportDraft: (params: ExportDraftParams) => Promise<boolean>;
   logEvent: (event: string, payload?: Record<string, unknown>) => unknown;
 
   setResponse: (value: string) => void;
@@ -51,6 +65,8 @@ export function useResponseActions({
   streamingText,
   cancelGeneration,
   saveAsTemplate,
+  auditResponseCopyOverride,
+  exportDraft,
   logEvent,
   setResponse,
   setOriginalResponse,
@@ -146,7 +162,7 @@ export function useResponseActions({
           onShowError("Copy cancelled (reason required).");
           return;
         }
-        await invoke("audit_response_copy_override", {
+        await auditResponseCopyOverride({
           reason: reason.trim(),
           confidenceMode: confidence?.mode ?? null,
           sourcesCount: sources.length,
@@ -170,6 +186,7 @@ export function useResponseActions({
     response,
     confidence?.mode,
     sources.length,
+    auditResponseCopyOverride,
     logEvent,
     savedDraftId,
     isResponseEdited,
@@ -185,7 +202,7 @@ export function useResponseActions({
       return;
     }
     try {
-      const saved = await invoke<boolean>("export_draft", {
+      const saved = await exportDraft({
         responseText: response,
         format: "Markdown",
       });
@@ -196,7 +213,7 @@ export function useResponseActions({
     } catch (e) {
       onShowError(`Export failed: ${e}`);
     }
-  }, [response, setHandoffTouched, onShowSuccess, onShowError]);
+  }, [response, exportDraft, setHandoffTouched, onShowSuccess, onShowError]);
 
   const resetResponseActions = useCallback(() => {
     setShowTemplateModal(false);
