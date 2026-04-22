@@ -1,24 +1,48 @@
 use super::vector_runtime::purge_vectors_for_document;
-use crate::AppState;
 use crate::db::CURRENT_VECTOR_STORE_VERSION;
+use crate::error::{AppError, ErrorCategory, ErrorCode};
 use crate::kb::indexer::{IndexResult, IndexStats, KbIndexer};
+use crate::kb::watcher::KbWatcher;
 use crate::security::FileKeyStore;
 use crate::validation::{
     normalize_and_validate_namespace_id, validate_non_empty, validate_text_size,
     validate_within_home, ValidationError, MAX_QUERY_BYTES, MAX_TEXT_INPUT_BYTES,
 };
+use crate::AppState;
 use once_cell::sync::Lazy;
 use std::sync::Mutex as StdMutex;
-use crate::kb::watcher::KbWatcher;
 use tauri::{Emitter, State};
 
+/// Map a DB-layer error (DbError or any Display error) to a categorized
+/// AppError with the upstream message as detail. Used as the sole `.map_err`
+/// closure for every DB call in this file.
+fn db_query_err(e: impl std::fmt::Display) -> AppError {
+    AppError::db_query_failed(e.to_string())
+}
+
+/// KB folder is configured via `set_kb_folder`; absence is a user-actionable
+/// configuration problem, not a bug. Categorized as Internal for lack of a
+/// better fit — the frontend treats the code as "needs configuration".
+fn kb_folder_not_configured() -> AppError {
+    AppError::new(
+        ErrorCode::INTERNAL_ERROR,
+        "KB folder not configured",
+        ErrorCategory::Internal,
+    )
+}
+
+/// Map a vector-runtime string error (still pre-migration) into AppError.
+fn vector_runtime_err(e: String) -> AppError {
+    AppError::internal(e)
+}
+
 #[tauri::command]
-pub fn set_kb_folder(state: State<'_, AppState>, folder_path: String) -> Result<(), String> {
+pub fn set_kb_folder(state: State<'_, AppState>, folder_path: String) -> Result<(), AppError> {
     set_kb_folder_impl(state, folder_path)
 }
 
 #[tauri::command]
-pub fn get_kb_folder(state: State<'_, AppState>) -> Result<Option<String>, String> {
+pub fn get_kb_folder(state: State<'_, AppState>) -> Result<Option<String>, AppError> {
     get_kb_folder_impl(state)
 }
 
@@ -26,12 +50,12 @@ pub fn get_kb_folder(state: State<'_, AppState>) -> Result<Option<String>, Strin
 pub async fn index_kb(
     window: tauri::Window,
     state: State<'_, AppState>,
-) -> Result<IndexResult, String> {
+) -> Result<IndexResult, AppError> {
     index_kb_impl(window, state).await
 }
 
 #[tauri::command]
-pub fn get_kb_stats(state: State<'_, AppState>) -> Result<IndexStats, String> {
+pub fn get_kb_stats(state: State<'_, AppState>) -> Result<IndexStats, AppError> {
     get_kb_stats_impl(state)
 }
 
@@ -40,7 +64,7 @@ pub fn list_kb_documents(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
     source_id: Option<String>,
-) -> Result<Vec<KbDocumentInfo>, String> {
+) -> Result<Vec<KbDocumentInfo>, AppError> {
     list_kb_documents_impl(state, namespace_id, source_id)
 }
 
@@ -60,7 +84,7 @@ pub struct KbDocumentInfo {
 pub async fn remove_kb_document(
     file_path: String,
     state: State<'_, AppState>,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     remove_kb_document_impl(file_path, state).await
 }
 
@@ -68,17 +92,17 @@ pub async fn remove_kb_document(
 pub async fn start_kb_watcher(
     window: tauri::Window,
     state: State<'_, AppState>,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     start_kb_watcher_impl(window, state).await
 }
 
 #[tauri::command]
-pub fn stop_kb_watcher() -> Result<bool, String> {
+pub fn stop_kb_watcher() -> Result<bool, AppError> {
     stop_kb_watcher_impl()
 }
 
 #[tauri::command]
-pub fn is_kb_watcher_running() -> Result<bool, String> {
+pub fn is_kb_watcher_running() -> Result<bool, AppError> {
     is_kb_watcher_running_impl()
 }
 
@@ -86,33 +110,33 @@ pub fn is_kb_watcher_running() -> Result<bool, String> {
 static KB_WATCHER: Lazy<StdMutex<Option<KbWatcher>>> = Lazy::new(|| StdMutex::new(None));
 const KB_FOLDER_SETTING: &str = "kb_folder";
 
-fn validate_stored_kb_path(folder_path: &str) -> Result<std::path::PathBuf, String> {
+fn validate_stored_kb_path(folder_path: &str) -> Result<std::path::PathBuf, AppError> {
     let path = std::path::Path::new(folder_path);
     validate_within_home(path).map_err(|e| match e {
         ValidationError::PathTraversal => {
-            "KB folder must be within your home directory".to_string()
+            AppError::invalid_path("KB folder must be within your home directory")
         }
         ValidationError::InvalidFormat(msg) if msg.contains("sensitive") => {
-            "This directory cannot be used as it contains sensitive data".to_string()
+            AppError::sensitive_path()
         }
-        _ => format!("Invalid KB folder: {}", e),
+        _ => AppError::invalid_path(format!("Invalid KB folder: {}", e)),
     })
 }
 
 pub(crate) fn set_kb_folder_impl(
     state: State<'_, AppState>,
     folder_path: String,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     // Validate path is within home directory (auto-creates if needed)
     let validated_path = validate_stored_kb_path(&folder_path)?;
 
     // Verify it's a directory
     if !validated_path.is_dir() {
-        return Err("Path is not a directory".into());
+        return Err(AppError::invalid_path("Path is not a directory"));
     }
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     // Store in settings
     db.conn()
@@ -120,14 +144,14 @@ pub(crate) fn set_kb_folder_impl(
             "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
             rusqlite::params![KB_FOLDER_SETTING, validated_path.to_string_lossy().as_ref()],
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(db_query_err)?;
 
     Ok(())
 }
 
-pub(crate) fn get_kb_folder_impl(state: State<'_, AppState>) -> Result<Option<String>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+pub(crate) fn get_kb_folder_impl(state: State<'_, AppState>) -> Result<Option<String>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let result: Result<String, _> = db.conn().query_row(
         "SELECT value FROM settings WHERE key = ?",
@@ -138,16 +162,16 @@ pub(crate) fn get_kb_folder_impl(state: State<'_, AppState>) -> Result<Option<St
     match result {
         Ok(path) => Ok(Some(path)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-        Err(e) => Err(e.to_string()),
+        Err(e) => Err(db_query_err(e)),
     }
 }
 
 pub(crate) async fn index_kb_impl(
     window: tauri::Window,
     state: State<'_, AppState>,
-) -> Result<IndexResult, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<IndexResult, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     // Get KB folder
     let folder_path: String = db
@@ -157,11 +181,11 @@ pub(crate) async fn index_kb_impl(
             rusqlite::params![KB_FOLDER_SETTING],
             |row| row.get(0),
         )
-        .map_err(|_| "KB folder not configured")?;
+        .map_err(|_| kb_folder_not_configured())?;
 
     let validated_path = validate_stored_kb_path(&folder_path)?;
     if !validated_path.exists() {
-        return Err("KB folder does not exist".into());
+        return Err(AppError::invalid_path("KB folder does not exist"));
     }
 
     // Run indexing with progress events
@@ -171,36 +195,35 @@ pub(crate) async fn index_kb_impl(
             // Emit progress event to frontend
             let _ = window.emit("kb:indexing:progress", &progress);
         })
-        .map_err(|e| e.to_string())?;
+        .map_err(db_query_err)?;
 
     Ok(result)
 }
 
-pub(crate) fn get_kb_stats_impl(state: State<'_, AppState>) -> Result<IndexStats, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+pub(crate) fn get_kb_stats_impl(state: State<'_, AppState>) -> Result<IndexStats, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let indexer = KbIndexer::new();
-    indexer.get_stats(db).map_err(|e| e.to_string())
+    indexer.get_stats(db).map_err(db_query_err)
 }
 
 pub(crate) fn list_kb_documents_impl(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
     source_id: Option<String>,
-) -> Result<Vec<KbDocumentInfo>, String> {
-    // Validate and normalize namespace_id if provided
+) -> Result<Vec<KbDocumentInfo>, AppError> {
+    // Validate and normalize namespace_id if provided (ValidationError -> AppError via ?)
     let namespace_id = namespace_id
         .map(|ns| normalize_and_validate_namespace_id(&ns))
-        .transpose()
-        .map_err(|e| e.to_string())?;
+        .transpose()?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let docs = db
         .list_kb_documents(namespace_id.as_deref(), source_id.as_deref())
-        .map_err(|e| e.to_string())?;
+        .map_err(db_query_err)?;
 
     Ok(docs
         .into_iter()
@@ -220,42 +243,41 @@ pub(crate) fn list_kb_documents_impl(
 pub(crate) async fn remove_kb_document_impl(
     file_path: String,
     state: State<'_, AppState>,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     let document_id = {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-        let db = db_lock.as_ref().ok_or("Database not initialized")?;
-        db.get_document_id_by_path(&file_path)
-            .map_err(|e| e.to_string())?
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+        db.get_document_id_by_path(&file_path).map_err(db_query_err)?
     };
 
     if let Some(document_id) = document_id.as_deref() {
-        purge_vectors_for_document(state.inner(), document_id).await?;
+        purge_vectors_for_document(state.inner(), document_id)
+            .await
+            .map_err(vector_runtime_err)?;
     }
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let indexer = KbIndexer::new();
-    indexer
-        .remove_document(db, &file_path)
-        .map_err(|e| e.to_string())
+    indexer.remove_document(db, &file_path).map_err(db_query_err)
 }
 
 pub(crate) async fn start_kb_watcher_impl(
     window: tauri::Window,
     state: State<'_, AppState>,
-) -> Result<bool, String> {
+) -> Result<bool, AppError> {
     // Get KB folder path
     let folder_path = {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-        let db = db_lock.as_ref().ok_or("Database not initialized")?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
         db.conn()
             .query_row(
                 "SELECT value FROM settings WHERE key = ?",
                 rusqlite::params![KB_FOLDER_SETTING],
                 |row| row.get::<_, String>(0),
             )
-            .map_err(|_| "KB folder not configured")?
+            .map_err(|_| kb_folder_not_configured())?
     };
 
     let validated_path = validate_stored_kb_path(&folder_path)?;
@@ -274,12 +296,17 @@ pub(crate) async fn start_kb_watcher_impl(
     // performed while the StdMutex guard is held, so this is safe under
     // tokio's work-stealing scheduler.
     let mut rx = {
-        let mut guard = KB_WATCHER.lock().map_err(|e| e.to_string())?;
+        let mut guard = KB_WATCHER
+            .lock()
+            .map_err(|_| AppError::lock_failed("kb watcher"))?;
         if guard.is_some() {
             return Ok(false);
         }
-        let mut watcher = KbWatcher::new(&validated_path).map_err(|e| e.to_string())?;
-        let rx = watcher.start().map_err(|e| e.to_string())?;
+        let mut watcher =
+            KbWatcher::new(&validated_path).map_err(|e| AppError::internal(e.to_string()))?;
+        let rx = watcher
+            .start()
+            .map_err(|e| AppError::internal(e.to_string()))?;
         *guard = Some(watcher);
         rx
     };
@@ -297,8 +324,10 @@ pub(crate) async fn start_kb_watcher_impl(
     Ok(true)
 }
 
-pub(crate) fn stop_kb_watcher_impl() -> Result<bool, String> {
-    let mut guard = KB_WATCHER.lock().map_err(|e| e.to_string())?;
+pub(crate) fn stop_kb_watcher_impl() -> Result<bool, AppError> {
+    let mut guard = KB_WATCHER
+        .lock()
+        .map_err(|_| AppError::lock_failed("kb watcher"))?;
     if let Some(mut watcher) = guard.take() {
         watcher.stop();
         Ok(true)
@@ -307,8 +336,10 @@ pub(crate) fn stop_kb_watcher_impl() -> Result<bool, String> {
     }
 }
 
-pub(crate) fn is_kb_watcher_running_impl() -> Result<bool, String> {
-    let guard = KB_WATCHER.lock().map_err(|e| e.to_string())?;
+pub(crate) fn is_kb_watcher_running_impl() -> Result<bool, AppError> {
+    let guard = KB_WATCHER
+        .lock()
+        .map_err(|_| AppError::lock_failed("kb watcher"))?;
     Ok(guard.as_ref().map(|w| w.is_running()).unwrap_or(false))
 }
 
@@ -394,19 +425,31 @@ fn network_ingest_enabled_by_policy() -> bool {
         .unwrap_or(false)
 }
 
-fn normalize_github_host(host: &str) -> Result<String, String> {
+fn network_ingest_disabled_error() -> AppError {
+    AppError::new(
+        ErrorCode::INTERNAL_ERROR,
+        "Network ingestion is disabled by policy. Set ASSISTSUPPORT_ENABLE_NETWORK_INGEST=1 and restart AssistSupport to enable.",
+        ErrorCategory::Internal,
+    )
+}
+
+fn normalize_github_host(host: &str) -> Result<String, AppError> {
     let trimmed = host.trim();
     if trimmed.is_empty() {
-        return Err("GitHub host cannot be empty".to_string());
+        return Err(AppError::invalid_format("GitHub host cannot be empty"));
     }
     if trimmed.contains("://") || trimmed.contains('/') {
-        return Err("GitHub host must be a hostname (no scheme or path)".to_string());
+        return Err(AppError::invalid_format(
+            "GitHub host must be a hostname (no scheme or path)",
+        ));
     }
 
-    let re =
-        regex_lite::Regex::new(r"^[A-Za-z0-9.-]+(:[0-9]{1,5})?$").map_err(|e| e.to_string())?;
+    let re = regex_lite::Regex::new(r"^[A-Za-z0-9.-]+(:[0-9]{1,5})?$")
+        .map_err(|e| AppError::invalid_format(e.to_string()))?;
     if !re.is_match(trimmed) {
-        return Err("GitHub host contains invalid characters".to_string());
+        return Err(AppError::invalid_format(
+            "GitHub host contains invalid characters",
+        ));
     }
 
     Ok(trimmed.to_lowercase())
@@ -418,7 +461,7 @@ pub async fn search_kb(
     query: String,
     limit: Option<usize>,
     namespace_id: Option<String>,
-) -> Result<Vec<crate::kb::search::SearchResult>, String> {
+) -> Result<Vec<crate::kb::search::SearchResult>, AppError> {
     search_kb_with_options(state, query, limit, namespace_id, None).await
 }
 
@@ -429,16 +472,15 @@ pub async fn search_kb_with_options(
     limit: Option<usize>,
     namespace_id: Option<String>,
     options: Option<SearchOptionsParam>,
-) -> Result<Vec<crate::kb::search::SearchResult>, String> {
+) -> Result<Vec<crate::kb::search::SearchResult>, AppError> {
     use crate::kb::search::{HybridSearch, SearchOptions};
 
-    validate_non_empty(&query).map_err(|e| e.to_string())?;
-    validate_text_size(&query, MAX_QUERY_BYTES).map_err(|e| e.to_string())?;
+    validate_non_empty(&query)?;
+    validate_text_size(&query, MAX_QUERY_BYTES)?;
 
     let namespace_id = namespace_id
         .map(|ns| normalize_and_validate_namespace_id(&ns))
-        .transpose()
-        .map_err(|e| e.to_string())?;
+        .transpose()?;
 
     let limit = limit.unwrap_or(10).min(100);
     let mut search_opts = SearchOptions::new(limit)
@@ -489,16 +531,16 @@ pub async fn search_kb_with_options(
     });
 
     let fts_results = {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-        let db = db_lock.as_ref().ok_or("Database not initialized")?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
         HybridSearch::fts_search_with_namespace(db, &query, ns_id.as_deref(), limit * 3)
-            .map_err(|e| e.to_string())?
+            .map_err(db_query_err)?
     };
 
     let vector_results = vector_handle.await.unwrap_or(None);
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let mut results = HybridSearch::fuse_results_with_options(
         db,
@@ -506,7 +548,7 @@ pub async fn search_kb_with_options(
         vector_results,
         search_opts.clone(),
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(db_query_err)?;
 
     results = HybridSearch::post_process_results(results, &search_opts);
     Ok(results)
@@ -518,7 +560,7 @@ pub async fn get_search_context(
     query: String,
     limit: Option<usize>,
     namespace_id: Option<String>,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     let results = search_kb(state, query, limit, namespace_id).await?;
     Ok(crate::kb::search::HybridSearch::format_context(&results))
 }
@@ -528,30 +570,30 @@ pub fn ingest_kb_from_disk(
     state: State<'_, AppState>,
     folder_path: String,
     namespace_id: String,
-) -> Result<DiskIngestResultResponse, String> {
+) -> Result<DiskIngestResultResponse, AppError> {
     use crate::kb::ingest::disk::DiskIngester;
     use std::path::Path;
 
-    let namespace_id =
-        normalize_and_validate_namespace_id(&namespace_id).map_err(|e| e.to_string())?;
+    let namespace_id = normalize_and_validate_namespace_id(&namespace_id)?;
 
     let validated_path = validate_within_home(Path::new(&folder_path)).map_err(|e| match e {
-        ValidationError::PathTraversal => "Folder must be within your home directory".to_string(),
-        ValidationError::InvalidFormat(msg) if msg.contains("sensitive") => {
-            "This directory cannot be used as it contains sensitive data".to_string()
+        ValidationError::PathTraversal => {
+            AppError::invalid_path("Folder must be within your home directory")
         }
-        _ => format!("Invalid folder path: {}", e),
+        ValidationError::InvalidFormat(msg) if msg.contains("sensitive") => {
+            AppError::sensitive_path()
+        }
+        _ => AppError::invalid_path(format!("Invalid folder path: {}", e)),
     })?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.ensure_namespace_exists(&namespace_id)
-        .map_err(|e| e.to_string())?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.ensure_namespace_exists(&namespace_id).map_err(db_query_err)?;
 
     let ingester = DiskIngester::new();
     let result = ingester
         .ingest_folder(db, &validated_path, &namespace_id)
-        .map_err(|e| e.to_string())?;
+        .map_err(db_query_err)?;
 
     Ok(DiskIngestResultResponse {
         total_files: result.total_files,
@@ -577,35 +619,32 @@ pub fn ingest_url(
     state: State<'_, AppState>,
     url: String,
     namespace_id: String,
-) -> Result<IngestResult, String> {
+) -> Result<IngestResult, AppError> {
     use crate::kb::ingest::web::{WebIngestConfig, WebIngester};
     use crate::kb::ingest::CancellationToken;
 
     if !network_ingest_enabled_by_policy() {
-        return Err(
-            "Network ingestion is disabled by policy. Set ASSISTSUPPORT_ENABLE_NETWORK_INGEST=1 and restart AssistSupport to enable."
-                .to_string(),
-        );
+        return Err(network_ingest_disabled_error());
     }
 
-    let namespace_id =
-        normalize_and_validate_namespace_id(&namespace_id).map_err(|e| e.to_string())?;
+    let namespace_id = normalize_and_validate_namespace_id(&namespace_id)?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.ensure_namespace_exists(&namespace_id)
-        .map_err(|e| e.to_string())?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.ensure_namespace_exists(&namespace_id).map_err(db_query_err)?;
 
     let config = WebIngestConfig::default();
     let cancel_token = CancellationToken::new();
 
     let result = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(async {
-            let ingester = WebIngester::new(config).await.map_err(|e| e.to_string())?;
+            let ingester = WebIngester::new(config)
+                .await
+                .map_err(|e| AppError::connection_failed(e.to_string()))?;
             ingester
                 .ingest_page(db, &url, &namespace_id, &cancel_token, None)
                 .await
-                .map_err(|e| e.to_string())
+                .map_err(|e| AppError::connection_failed(e.to_string()))
         })
     })?;
 
@@ -623,30 +662,29 @@ pub fn ingest_youtube(
     state: State<'_, AppState>,
     url: String,
     namespace_id: String,
-) -> Result<IngestResult, String> {
+) -> Result<IngestResult, AppError> {
     use crate::kb::ingest::youtube::{YouTubeIngestConfig, YouTubeIngester};
     use crate::kb::ingest::CancellationToken;
 
     if !network_ingest_enabled_by_policy() {
-        return Err(
-            "Network ingestion is disabled by policy. Set ASSISTSUPPORT_ENABLE_NETWORK_INGEST=1 and restart AssistSupport to enable."
-                .to_string(),
-        );
+        return Err(network_ingest_disabled_error());
     }
 
-    let namespace_id =
-        normalize_and_validate_namespace_id(&namespace_id).map_err(|e| e.to_string())?;
+    let namespace_id = normalize_and_validate_namespace_id(&namespace_id)?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.ensure_namespace_exists(&namespace_id)
-        .map_err(|e| e.to_string())?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.ensure_namespace_exists(&namespace_id).map_err(db_query_err)?;
 
     let config = YouTubeIngestConfig::default();
     let ingester = YouTubeIngester::new(config);
 
     if !ingester.check_ytdlp_available() {
-        return Err("yt-dlp not found. Install with: brew install yt-dlp".to_string());
+        return Err(AppError::new(
+            ErrorCode::INTERNAL_ERROR,
+            "yt-dlp not found. Install with: brew install yt-dlp",
+            ErrorCategory::Internal,
+        ));
     }
 
     let cancel_token = CancellationToken::new();
@@ -657,7 +695,7 @@ pub fn ingest_youtube(
                 .await
         })
     })
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| AppError::connection_failed(e.to_string()))?;
 
     Ok(IngestResult {
         document_id: result.id,
@@ -673,28 +711,26 @@ pub fn ingest_github(
     state: State<'_, AppState>,
     repo_path: String,
     namespace_id: String,
-) -> Result<Vec<IngestResult>, String> {
+) -> Result<Vec<IngestResult>, AppError> {
     use crate::kb::ingest::github::{GitHubIngestConfig, GitHubIngester};
     use crate::kb::ingest::CancellationToken;
     use std::path::Path;
 
-    let namespace_id =
-        normalize_and_validate_namespace_id(&namespace_id).map_err(|e| e.to_string())?;
+    let namespace_id = normalize_and_validate_namespace_id(&namespace_id)?;
 
     let validated_path = validate_within_home(Path::new(&repo_path)).map_err(|e| match e {
         ValidationError::PathTraversal => {
-            "Repository must be within your home directory".to_string()
+            AppError::invalid_path("Repository must be within your home directory")
         }
         ValidationError::InvalidFormat(msg) if msg.contains("sensitive") => {
-            "This directory cannot be used as it contains sensitive data".to_string()
+            AppError::sensitive_path()
         }
-        _ => format!("Invalid repository path: {}", e),
+        _ => AppError::invalid_path(format!("Invalid repository path: {}", e)),
     })?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.ensure_namespace_exists(&namespace_id)
-        .map_err(|e| e.to_string())?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.ensure_namespace_exists(&namespace_id).map_err(db_query_err)?;
 
     let config = GitHubIngestConfig::default();
     let ingester = GitHubIngester::new(config);
@@ -702,7 +738,7 @@ pub fn ingest_github(
 
     let results = ingester
         .ingest_local_repo(db, &validated_path, &namespace_id, &cancel_token, None)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::connection_failed(e.to_string()))?;
 
     Ok(results
         .into_iter()
@@ -721,29 +757,26 @@ pub fn ingest_github_remote(
     state: State<'_, AppState>,
     repo_url: String,
     namespace_id: String,
-) -> Result<Vec<IngestResult>, String> {
+) -> Result<Vec<IngestResult>, AppError> {
     use crate::kb::ingest::github::{parse_https_repo_url, GitHubIngestConfig, GitHubIngester};
     use crate::kb::ingest::CancellationToken;
 
     if !network_ingest_enabled_by_policy() {
-        return Err(
-            "Network ingestion is disabled by policy. Set ASSISTSUPPORT_ENABLE_NETWORK_INGEST=1 and restart AssistSupport to enable."
-                .to_string(),
-        );
+        return Err(network_ingest_disabled_error());
     }
 
-    let namespace_id =
-        normalize_and_validate_namespace_id(&namespace_id).map_err(|e| e.to_string())?;
+    let namespace_id = normalize_and_validate_namespace_id(&namespace_id)?;
 
-    let remote = parse_https_repo_url(&repo_url).map_err(|e| e.to_string())?;
+    let remote =
+        parse_https_repo_url(&repo_url).map_err(|e| AppError::invalid_url(e.to_string()))?;
     let host_key = normalize_github_host(&remote.host_port)?;
     let token_key = format!("{}{}", GITHUB_TOKEN_PREFIX, host_key);
-    let token = FileKeyStore::get_token(&token_key).map_err(|e| e.to_string())?;
+    // SecurityError -> AppError via `From` impl.
+    let token = FileKeyStore::get_token(&token_key)?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.ensure_namespace_exists(&namespace_id)
-        .map_err(|e| e.to_string())?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.ensure_namespace_exists(&namespace_id).map_err(db_query_err)?;
 
     let config = GitHubIngestConfig::default();
     let ingester = GitHubIngester::new(config);
@@ -758,7 +791,7 @@ pub fn ingest_github_remote(
             &cancel_token,
             None,
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::connection_failed(e.to_string()))?;
 
     Ok(results
         .into_iter()
@@ -776,7 +809,7 @@ pub fn ingest_github_remote(
 pub fn process_source_file(
     state: State<'_, AppState>,
     file_path: String,
-) -> Result<BatchIngestResult, String> {
+) -> Result<BatchIngestResult, AppError> {
     use crate::kb::ingest::batch::{BatchIngestConfig, BatchIngester};
     use crate::kb::ingest::CancellationToken;
     use crate::sources::SourceFile;
@@ -784,29 +817,30 @@ pub fn process_source_file(
 
     let path = Path::new(&file_path);
     if !path.exists() {
-        return Err(format!("Source file not found: {}", file_path));
+        return Err(AppError::file_not_found(&file_path));
     }
 
     let validated_path = validate_within_home(path).map_err(|e| match e {
         ValidationError::PathTraversal => {
-            "Source file must be within your home directory".to_string()
+            AppError::invalid_path("Source file must be within your home directory")
         }
         ValidationError::InvalidFormat(msg) if msg.contains("sensitive") => {
-            "This path is blocked because it contains sensitive data".to_string()
+            AppError::sensitive_path()
         }
-        _ => format!("Invalid source file path: {}", e),
+        _ => AppError::invalid_path(format!("Invalid source file path: {}", e)),
     })?;
 
     if !validated_path.is_file() {
-        return Err("Source file path is not a file".into());
+        return Err(AppError::invalid_path("Source file path is not a file"));
     }
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    let source_file = SourceFile::from_path(&validated_path).map_err(|e| e.to_string())?;
+    let source_file = SourceFile::from_path(&validated_path)
+        .map_err(|e| AppError::invalid_format(e.to_string()))?;
     db.ensure_namespace_exists(&source_file.namespace)
-        .map_err(|e| e.to_string())?;
+        .map_err(db_query_err)?;
 
     let sources: Vec<String> = source_file.enabled_sources().map(|s| s.uri.clone()).collect();
     let config = BatchIngestConfig::default();
@@ -817,8 +851,8 @@ pub fn process_source_file(
         tokio::runtime::Handle::current().block_on(async {
             let ingester = BatchIngester::new(config)
                 .await
-                .map_err(|e| e.to_string())?;
-            Ok::<_, String>(
+                .map_err(|e| AppError::connection_failed(e.to_string()))?;
+            Ok::<_, AppError>(
                 ingester
                     .ingest_from_strings(db, &sources, &namespace, &cancel_token, None)
                     .await,
@@ -851,19 +885,19 @@ pub fn process_source_file(
 }
 
 #[tauri::command]
-pub fn list_namespaces(state: State<'_, AppState>) -> Result<Vec<crate::db::Namespace>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.list_namespaces().map_err(|e| e.to_string())
+pub fn list_namespaces(state: State<'_, AppState>) -> Result<Vec<crate::db::Namespace>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.list_namespaces().map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn list_namespaces_with_counts(
     state: State<'_, AppState>,
-) -> Result<Vec<crate::db::NamespaceWithCounts>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.list_namespaces_with_counts().map_err(|e| e.to_string())
+) -> Result<Vec<crate::db::NamespaceWithCounts>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.list_namespaces_with_counts().map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -872,11 +906,11 @@ pub fn create_namespace(
     name: String,
     description: Option<String>,
     color: Option<String>,
-) -> Result<crate::db::Namespace, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<crate::db::Namespace, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.create_namespace(&name, description.as_deref(), color.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -884,58 +918,59 @@ pub fn rename_namespace(
     state: State<'_, AppState>,
     old_name: String,
     new_name: String,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.rename_namespace(&old_name, &new_name)
-        .map_err(|e| e.to_string())
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.rename_namespace(&old_name, &new_name).map_err(db_query_err)
 }
 
 #[tauri::command]
-pub async fn delete_namespace(state: State<'_, AppState>, name: String) -> Result<(), String> {
-    super::vector_runtime::purge_vectors_for_namespace(state.inner(), &name).await?;
+pub async fn delete_namespace(state: State<'_, AppState>, name: String) -> Result<(), AppError> {
+    super::vector_runtime::purge_vectors_for_namespace(state.inner(), &name)
+        .await
+        .map_err(vector_runtime_err)?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.delete_namespace(&name).map_err(|e| e.to_string())
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.delete_namespace(&name).map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn list_ingest_sources(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
-) -> Result<Vec<crate::db::IngestSource>, String> {
+) -> Result<Vec<crate::db::IngestSource>, AppError> {
     let namespace_id = namespace_id
         .map(|ns| normalize_and_validate_namespace_id(&ns))
-        .transpose()
-        .map_err(|e| e.to_string())?;
+        .transpose()?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.list_ingest_sources(namespace_id.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
-pub fn delete_ingest_source(state: State<'_, AppState>, source_id: String) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.delete_ingest_source(&source_id)
-        .map_err(|e| e.to_string())
+pub fn delete_ingest_source(
+    state: State<'_, AppState>,
+    source_id: String,
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.delete_ingest_source(&source_id).map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn get_source_health(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
-) -> Result<SourceHealthSummary, String> {
+) -> Result<SourceHealthSummary, AppError> {
     let namespace_id = namespace_id
         .map(|ns| normalize_and_validate_namespace_id(&ns))
-        .transpose()
-        .map_err(|e| e.to_string())?;
+        .transpose()?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let sql = r#"
         SELECT
@@ -959,7 +994,7 @@ pub fn get_source_health(
         ORDER BY s.updated_at DESC
     "#;
 
-    let mut stmt = db.conn().prepare(sql).map_err(|e| e.to_string())?;
+    let mut stmt = db.conn().prepare(sql).map_err(db_query_err)?;
     let rows = stmt
         .query_map([namespace_id], |row| {
             Ok(SourceHealth {
@@ -974,7 +1009,7 @@ pub fn get_source_health(
                 days_since_refresh: row.get(8)?,
             })
         })
-        .map_err(|e| e.to_string())?;
+        .map_err(db_query_err)?;
 
     let sources: Vec<SourceHealth> = rows.filter_map(|r| r.ok()).collect();
     let mut summary = SourceHealthSummary {
@@ -1000,19 +1035,21 @@ pub fn get_source_health(
 }
 
 #[tauri::command]
-pub fn retry_source(state: State<'_, AppState>, source_id: String) -> Result<IngestResult, String> {
+pub fn retry_source(
+    state: State<'_, AppState>,
+    source_id: String,
+) -> Result<IngestResult, AppError> {
     let source = {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-        let db = db_lock.as_ref().ok_or("Database not initialized")?;
-        db.get_ingest_source(&source_id)
-            .map_err(|e| e.to_string())?
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+        db.get_ingest_source(&source_id).map_err(db_query_err)?
     };
 
     {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-        let db = db_lock.as_ref().ok_or("Database not initialized")?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
         db.update_ingest_source_status(&source_id, "pending", None)
-            .map_err(|e| e.to_string())?;
+            .map_err(db_query_err)?;
     }
 
     match source.source_type.as_str() {
@@ -1029,7 +1066,10 @@ pub fn retry_source(state: State<'_, AppState>, source_id: String) -> Result<Ing
                 word_count: results.iter().map(|r| r.word_count).sum(),
             })
         }
-        _ => Err(format!("Unknown source type: {}", source.source_type)),
+        _ => Err(AppError::invalid_format(format!(
+            "Unknown source type: {}",
+            source.source_type
+        ))),
     }
 }
 
@@ -1037,9 +1077,9 @@ pub fn retry_source(state: State<'_, AppState>, source_id: String) -> Result<Ing
 pub fn mark_stale_sources(
     state: State<'_, AppState>,
     days_threshold: Option<u32>,
-) -> Result<u32, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<u32, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let days = days_threshold.unwrap_or(7) as i64;
     let sql = r#"
@@ -1050,7 +1090,7 @@ pub fn mark_stale_sources(
         AND julianday('now') - julianday(last_ingested_at) > ?
     "#;
 
-    let count = db.conn().execute(sql, [days]).map_err(|e| e.to_string())?;
+    let count = db.conn().execute(sql, [days]).map_err(db_query_err)?;
     Ok(count as u32)
 }
 
@@ -1058,9 +1098,9 @@ pub fn mark_stale_sources(
 pub fn get_document_chunks(
     state: State<'_, AppState>,
     document_id: String,
-) -> Result<Vec<DocumentChunk>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<DocumentChunk>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let chunks: Vec<DocumentChunk> = db
         .conn()
@@ -1068,7 +1108,7 @@ pub fn get_document_chunks(
             "SELECT id, chunk_index, heading_path, content, word_count
              FROM kb_chunks WHERE document_id = ? ORDER BY chunk_index",
         )
-        .map_err(|e| e.to_string())?
+        .map_err(db_query_err)?
         .query_map([&document_id], |row| {
             Ok(DocumentChunk {
                 id: row.get(0)?,
@@ -1078,9 +1118,9 @@ pub fn get_document_chunks(
                 word_count: row.get(4)?,
             })
         })
-        .map_err(|e| e.to_string())?
+        .map_err(db_query_err)?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
+        .map_err(db_query_err)?;
 
     Ok(chunks)
 }
@@ -1089,14 +1129,16 @@ pub fn get_document_chunks(
 pub async fn delete_kb_document(
     state: State<'_, AppState>,
     document_id: String,
-) -> Result<(), String> {
-    purge_vectors_for_document(state.inner(), &document_id).await?;
+) -> Result<(), AppError> {
+    purge_vectors_for_document(state.inner(), &document_id)
+        .await
+        .map_err(vector_runtime_err)?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.conn()
         .execute("DELETE FROM kb_documents WHERE id = ?", [&document_id])
-        .map_err(|e| e.to_string())?;
+        .map_err(db_query_err)?;
 
     Ok(())
 }
@@ -1105,50 +1147,56 @@ pub async fn delete_kb_document(
 pub async fn clear_knowledge_data(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let namespace_id = namespace_id
         .map(|ns| normalize_and_validate_namespace_id(&ns))
-        .transpose()
-        .map_err(|e| e.to_string())?;
+        .transpose()?;
 
     match namespace_id {
         Some(ns) => {
-            super::vector_runtime::purge_vectors_for_namespace(state.inner(), &ns).await?;
+            super::vector_runtime::purge_vectors_for_namespace(state.inner(), &ns)
+                .await
+                .map_err(vector_runtime_err)?;
 
-            let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-            let db = db_lock.as_ref().ok_or("Database not initialized")?;
+            let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+            let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
             db.conn()
                 .execute("DELETE FROM kb_documents WHERE namespace_id = ?", [&ns])
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
             db.conn()
                 .execute("DELETE FROM ingest_sources WHERE namespace_id = ?", [&ns])
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
         }
         None => {
-            super::vector_runtime::ensure_vector_store_initialized(state.inner()).await?;
+            super::vector_runtime::ensure_vector_store_initialized(state.inner())
+                .await
+                .map_err(vector_runtime_err)?;
             {
                 let mut vectors_lock = state.vectors.write().await;
                 if let Some(store) = vectors_lock.as_mut() {
-                    store.reset_table().await.map_err(|e| e.to_string())?;
+                    store
+                        .reset_table()
+                        .await
+                        .map_err(|e| AppError::internal(e.to_string()))?;
                 }
             }
 
-            let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-            let db = db_lock.as_ref().ok_or("Database not initialized")?;
+            let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+            let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
             db.conn()
                 .execute("DELETE FROM kb_chunks", [])
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
             db.conn()
                 .execute("DELETE FROM kb_documents", [])
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
             db.conn()
                 .execute("DELETE FROM ingest_runs", [])
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
             db.conn()
                 .execute("DELETE FROM ingest_sources", [])
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
             db.set_vector_store_version(CURRENT_VECTOR_STORE_VERSION)
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
         }
     }
 
@@ -1156,7 +1204,7 @@ pub async fn clear_knowledge_data(
 }
 
 #[tauri::command]
-pub fn check_ytdlp_available() -> Result<bool, String> {
+pub fn check_ytdlp_available() -> Result<bool, AppError> {
     use std::process::Command;
 
     Ok(Command::new("yt-dlp")
@@ -1170,12 +1218,11 @@ pub fn check_ytdlp_available() -> Result<bool, String> {
 pub fn list_document_versions(
     state: State<'_, AppState>,
     document_id: String,
-) -> Result<Vec<crate::db::DocumentVersion>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<crate::db::DocumentVersion>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    db.list_document_versions(&document_id)
-        .map_err(|e| e.to_string())
+    db.list_document_versions(&document_id).map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -1183,12 +1230,12 @@ pub fn rollback_document(
     state: State<'_, AppState>,
     document_id: String,
     version_id: String,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     db.rollback_document(&document_id, &version_id)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -1196,12 +1243,12 @@ pub fn update_source_trust(
     state: State<'_, AppState>,
     source_id: String,
     trust_score: f64,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     db.update_source_trust(&source_id, trust_score)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -1209,12 +1256,11 @@ pub fn set_source_pinned(
     state: State<'_, AppState>,
     source_id: String,
     pinned: bool,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    db.set_source_pinned(&source_id, pinned)
-        .map_err(|e| e.to_string())
+    db.set_source_pinned(&source_id, pinned).map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -1222,24 +1268,24 @@ pub fn set_source_review_status(
     state: State<'_, AppState>,
     source_id: String,
     status: String,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     db.set_source_review_status(&source_id, &status)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn get_stale_sources(
     state: State<'_, AppState>,
     namespace_id: Option<String>,
-) -> Result<Vec<crate::db::IngestSource>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<crate::db::IngestSource>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     db.get_stale_sources(namespace_id.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -1250,12 +1296,11 @@ pub fn add_namespace_rule(
     pattern_type: String,
     pattern: String,
     reason: Option<String>,
-) -> Result<String, String> {
-    let namespace_id =
-        normalize_and_validate_namespace_id(&namespace_id).map_err(|e| e.to_string())?;
+) -> Result<String, AppError> {
+    let namespace_id = normalize_and_validate_namespace_id(&namespace_id)?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     db.add_namespace_rule(
         &namespace_id,
@@ -1264,31 +1309,31 @@ pub fn add_namespace_rule(
         &pattern,
         reason.as_deref(),
     )
-    .map_err(|e| e.to_string())
+    .map_err(db_query_err)
 }
 
 #[tauri::command]
-pub fn delete_namespace_rule(state: State<'_, AppState>, rule_id: String) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+pub fn delete_namespace_rule(
+    state: State<'_, AppState>,
+    rule_id: String,
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    db.delete_namespace_rule(&rule_id)
-        .map_err(|e| e.to_string())
+    db.delete_namespace_rule(&rule_id).map_err(db_query_err)
 }
 
 #[tauri::command]
 pub fn list_namespace_rules(
     state: State<'_, AppState>,
     namespace_id: String,
-) -> Result<Vec<crate::db::NamespaceRule>, String> {
-    let namespace_id =
-        normalize_and_validate_namespace_id(&namespace_id).map_err(|e| e.to_string())?;
+) -> Result<Vec<crate::db::NamespaceRule>, AppError> {
+    let namespace_id = normalize_and_validate_namespace_id(&namespace_id)?;
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    db.list_namespace_rules(&namespace_id)
-        .map_err(|e| e.to_string())
+    db.list_namespace_rules(&namespace_id).map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -1296,31 +1341,25 @@ pub async fn update_chunk_content(
     state: State<'_, AppState>,
     chunk_id: String,
     content: String,
-) -> Result<(), String> {
-    validate_non_empty(&content).map_err(|e| e.to_string())?;
-    validate_text_size(&content, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+) -> Result<(), AppError> {
+    validate_non_empty(&content)?;
+    validate_text_size(&content, MAX_TEXT_INPUT_BYTES)?;
 
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     db.update_chunk_content(&chunk_id, &content)
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
 pub async fn get_kb_health_stats(
     state: State<'_, AppState>,
-) -> Result<crate::db::KbHealthStats, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<crate::db::KbHealthStats, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    db.get_kb_health_stats().map_err(|e| e.to_string())
+    db.get_kb_health_stats().map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -1328,15 +1367,12 @@ pub async fn mark_document_reviewed(
     state: State<'_, AppState>,
     document_id: String,
     reviewed_by: Option<String>,
-) -> Result<(), String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     db.mark_document_reviewed(&document_id, reviewed_by.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
 
 #[tauri::command]
@@ -1344,13 +1380,10 @@ pub async fn get_documents_needing_review(
     state: State<'_, AppState>,
     stale_days: Option<i64>,
     limit: Option<usize>,
-) -> Result<Vec<crate::db::DocumentReviewInfo>, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<crate::db::DocumentReviewInfo>, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     db.get_documents_needing_review(stale_days.unwrap_or(30), limit.unwrap_or(50))
-        .map_err(|e| e.to_string())
+        .map_err(db_query_err)
 }
