@@ -5,23 +5,37 @@ import {
   useImperativeHandle,
   useMemo,
 } from "react";
+import { buildDiagnosisJson as buildDiagnosisJsonImpl } from "./buildDiagnosisJson";
+import {
+  type DraftPanelDensityMode,
+  DEFAULT_RUNBOOK_TEMPLATES,
+  DRAFT_PANEL_DENSITY_STORAGE_KEY,
+  WORKSPACE_PERSONALIZATION_STORAGE_KEY,
+  createWorkspaceRunbookScopeKey,
+  loadWorkspacePersonalization,
+  readPanelDensityMode,
+} from "./draftTabDefaults";
 import { auditResponseCopyOverride, exportDraft } from "./draftTauriCommands";
 import { DraftResponsePanel } from "./DraftResponsePanel";
 import { InputPanel } from "./InputPanel";
 import { DiagnosisPanel, TreeResult } from "./DiagnosisPanel";
-import { ConversationThread, ConversationEntry } from "./ConversationThread";
+import { ConversationThread } from "./ConversationThread";
+import type { ConversationEntry } from "./ConversationThread";
 import { useDraftApproval } from "./useDraftApproval";
 import { useDraftChecklist } from "./useDraftChecklist";
+import { useDraftClear } from "./useDraftClear";
 import { useDraftFirstResponse } from "./useDraftFirstResponse";
 import { useDraftGeneration } from "./useDraftGeneration";
 import { useDraftIntake } from "./useDraftIntake";
 import { useDraftLifecycle } from "./useDraftLifecycle";
 import { useDraftPersistence } from "./useDraftPersistence";
 import { useGuidedRunbook } from "./useGuidedRunbook";
+import { useNextActionHandler } from "./useNextActionHandler";
 import { useResponseActions } from "./useResponseActions";
 import { useWorkspaceArtifacts } from "./useWorkspaceArtifacts";
 import { useWorkspaceClipboardPacks } from "./useWorkspaceClipboardPacks";
 import { ConversationInput } from "./ConversationInput";
+import { useConversationSubmit } from "./useConversationSubmit";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 import { WorkspaceModeShell } from "./WorkspaceModeShell";
 import { WorkspacePanels } from "./WorkspacePanels";
@@ -43,10 +57,6 @@ import { useWorkspaceCatalog } from "../../features/workspace/useWorkspaceCatalo
 import { useWorkspaceDerivedArtifacts } from "../../features/workspace/useWorkspaceDerivedArtifacts";
 import { useWorkspaceCommandBridge } from "../../features/workspace/useWorkspaceCommandBridge";
 import { useWorkspaceDraftState } from "../../features/workspace/useWorkspaceDraftState";
-import {
-  compactLines,
-  parseCaseIntake,
-} from "../../features/workspace/workspaceAssistant";
 import { countWords } from "../../features/analytics/qualityMetrics";
 import type { JiraTicket } from "../../hooks/useJira";
 import type {
@@ -56,8 +66,6 @@ import type {
 } from "../../types/llm";
 import type { ContextSource } from "../../types/knowledge";
 import type {
-  GuidedRunbookTemplate,
-  NextActionRecommendation,
   ResponseLength,
   SavedDraft,
   SimilarCase,
@@ -79,103 +87,6 @@ interface DraftTabProps {
   initialDraft?: SavedDraft | null;
   onNavigateToSource?: (searchQuery: string) => void;
   revampModeEnabled?: boolean;
-}
-
-type DraftPanelDensityMode = "balanced" | "focus-intake" | "focus-response";
-
-const DRAFT_PANEL_DENSITY_STORAGE_KEY = "draft-panel-density-mode";
-const WORKSPACE_PERSONALIZATION_STORAGE_KEY =
-  "assistsupport.workspace.personalization.v1";
-
-const DEFAULT_WORKSPACE_PERSONALIZATION: WorkspacePersonalization = {
-  preferred_note_audience: "internal-note",
-  preferred_output_length: "Medium",
-  favorite_queue_view: "all",
-  default_evidence_format: "clipboard",
-};
-
-const DEFAULT_RUNBOOK_TEMPLATES: Array<Omit<GuidedRunbookTemplate, "id">> = [
-  {
-    name: "Security Incident",
-    scenario: "security-incident",
-    steps: [
-      "Acknowledge the incident",
-      "Confirm scope and impacted users",
-      "Contain access or affected systems",
-      "Notify stakeholders",
-      "Prepare escalation or recovery note",
-    ],
-  },
-  {
-    name: "Access Request Review",
-    scenario: "access-request",
-    steps: [
-      "Confirm requester identity",
-      "Check policy or entitlement path",
-      "Verify required approver",
-      "Document evidence and approval state",
-      "Communicate approved or denied outcome",
-    ],
-  },
-  {
-    name: "Device Troubleshooting",
-    scenario: "device-troubleshooting",
-    steps: [
-      "Capture symptoms and environment",
-      "Verify recent changes",
-      "Run standard checks or reboot path",
-      "Collect logs or screenshots",
-      "Escalate with evidence if unresolved",
-    ],
-  },
-];
-
-function loadWorkspacePersonalization(): WorkspacePersonalization {
-  if (typeof window === "undefined") {
-    return DEFAULT_WORKSPACE_PERSONALIZATION;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(
-      WORKSPACE_PERSONALIZATION_STORAGE_KEY,
-    );
-    if (!raw) {
-      return DEFAULT_WORKSPACE_PERSONALIZATION;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<WorkspacePersonalization>;
-    return {
-      preferred_note_audience:
-        parsed.preferred_note_audience ??
-        DEFAULT_WORKSPACE_PERSONALIZATION.preferred_note_audience,
-      preferred_output_length:
-        parsed.preferred_output_length ??
-        DEFAULT_WORKSPACE_PERSONALIZATION.preferred_output_length,
-      favorite_queue_view:
-        parsed.favorite_queue_view ??
-        DEFAULT_WORKSPACE_PERSONALIZATION.favorite_queue_view,
-      default_evidence_format:
-        parsed.default_evidence_format ??
-        DEFAULT_WORKSPACE_PERSONALIZATION.default_evidence_format,
-    };
-  } catch {
-    return DEFAULT_WORKSPACE_PERSONALIZATION;
-  }
-}
-
-function createWorkspaceScopeSeed(): string {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-
-  return `workspace-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function createWorkspaceRunbookScopeKey(): string {
-  return `workspace:${createWorkspaceScopeSeed()}`;
 }
 
 export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
@@ -296,17 +207,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       );
     });
     const [panelDensityMode, setPanelDensityMode] =
-      useState<DraftPanelDensityMode>(() => {
-        const stored = localStorage.getItem(DRAFT_PANEL_DENSITY_STORAGE_KEY);
-        if (
-          stored === "balanced" ||
-          stored === "focus-intake" ||
-          stored === "focus-response"
-        ) {
-          return stored;
-        }
-        return "balanced";
-      });
+      useState<DraftPanelDensityMode>(readPanelDensityMode);
     const [conversationEntries, setConversationEntries] = useState<
       ConversationEntry[]
     >([]);
@@ -505,7 +406,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
           return next;
         });
       },
-      [savedDraftId],
+      [savedDraftId, setCaseIntake],
     );
 
     const {
@@ -557,44 +458,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setSuggestionsDismissed(true);
     }, []);
 
-    const handleClear = useCallback(() => {
-      setInput("");
-      setOcrText(null);
-      setDiagnosticNotes("");
-      setTreeResult(null);
-      resetChecklist();
-      resetFirstResponse();
-      resetApproval();
-      setResponse("");
-      setOriginalResponse("");
-      setIsResponseEdited(false);
-      setSources([]);
-      setMetrics(null);
-      setConfidence(null);
-      setGrounding([]);
-      setCurrentTicketId(null);
-      setCurrentTicket(null);
-      setSavedDraftId(null);
-      setSavedDraftCreatedAt(null);
-      setConversationEntries([]);
-      setHandoffTouched(false);
-      resetResponseActions();
-      setSuggestionsDismissed(false);
-      setCaseIntake({
-        ...parseCaseIntake(null),
-        note_audience: workspacePersonalization.preferred_note_audience,
-      });
-      resetWorkspaceArtifacts();
-      setGuidedRunbookSession(null);
-      setGuidedRunbookNote("");
-      setRunbookSessionSourceScopeKey(null);
-      setRunbookSessionTouched(false);
-      setAutosaveDraftId(null);
-      setPendingSimilarCaseOpen(null);
-      setWorkspaceRunbookScopeKey(createWorkspaceRunbookScopeKey());
-      resetGeneration();
-    }, [workspacePersonalization.preferred_note_audience, resetGeneration]);
-
     const handleTreeComplete = useCallback((result: TreeResult) => {
       setTreeResult(result);
     }, []);
@@ -619,131 +482,57 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       [],
     );
 
-    const handleConversationSubmit = useCallback(
-      async (text: string) => {
-        if (!modelLoaded) return;
+    const handleConversationSubmit = useConversationSubmit({
+      modelLoaded,
+      responseLength,
+      generateStreaming,
+      clearStreamingText,
+      setConversationEntries,
+      setInput,
+      setGenerating,
+      setResponse,
+      setOriginalResponse,
+      setIsResponseEdited,
+      setSources,
+      setConfidence,
+      setGrounding,
+    });
 
-        // Add input entry
-        const inputEntry: ConversationEntry = {
-          id: crypto.randomUUID(),
-          type: "input",
-          timestamp: new Date().toISOString(),
-          content: text,
-        };
-        setConversationEntries((prev) => [...prev, inputEntry]);
-        setInput(text);
-
-        // Generate
-        setGenerating(true);
-        setResponse("");
-        clearStreamingText();
-        setConfidence(null);
-        setGrounding([]);
-        try {
-          const result = await generateStreaming(text, responseLength, {});
-          setResponse(result.text);
-          setOriginalResponse(result.text);
-          setIsResponseEdited(false);
-          setSources(result.sources);
-          setConfidence(result.confidence ?? null);
-          setGrounding(result.grounding ?? []);
-
-          // Add response entry
-          const responseEntry: ConversationEntry = {
-            id: crypto.randomUUID(),
-            type: "response",
-            timestamp: new Date().toISOString(),
-            content: result.text,
-            sources: result.sources,
-            metrics: result.metrics
-              ? {
-                  tokens_per_second: result.metrics.tokens_per_second,
-                  sources_used: result.metrics.sources_used,
-                  word_count: result.metrics.word_count,
-                }
-              : undefined,
-          };
-          setConversationEntries((prev) => [...prev, responseEntry]);
-        } catch (e) {
-          console.error("Generation failed:", e);
-        } finally {
-          setGenerating(false);
-        }
-      },
-      [modelLoaded, responseLength, generateStreaming, clearStreamingText],
+    const buildDiagnosisJson = useCallback(
+      () =>
+        buildDiagnosisJsonImpl({
+          checklistItems,
+          checklistCompleted,
+          firstResponse,
+          firstResponseTone,
+          approvalQuery,
+          approvalSummary,
+          approvalSources,
+          diagnosticNotes,
+          treeResult,
+          confidence,
+          grounding,
+          guidedRunbookNote,
+          savedDraftId,
+          savedDraftCreatedAt,
+        }),
+      [
+        checklistCompleted,
+        checklistItems,
+        firstResponse,
+        firstResponseTone,
+        approvalQuery,
+        approvalSummary,
+        approvalSources,
+        diagnosticNotes,
+        treeResult,
+        confidence,
+        grounding,
+        guidedRunbookNote,
+        savedDraftCreatedAt,
+        savedDraftId,
+      ],
     );
-
-    const buildDiagnosisJson = useCallback(() => {
-      const completedIds = Object.keys(checklistCompleted).filter(
-        (id) => checklistCompleted[id],
-      );
-      const checklistState =
-        checklistItems.length > 0
-          ? { items: checklistItems, completed_ids: completedIds }
-          : null;
-      const firstResponseState = firstResponse.trim()
-        ? { text: firstResponse, tone: firstResponseTone }
-        : null;
-      const approvalState =
-        approvalQuery.trim() ||
-        approvalSummary.trim() ||
-        approvalSources.length > 0
-          ? {
-              query: approvalQuery,
-              summary: approvalSummary,
-              sources: approvalSources,
-            }
-          : null;
-      const trustState =
-        confidence || grounding.length > 0 ? { confidence, grounding } : null;
-
-      const diagnosisData: Record<string, unknown> = {};
-      if (diagnosticNotes.trim()) {
-        diagnosisData.notes = diagnosticNotes;
-      }
-      if (treeResult) {
-        diagnosisData.treeResult = treeResult;
-      }
-      if (checklistState) {
-        diagnosisData.checklist = checklistState;
-      }
-      if (firstResponseState) {
-        diagnosisData.firstResponse = firstResponseState;
-      }
-      if (approvalState) {
-        diagnosisData.approval = approvalState;
-      }
-      if (trustState) {
-        diagnosisData.trust = trustState;
-      }
-      if (savedDraftId) {
-        diagnosisData.workspaceSavedDraftId = savedDraftId;
-        diagnosisData.workspaceSavedDraftCreatedAt =
-          savedDraftCreatedAt ?? new Date().toISOString();
-      }
-      if (guidedRunbookNote.trim()) {
-        diagnosisData.guidedRunbookDraftNote = guidedRunbookNote;
-      }
-
-      return Object.keys(diagnosisData).length > 0
-        ? JSON.stringify(diagnosisData)
-        : null;
-    }, [
-      checklistCompleted,
-      checklistItems,
-      firstResponse,
-      firstResponseTone,
-      approvalQuery,
-      approvalSummary,
-      approvalSources,
-      diagnosticNotes,
-      treeResult,
-      confidence,
-      grounding,
-      guidedRunbookNote,
-      savedDraftCreatedAt,
-      savedDraftId,
-    ]);
 
     const {
       handoffPack,
@@ -906,6 +695,42 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
         onShowError: showError,
       });
 
+    const handleClear = useDraftClear({
+      preferredNoteAudience: workspacePersonalization.preferred_note_audience,
+      setInput,
+      setOcrText,
+      setDiagnosticNotes,
+      setTreeResult,
+      setResponse,
+      setOriginalResponse,
+      setIsResponseEdited,
+      setSources,
+      setMetrics,
+      setConfidence,
+      setGrounding,
+      setCurrentTicketId,
+      setCurrentTicket,
+      setSavedDraftId,
+      setSavedDraftCreatedAt,
+      setConversationEntries,
+      setHandoffTouched,
+      setSuggestionsDismissed,
+      setCaseIntake,
+      setGuidedRunbookSession,
+      setGuidedRunbookNote,
+      setRunbookSessionSourceScopeKey,
+      setRunbookSessionTouched,
+      setAutosaveDraftId,
+      setPendingSimilarCaseOpen,
+      setWorkspaceRunbookScopeKey,
+      resetChecklist,
+      resetFirstResponse,
+      resetApproval,
+      resetResponseActions,
+      resetWorkspaceArtifacts,
+      resetGeneration,
+    });
+
     const loadSimilarCaseIntoWorkspace = useCallback(
       async (similarCase: SimilarCase) => {
         const fullDraft = await getDraft(similarCase.draft_id);
@@ -947,92 +772,24 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       ],
     );
 
-    const handleAcceptNextAction = useCallback(
-      (action: NextActionRecommendation) => {
-        void logEvent("workspace_next_action_accepted", {
-          ticket_id: currentTicketId,
-          action_kind: action.kind,
-          action_id: action.id,
-        });
-
-        if (action.kind === "answer") {
-          void handleGenerate();
-          return;
-        }
-
-        if (action.kind === "clarify") {
-          const clarifyPrompt = compactLines([
-            diagnosticNotes,
-            "Clarifying questions to ask:",
-            ...missingQuestions.map((question) => `- ${question.question}`),
-          ]);
-          setDiagnosticNotes(clarifyPrompt);
-          setPanelDensityMode("focus-intake");
-          showSuccess("Added clarifying questions to the diagnostic notes");
-          return;
-        }
-
-        if (action.kind === "approval") {
-          const querySeed = compactLines([
-            caseIntake.issue,
-            currentTicket?.summary,
-            input,
-          ]);
-          setApprovalQuery(`${querySeed || "support request"} policy approval`);
-          setPanelDensityMode("focus-intake");
-          showSuccess("Primed the approval search query");
-          return;
-        }
-
-        if (action.kind === "runbook") {
-          setPanelDensityMode("focus-intake");
-          setDiagnosticNotes((prev) =>
-            compactLines([
-              prev,
-              "Runbook kickoff:",
-              `- ${action.rationale}`,
-              ...action.prerequisites.map((item) => `- ${item}`),
-            ]),
-          );
-          const incidentTemplate = runbookTemplates.find((template) =>
-            /incident|security/i.test(`${template.name} ${template.scenario}`),
-          );
-          if (incidentTemplate) {
-            void handleStartGuidedRunbook(incidentTemplate.id);
-          }
-          showSuccess("Prepared the workspace for guided runbook steps");
-          return;
-        }
-
-        if (action.kind === "escalate") {
-          setCaseIntake((prev) => ({
-            ...prev,
-            note_audience: "escalation-note",
-          }));
-          setDiagnosticNotes((prev) =>
-            compactLines([prev, "Escalation focus:", `- ${action.rationale}`]),
-          );
-          showSuccess("Switched the workspace into escalation-note mode");
-          return;
-        }
-
-        void handleCopyKbDraft();
-      },
-      [
-        logEvent,
-        currentTicketId,
-        handleGenerate,
-        diagnosticNotes,
-        missingQuestions,
-        showSuccess,
-        caseIntake.issue,
-        currentTicket?.summary,
-        input,
-        runbookTemplates,
-        handleStartGuidedRunbook,
-        handleCopyKbDraft,
-      ],
-    );
+    const handleAcceptNextAction = useNextActionHandler({
+      currentTicketId,
+      currentTicketSummary: currentTicket?.summary,
+      diagnosticNotes,
+      input,
+      caseIntakeIssue: caseIntake.issue,
+      missingQuestions,
+      runbookTemplates,
+      setDiagnosticNotes,
+      setPanelDensityMode,
+      setApprovalQuery,
+      setCaseIntake,
+      handleGenerate,
+      handleStartGuidedRunbook,
+      handleCopyKbDraft,
+      logEvent,
+      onShowSuccess: showSuccess,
+    });
 
     useWorkspaceCommandBridge({
       enabled: workspaceRailEnabled,
