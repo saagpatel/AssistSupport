@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
-import { type DraftTabHandle } from "../../components/Draft/DraftTab";
-import { WorkspaceRevampPage } from "./WorkspaceRevampPage";
+import { DraftTab, type DraftTabHandle } from "../../components/Draft/DraftTab";
+import "./WorkspacePage.css";
+import "../../styles/revamp/index.css";
 
 interface WorkspacePageProps {
   onNavigateToSource: (searchQuery: string) => void;
@@ -9,7 +10,15 @@ interface WorkspacePageProps {
 export const WorkspacePage = forwardRef<DraftTabHandle, WorkspacePageProps>(
   function WorkspacePage({ onNavigateToSource }, ref) {
     return (
-      <WorkspaceRevampPage ref={ref} onNavigateToSource={onNavigateToSource} />
+      <div className="workspace-page" data-testid="workspace-page">
+        <section className="workspace-page__main">
+          <DraftTab
+            ref={ref}
+            onNavigateToSource={onNavigateToSource}
+            revampModeEnabled
+          />
+        </section>
+      </div>
     );
   },
 );

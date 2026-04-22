@@ -204,17 +204,3 @@ export function resolveRevampFlags({
     },
   );
 }
-
-export function getEnabledRevampFlags(flags: RevampFlags): RevampFlagId[] {
-  // "Revamp enabled" is used for preview-mode messaging. Keep this narrowly scoped
-  // to actual revamp / routing toggles, not general feature policy flags.
-  const revampScoped: RevampFlagId[] = (
-    Object.keys(flags) as RevampFlagId[]
-  ).filter((flagId) => {
-    return (
-      flagId.startsWith("ASSISTSUPPORT_REVAMP_") ||
-      flagId === "ASSISTSUPPORT_LLM_ROUTER_V2"
-    );
-  });
-  return revampScoped.filter((flagId) => flags[flagId]);
-}
