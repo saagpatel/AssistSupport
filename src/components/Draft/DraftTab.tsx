@@ -5,6 +5,16 @@ import {
   useImperativeHandle,
   useMemo,
 } from "react";
+import { buildDiagnosisJson as buildDiagnosisJsonImpl } from "./buildDiagnosisJson";
+import {
+  type DraftPanelDensityMode,
+  DEFAULT_RUNBOOK_TEMPLATES,
+  DRAFT_PANEL_DENSITY_STORAGE_KEY,
+  WORKSPACE_PERSONALIZATION_STORAGE_KEY,
+  createWorkspaceRunbookScopeKey,
+  loadWorkspacePersonalization,
+  readPanelDensityMode,
+} from "./draftTabDefaults";
 import { auditResponseCopyOverride, exportDraft } from "./draftTauriCommands";
 import { DraftResponsePanel } from "./DraftResponsePanel";
 import { InputPanel } from "./InputPanel";
@@ -56,7 +66,6 @@ import type {
 } from "../../types/llm";
 import type { ContextSource } from "../../types/knowledge";
 import type {
-  GuidedRunbookTemplate,
   NextActionRecommendation,
   ResponseLength,
   SavedDraft,
@@ -79,103 +88,6 @@ interface DraftTabProps {
   initialDraft?: SavedDraft | null;
   onNavigateToSource?: (searchQuery: string) => void;
   revampModeEnabled?: boolean;
-}
-
-type DraftPanelDensityMode = "balanced" | "focus-intake" | "focus-response";
-
-const DRAFT_PANEL_DENSITY_STORAGE_KEY = "draft-panel-density-mode";
-const WORKSPACE_PERSONALIZATION_STORAGE_KEY =
-  "assistsupport.workspace.personalization.v1";
-
-const DEFAULT_WORKSPACE_PERSONALIZATION: WorkspacePersonalization = {
-  preferred_note_audience: "internal-note",
-  preferred_output_length: "Medium",
-  favorite_queue_view: "all",
-  default_evidence_format: "clipboard",
-};
-
-const DEFAULT_RUNBOOK_TEMPLATES: Array<Omit<GuidedRunbookTemplate, "id">> = [
-  {
-    name: "Security Incident",
-    scenario: "security-incident",
-    steps: [
-      "Acknowledge the incident",
-      "Confirm scope and impacted users",
-      "Contain access or affected systems",
-      "Notify stakeholders",
-      "Prepare escalation or recovery note",
-    ],
-  },
-  {
-    name: "Access Request Review",
-    scenario: "access-request",
-    steps: [
-      "Confirm requester identity",
-      "Check policy or entitlement path",
-      "Verify required approver",
-      "Document evidence and approval state",
-      "Communicate approved or denied outcome",
-    ],
-  },
-  {
-    name: "Device Troubleshooting",
-    scenario: "device-troubleshooting",
-    steps: [
-      "Capture symptoms and environment",
-      "Verify recent changes",
-      "Run standard checks or reboot path",
-      "Collect logs or screenshots",
-      "Escalate with evidence if unresolved",
-    ],
-  },
-];
-
-function loadWorkspacePersonalization(): WorkspacePersonalization {
-  if (typeof window === "undefined") {
-    return DEFAULT_WORKSPACE_PERSONALIZATION;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(
-      WORKSPACE_PERSONALIZATION_STORAGE_KEY,
-    );
-    if (!raw) {
-      return DEFAULT_WORKSPACE_PERSONALIZATION;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<WorkspacePersonalization>;
-    return {
-      preferred_note_audience:
-        parsed.preferred_note_audience ??
-        DEFAULT_WORKSPACE_PERSONALIZATION.preferred_note_audience,
-      preferred_output_length:
-        parsed.preferred_output_length ??
-        DEFAULT_WORKSPACE_PERSONALIZATION.preferred_output_length,
-      favorite_queue_view:
-        parsed.favorite_queue_view ??
-        DEFAULT_WORKSPACE_PERSONALIZATION.favorite_queue_view,
-      default_evidence_format:
-        parsed.default_evidence_format ??
-        DEFAULT_WORKSPACE_PERSONALIZATION.default_evidence_format,
-    };
-  } catch {
-    return DEFAULT_WORKSPACE_PERSONALIZATION;
-  }
-}
-
-function createWorkspaceScopeSeed(): string {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-
-  return `workspace-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function createWorkspaceRunbookScopeKey(): string {
-  return `workspace:${createWorkspaceScopeSeed()}`;
 }
 
 export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
@@ -296,17 +208,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       );
     });
     const [panelDensityMode, setPanelDensityMode] =
-      useState<DraftPanelDensityMode>(() => {
-        const stored = localStorage.getItem(DRAFT_PANEL_DENSITY_STORAGE_KEY);
-        if (
-          stored === "balanced" ||
-          stored === "focus-intake" ||
-          stored === "focus-response"
-        ) {
-          return stored;
-        }
-        return "balanced";
-      });
+      useState<DraftPanelDensityMode>(readPanelDensityMode);
     const [conversationEntries, setConversationEntries] = useState<
       ConversationEntry[]
     >([]);
@@ -673,77 +575,41 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       [modelLoaded, responseLength, generateStreaming, clearStreamingText],
     );
 
-    const buildDiagnosisJson = useCallback(() => {
-      const completedIds = Object.keys(checklistCompleted).filter(
-        (id) => checklistCompleted[id],
-      );
-      const checklistState =
-        checklistItems.length > 0
-          ? { items: checklistItems, completed_ids: completedIds }
-          : null;
-      const firstResponseState = firstResponse.trim()
-        ? { text: firstResponse, tone: firstResponseTone }
-        : null;
-      const approvalState =
-        approvalQuery.trim() ||
-        approvalSummary.trim() ||
-        approvalSources.length > 0
-          ? {
-              query: approvalQuery,
-              summary: approvalSummary,
-              sources: approvalSources,
-            }
-          : null;
-      const trustState =
-        confidence || grounding.length > 0 ? { confidence, grounding } : null;
-
-      const diagnosisData: Record<string, unknown> = {};
-      if (diagnosticNotes.trim()) {
-        diagnosisData.notes = diagnosticNotes;
-      }
-      if (treeResult) {
-        diagnosisData.treeResult = treeResult;
-      }
-      if (checklistState) {
-        diagnosisData.checklist = checklistState;
-      }
-      if (firstResponseState) {
-        diagnosisData.firstResponse = firstResponseState;
-      }
-      if (approvalState) {
-        diagnosisData.approval = approvalState;
-      }
-      if (trustState) {
-        diagnosisData.trust = trustState;
-      }
-      if (savedDraftId) {
-        diagnosisData.workspaceSavedDraftId = savedDraftId;
-        diagnosisData.workspaceSavedDraftCreatedAt =
-          savedDraftCreatedAt ?? new Date().toISOString();
-      }
-      if (guidedRunbookNote.trim()) {
-        diagnosisData.guidedRunbookDraftNote = guidedRunbookNote;
-      }
-
-      return Object.keys(diagnosisData).length > 0
-        ? JSON.stringify(diagnosisData)
-        : null;
-    }, [
-      checklistCompleted,
-      checklistItems,
-      firstResponse,
-      firstResponseTone,
-      approvalQuery,
-      approvalSummary,
-      approvalSources,
-      diagnosticNotes,
-      treeResult,
-      confidence,
-      grounding,
-      guidedRunbookNote,
-      savedDraftCreatedAt,
-      savedDraftId,
-    ]);
+    const buildDiagnosisJson = useCallback(
+      () =>
+        buildDiagnosisJsonImpl({
+          checklistItems,
+          checklistCompleted,
+          firstResponse,
+          firstResponseTone,
+          approvalQuery,
+          approvalSummary,
+          approvalSources,
+          diagnosticNotes,
+          treeResult,
+          confidence,
+          grounding,
+          guidedRunbookNote,
+          savedDraftId,
+          savedDraftCreatedAt,
+        }),
+      [
+        checklistCompleted,
+        checklistItems,
+        firstResponse,
+        firstResponseTone,
+        approvalQuery,
+        approvalSummary,
+        approvalSources,
+        diagnosticNotes,
+        treeResult,
+        confidence,
+        grounding,
+        guidedRunbookNote,
+        savedDraftCreatedAt,
+        savedDraftId,
+      ],
+    );
 
     const {
       handoffPack,
