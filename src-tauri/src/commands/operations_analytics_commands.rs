@@ -1,9 +1,10 @@
 use crate::audit::{AuditEntry, AuditEventType, AuditSeverity};
 use crate::db::{
-    ArticleAnalytics, AnalyticsSummary, DeploymentArtifactRecord, DeploymentHealthSummary,
+    AnalyticsSummary, ArticleAnalytics, DeploymentArtifactRecord, DeploymentHealthSummary,
     EvalRunRecord, KbGapCandidate, LowRatingAnalysis, RatingStats, ResponseQualityDrilldownExamples,
     ResponseQualitySummary, ResponseRating, SignedArtifactVerificationResult, TriageClusterRecord,
 };
+use crate::error::AppError;
 use crate::AppState;
 use tauri::State;
 
@@ -46,10 +47,10 @@ pub fn audit_response_copy_override(
     reason: String,
     confidence_mode: Option<String>,
     sources_count: usize,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let trimmed = reason.trim();
     if trimmed.is_empty() {
-        return Err("Reason is required".into());
+        return Err(AppError::empty_input("Reason"));
     }
 
     crate::audit::log_audit_best_effort(
@@ -76,16 +77,13 @@ pub async fn rate_response(
     rating: i32,
     feedback_text: Option<String>,
     feedback_category: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     if !(1..=5).contains(&rating) {
-        return Err("Rating must be between 1 and 5".to_string());
+        return Err(AppError::invalid_format("Rating must be between 1 and 5"));
     }
 
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.save_response_rating(
         &id,
         &draft_id,
@@ -93,30 +91,26 @@ pub async fn rate_response(
         feedback_text.as_deref(),
         feedback_category.as_deref(),
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn get_draft_rating(
     state: State<'_, AppState>,
     draft_id: String,
-) -> Result<Option<ResponseRating>, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
-    db.get_draft_rating(&draft_id).map_err(|e| e.to_string())
+) -> Result<Option<ResponseRating>, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_draft_rating(&draft_id)
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
-pub async fn get_rating_stats(state: State<'_, AppState>) -> Result<RatingStats, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
-    db.get_rating_stats().map_err(|e| e.to_string())
+pub async fn get_rating_stats(state: State<'_, AppState>) -> Result<RatingStats, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_rating_stats()
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
@@ -125,42 +119,33 @@ pub async fn log_analytics_event(
     id: String,
     event_type: String,
     event_data_json: Option<String>,
-) -> Result<(), String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.log_analytics_event(&id, &event_type, event_data_json.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn get_analytics_summary(
     state: State<'_, AppState>,
     period_days: Option<i64>,
-) -> Result<AnalyticsSummary, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<AnalyticsSummary, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.get_analytics_summary(period_days)
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn get_response_quality_summary(
     state: State<'_, AppState>,
     period_days: Option<i64>,
-) -> Result<ResponseQualitySummary, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<ResponseQualitySummary, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.get_response_quality_summary(period_days)
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
@@ -168,41 +153,33 @@ pub async fn get_response_quality_drilldown_examples(
     state: State<'_, AppState>,
     period_days: Option<i64>,
     limit: Option<usize>,
-) -> Result<ResponseQualityDrilldownExamples, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<ResponseQualityDrilldownExamples, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.get_response_quality_drilldown_examples(period_days, limit)
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn get_kb_usage_stats(
     state: State<'_, AppState>,
     period_days: Option<i64>,
-) -> Result<Vec<crate::db::ArticleUsage>, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
-    db.get_kb_usage_stats(period_days).map_err(|e| e.to_string())
+) -> Result<Vec<crate::db::ArticleUsage>, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_kb_usage_stats(period_days)
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn get_low_rating_analysis(
     state: State<'_, AppState>,
     period_days: Option<i64>,
-) -> Result<LowRatingAnalysis, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<LowRatingAnalysis, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.get_low_rating_analysis(period_days)
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
@@ -210,14 +187,11 @@ pub async fn get_kb_gap_candidates(
     state: State<'_, AppState>,
     limit: Option<usize>,
     status: Option<String>,
-) -> Result<Vec<KbGapCandidate>, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<KbGapCandidate>, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.get_kb_gap_candidates(limit.unwrap_or(20).min(200), status.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
@@ -226,29 +200,23 @@ pub async fn update_kb_gap_status(
     id: String,
     status: String,
     resolution_note: Option<String>,
-) -> Result<(), String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.update_kb_gap_status(&id, &status, resolution_note.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn run_deployment_preflight(
     state: State<'_, AppState>,
     target_channel: String,
-) -> Result<DeploymentPreflightResult, String> {
+) -> Result<DeploymentPreflightResult, AppError> {
     let mut checks = Vec::new();
     let mut ok = true;
 
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     match db.check_integrity() {
         Ok(_) => checks.push("Database integrity: pass".to_string()),
@@ -296,41 +264,32 @@ pub async fn record_deployment_artifact(
     channel: String,
     sha256: String,
     is_signed: bool,
-) -> Result<String, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<String, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.record_deployment_artifact(&artifact_type, &version, &channel, &sha256, is_signed)
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn get_deployment_health_summary(
     state: State<'_, AppState>,
-) -> Result<DeploymentHealthSummary, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<DeploymentHealthSummary, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.get_deployment_health_summary()
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn list_deployment_artifacts(
     state: State<'_, AppState>,
     limit: Option<usize>,
-) -> Result<Vec<DeploymentArtifactRecord>, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<DeploymentArtifactRecord>, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.list_deployment_artifacts(limit.unwrap_or(50).min(500))
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
@@ -338,14 +297,11 @@ pub async fn verify_signed_artifact(
     state: State<'_, AppState>,
     artifact_id: String,
     expected_sha256: Option<String>,
-) -> Result<SignedArtifactVerificationResult, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<SignedArtifactVerificationResult, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.verify_signed_artifact(&artifact_id, expected_sha256.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
@@ -353,14 +309,11 @@ pub async fn rollback_deployment_run(
     state: State<'_, AppState>,
     run_id: String,
     reason: Option<String>,
-) -> Result<(), String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.rollback_deployment_run(&run_id, reason.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
@@ -368,9 +321,9 @@ pub async fn run_eval_harness(
     state: State<'_, AppState>,
     suite_name: String,
     cases: Vec<EvalHarnessCase>,
-) -> Result<EvalHarnessResult, String> {
+) -> Result<EvalHarnessResult, AppError> {
     if cases.is_empty() {
-        return Err("At least one eval case is required".to_string());
+        return Err(AppError::empty_input("Eval cases"));
     }
 
     let mut passed = 0i32;
@@ -409,11 +362,8 @@ pub async fn run_eval_harness(
     let avg_conf = total_conf / total_cases as f64;
     let details_json = serde_json::to_string(&details).ok();
 
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     let run_id = db
         .save_eval_run(
             &suite_name,
@@ -422,7 +372,7 @@ pub async fn run_eval_harness(
             avg_conf,
             details_json.as_deref(),
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::db_query_failed(e.to_string()))?;
 
     Ok(EvalHarnessResult {
         run_id,
@@ -436,21 +386,18 @@ pub async fn run_eval_harness(
 pub async fn list_eval_runs(
     state: State<'_, AppState>,
     limit: Option<usize>,
-) -> Result<Vec<EvalRunRecord>, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<EvalRunRecord>, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.list_eval_runs(limit.unwrap_or(50).min(500))
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn cluster_tickets_for_triage(
     state: State<'_, AppState>,
     tickets: Vec<TriageTicketInput>,
-) -> Result<Vec<TriageClusterOutput>, String> {
+) -> Result<Vec<TriageClusterOutput>, AppError> {
     let mut buckets: std::collections::BTreeMap<String, Vec<TriageTicketInput>> =
         std::collections::BTreeMap::new();
     for ticket in tickets {
@@ -464,16 +411,14 @@ pub async fn cluster_tickets_for_triage(
     }
 
     let mut outputs = Vec::new();
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     for (key, group) in buckets {
         let ticket_ids = group.iter().map(|t| t.id.clone()).collect::<Vec<_>>();
         let summary = format!("{} tickets about {}", group.len(), key);
-        let tickets_json = serde_json::to_string(&group).map_err(|e| e.to_string())?;
+        let tickets_json = serde_json::to_string(&group)
+            .map_err(|e| AppError::internal(format!("Failed to serialize triage group: {}", e)))?;
         let _ = db.save_triage_cluster(&key, &summary, group.len() as i32, &tickets_json);
         outputs.push(TriageClusterOutput {
             cluster_key: key,
@@ -489,26 +434,20 @@ pub async fn cluster_tickets_for_triage(
 pub async fn list_recent_triage_clusters(
     state: State<'_, AppState>,
     limit: Option<usize>,
-) -> Result<Vec<TriageClusterRecord>, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<TriageClusterRecord>, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.list_recent_triage_clusters(limit.unwrap_or(50).min(500))
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub async fn get_analytics_for_article(
     state: State<'_, AppState>,
     document_id: String,
-) -> Result<ArticleAnalytics, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<ArticleAnalytics, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.get_analytics_for_article(&document_id)
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
