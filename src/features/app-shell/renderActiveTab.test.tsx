@@ -4,18 +4,9 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderActiveTab } from "./renderActiveTab";
 import type { DraftTabHandle } from "../../components/Draft/DraftTab";
-import type { RevampFlags } from "../revamp";
 
 vi.mock("../workspace", () => ({
-  WorkspacePage: ({
-    appShellRevampEnabled,
-  }: {
-    appShellRevampEnabled?: boolean;
-  }) => (
-    <div data-testid="workspace-page">
-      {appShellRevampEnabled ? "revamp-shell" : "legacy-shell"}
-    </div>
-  ),
+  WorkspacePage: () => <div data-testid="workspace-page">workspace-page</div>,
 }));
 
 vi.mock("../inbox", () => ({
@@ -50,28 +41,6 @@ vi.mock("../ops", () => ({
   OpsPage: () => <div data-testid="ops-page">ops</div>,
 }));
 
-function makeFlags(partial: Partial<RevampFlags> = {}): RevampFlags {
-  return {
-    ASSISTSUPPORT_REVAMP_APP_SHELL: true,
-    ASSISTSUPPORT_REVAMP_INBOX: true,
-    ASSISTSUPPORT_REVAMP_WORKSPACE: true,
-    ASSISTSUPPORT_REVAMP_COMMAND_PALETTE_V2: true,
-    ASSISTSUPPORT_TICKET_WORKSPACE_V2: true,
-    ASSISTSUPPORT_STRUCTURED_INTAKE: true,
-    ASSISTSUPPORT_SIMILAR_CASES: true,
-    ASSISTSUPPORT_NEXT_BEST_ACTION: true,
-    ASSISTSUPPORT_GUIDED_RUNBOOKS_V2: true,
-    ASSISTSUPPORT_POLICY_APPROVAL_ASSISTANT: true,
-    ASSISTSUPPORT_BATCH_TRIAGE: true,
-    ASSISTSUPPORT_COLLABORATION_DISPATCH: false,
-    ASSISTSUPPORT_WORKSPACE_COMMAND_PALETTE: true,
-    ASSISTSUPPORT_LLM_ROUTER_V2: false,
-    ASSISTSUPPORT_ENABLE_ADMIN_TABS: false,
-    ASSISTSUPPORT_ENABLE_NETWORK_INGEST: false,
-    ...partial,
-  };
-}
-
 function renderTab(
   activeTab: Parameters<typeof renderActiveTab>[0]["activeTab"],
 ) {
@@ -85,19 +54,17 @@ function renderTab(
       onSearchQueryConsumed: vi.fn(),
       onQueueViewConsumed: vi.fn(),
       onNavigateToSource: vi.fn(),
-      onNavigateToQueue: vi.fn(),
       onLoadDraft: vi.fn(),
-      revampFlags: makeFlags(),
     }),
   );
 }
 
 describe("renderActiveTab", () => {
-  it("routes the surviving workspace tab to the revamp workspace page with prop forwarding intact", () => {
+  it("routes the surviving workspace tab to the revamp workspace page", () => {
     renderTab("draft");
 
     expect(screen.getByTestId("workspace-page").textContent).toBe(
-      "revamp-shell",
+      "workspace-page",
     );
   });
 

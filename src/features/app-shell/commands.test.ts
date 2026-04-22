@@ -4,9 +4,6 @@ import type { RevampFlags } from "../revamp";
 
 function makeFlags(partial: Partial<RevampFlags> = {}): RevampFlags {
   return {
-    ASSISTSUPPORT_REVAMP_APP_SHELL: true,
-    ASSISTSUPPORT_REVAMP_INBOX: true,
-    ASSISTSUPPORT_REVAMP_WORKSPACE: true,
     ASSISTSUPPORT_REVAMP_COMMAND_PALETTE_V2: true,
     ASSISTSUPPORT_TICKET_WORKSPACE_V2: true,
     ASSISTSUPPORT_STRUCTURED_INTAKE: true,
@@ -31,7 +28,6 @@ function buildCommands(
   return buildAppShellCommands({
     activeTab,
     revampCommandPaletteV2Enabled: true,
-    queueFirstInboxEnabled: true,
     revampFlags: makeFlags(flags),
     setActiveTab: vi.fn(),
     openQueueView: vi.fn(),

@@ -1,2 +1,1 @@
-export { WorkspacePage } from './WorkspacePage';
-export { WorkspaceRevampPage } from './WorkspaceRevampPage';
+export { WorkspacePage } from "./WorkspacePage";

@@ -1,0 +1,10 @@
+.workspace-page {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4, 16px);
+  height: 100%;
+}
+
+.workspace-page__main {
+  min-width: 0;
+}

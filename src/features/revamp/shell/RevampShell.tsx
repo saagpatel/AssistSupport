@@ -361,26 +361,25 @@ export function RevampShell({
             className="as-shell__rail"
             aria-label="Diagnostics and guidance"
           >
-            {activeTab === "draft" &&
-              revampFlags.ASSISTSUPPORT_REVAMP_WORKSPACE && (
-                <>
-                  <WorkspaceQueueContext
-                    onNavigateToQueue={onNavigateToQueue}
-                    revampUi
-                  />
-                  <Panel
-                    title="Response playbook"
-                    subtitle="Keep responses consistent across the team"
-                  >
-                    <ol className="as-shell__railBullets">
-                      <li>Capture the issue in plain language.</li>
-                      <li>Validate policy and approval requirements.</li>
-                      <li>Generate and edit response with cited context.</li>
-                      <li>Save to follow-ups for handoff continuity.</li>
-                    </ol>
-                  </Panel>
-                </>
-              )}
+            {activeTab === "draft" && (
+              <>
+                <WorkspaceQueueContext
+                  onNavigateToQueue={onNavigateToQueue}
+                  revampUi
+                />
+                <Panel
+                  title="Response playbook"
+                  subtitle="Keep responses consistent across the team"
+                >
+                  <ol className="as-shell__railBullets">
+                    <li>Capture the issue in plain language.</li>
+                    <li>Validate policy and approval requirements.</li>
+                    <li>Generate and edit response with cited context.</li>
+                    <li>Save to follow-ups for handoff continuity.</li>
+                  </ol>
+                </Panel>
+              </>
+            )}
             <Panel
               title="AI Status & Guarantees"
               subtitle="Predictable local AI; never blocking"

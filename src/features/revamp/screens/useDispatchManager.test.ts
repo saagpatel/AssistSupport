@@ -10,7 +10,6 @@ import type { SavedDraft } from "../../../types/workspace";
 // functions through hook args.
 vi.mock("../../revamp", () => ({
   resolveRevampFlags: () => ({
-    ASSISTSUPPORT_REVAMP_INBOX: true,
     ASSISTSUPPORT_BATCH_TRIAGE: true,
     ASSISTSUPPORT_COLLABORATION_DISPATCH: false,
   }),
