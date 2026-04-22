@@ -8,18 +8,36 @@ use crate::commands::model_commands::{
     TestModelResult, CONTEXT_WINDOW_SETTING, GENERATION_CANCEL_FLAG,
 };
 use crate::db::GenerationQualityEvent;
+use crate::error::{AppError, ErrorCategory, ErrorCode};
 use crate::llm::{GenerationEvent, GenerationParams as LlmGenerationParams, LlmEngine, ModelInfo};
 use crate::model_integrity::{verify_model_integrity, VerificationResult};
 use crate::prompts::{PromptBuilder, ResponseLength};
 use crate::validation::{
-    validate_non_empty, validate_text_size, validate_within_home, ValidationError,
-    MAX_QUERY_BYTES, MAX_TEXT_INPUT_BYTES,
+    validate_non_empty, validate_text_size, validate_within_home, MAX_QUERY_BYTES,
+    MAX_TEXT_INPUT_BYTES,
 };
 use crate::AppState;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, State};
 use tokio::sync::mpsc;
+
+/// Map a DB-layer error to a categorized AppError with upstream detail.
+fn db_query_err(e: impl std::fmt::Display) -> AppError {
+    AppError::db_query_failed(e.to_string())
+}
+
+/// Map a generic backend/engine error (Display) to a `MODEL_GENERATION_FAILED`
+/// AppError. Used for engine calls where the underlying crate returns a
+/// stringly-typed error that we want to surface as a model-category failure.
+fn generation_err(e: impl std::fmt::Display) -> AppError {
+    AppError::new(
+        ErrorCode::MODEL_GENERATION_FAILED,
+        "Model generation failed",
+        ErrorCategory::Model,
+    )
+    .with_detail(e.to_string())
+}
 
 fn extract_json_block(text: &str) -> Option<&str> {
     let trimmed = text.trim();
@@ -102,16 +120,20 @@ fn normalize_checklist_items(mut items: Vec<ChecklistItem>) -> Vec<ChecklistItem
     items
 }
 
-fn parse_checklist_output(raw: &str) -> Result<Vec<ChecklistItem>, String> {
+fn parse_checklist_output(raw: &str) -> Result<Vec<ChecklistItem>, AppError> {
     let Some(json_block) = extract_json_block(raw) else {
-        return Err("Checklist output did not contain JSON".to_string());
+        return Err(AppError::invalid_format(
+            "Checklist output did not contain JSON",
+        ));
     };
 
-    let parsed_items: Vec<ChecklistItem> =
-        serde_json::from_str(json_block).map_err(|e| format!("Invalid checklist JSON: {}", e))?;
+    let parsed_items: Vec<ChecklistItem> = serde_json::from_str(json_block)
+        .map_err(|e| AppError::invalid_format(format!("Invalid checklist JSON: {}", e)))?;
     let items = normalize_checklist_items(parsed_items);
     if items.is_empty() {
-        return Err("Checklist output did not contain any valid items".to_string());
+        return Err(AppError::invalid_format(
+            "Checklist output did not contain any valid items",
+        ));
     }
     Ok(items)
 }
@@ -229,12 +251,14 @@ fn assess_confidence(
     }
 }
 
-pub(crate) fn init_llm_engine_impl(state: State<'_, AppState>) -> Result<(), String> {
+pub(crate) fn init_llm_engine_impl(state: State<'_, AppState>) -> Result<(), AppError> {
     if state.llm.read().is_some() {
         return Ok(());
     }
-    let backend = state.llama_backend()?;
-    let engine = LlmEngine::new(backend).map_err(|e| e.to_string())?;
+    let backend = state
+        .llama_backend()
+        .map_err(|e| AppError::model_load_failed(e))?;
+    let engine = LlmEngine::new(backend).map_err(|e| AppError::model_load_failed(e.to_string()))?;
     *state.llm.write() = Some(engine);
     Ok(())
 }
@@ -243,26 +267,29 @@ pub(crate) fn load_model_impl(
     state: State<'_, AppState>,
     model_id: String,
     n_gpu_layers: Option<u32>,
-) -> Result<ModelInfo, String> {
+) -> Result<ModelInfo, AppError> {
     let load_start = std::time::Instant::now();
-    let (_, filename) = get_model_source(&model_id)?;
+    let (_, filename) =
+        get_model_source(&model_id).map_err(|e| AppError::invalid_format(e))?;
     let models_dir = crate::db::get_models_dir();
     let path = models_dir.join(filename);
 
     if !path.exists() {
-        return Err(format!(
-            "Model file not found: {}. Please download the model first.",
+        return Err(AppError::file_not_found(&format!(
+            "{}. Please download the model first.",
             filename
-        ));
+        )));
     }
 
     let llm_guard = state.llm.read();
-    let engine = llm_guard.as_ref().ok_or("LLM engine not initialized")?;
+    let engine = llm_guard
+        .as_ref()
+        .ok_or_else(|| AppError::engine_not_initialized("LLM"))?;
     let layers = n_gpu_layers.unwrap_or(1000);
 
     let info = engine
         .load_model(&path, layers, model_id.clone())
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::model_load_failed(e.to_string()))?;
 
     let load_time_ms = load_start.elapsed().as_millis() as i64;
     if let Ok(db_lock) = state.db.lock() {
@@ -284,26 +311,19 @@ pub(crate) fn load_custom_model_impl(
     state: State<'_, AppState>,
     model_path: String,
     n_gpu_layers: Option<u32>,
-) -> Result<ModelInfo, String> {
+) -> Result<ModelInfo, AppError> {
     use std::path::Path;
 
     let path = Path::new(&model_path);
     if !path.exists() {
-        return Err(format!("Model file not found: {}", model_path));
+        return Err(AppError::file_not_found(&model_path));
     }
 
-    let validated_path = validate_within_home(path).map_err(|e| match e {
-        ValidationError::PathTraversal => {
-            "Model file must be within your home directory".to_string()
-        }
-        ValidationError::InvalidFormat(msg) if msg.contains("sensitive") => {
-            "This path is blocked because it contains sensitive data".to_string()
-        }
-        _ => format!("Invalid model path: {}", e),
-    })?;
+    // `validate_within_home` errors map via `From<ValidationError>`.
+    let validated_path = validate_within_home(path)?;
 
     if !validated_path.is_file() {
-        return Err("Model path is not a file".into());
+        return Err(AppError::invalid_format("Model path is not a file"));
     }
 
     let ext = validated_path
@@ -311,12 +331,17 @@ pub(crate) fn load_custom_model_impl(
         .and_then(|e| e.to_str())
         .unwrap_or("");
     if ext.to_lowercase() != "gguf" {
-        return Err("Invalid file type. Only .gguf files are supported.".into());
+        return Err(AppError::invalid_format(
+            "Invalid file type. Only .gguf files are supported.",
+        ));
     }
 
-    let metadata = std::fs::metadata(&validated_path).map_err(|e| e.to_string())?;
+    // `std::fs::metadata` via `?` uses the existing `From<io::Error>` impl.
+    let metadata = std::fs::metadata(&validated_path)?;
     if metadata.len() < 1_000_000 {
-        return Err("File too small to be a valid GGUF model.".into());
+        return Err(AppError::invalid_format(
+            "File too small to be a valid GGUF model.",
+        ));
     }
 
     let model_id = validated_path
@@ -337,19 +362,26 @@ pub(crate) fn load_custom_model_impl(
                 sha256
             );
         }
-        Err(e) => return Err(format!("Model integrity verification failed: {}", e)),
+        Err(e) => {
+            return Err(AppError::model_load_failed(format!(
+                "Model integrity verification failed: {}",
+                e
+            )));
+        }
     }
 
     let llm_guard = state.llm.read();
-    let engine = llm_guard.as_ref().ok_or("LLM engine not initialized")?;
+    let engine = llm_guard
+        .as_ref()
+        .ok_or_else(|| AppError::engine_not_initialized("LLM"))?;
     let layers = n_gpu_layers.unwrap_or(1000);
 
     engine
         .load_model(&validated_path, layers, model_id)
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::model_load_failed(e.to_string()))
 }
 
-pub(crate) fn validate_gguf_file_impl(model_path: String) -> Result<GgufFileInfo, String> {
+pub(crate) fn validate_gguf_file_impl(model_path: String) -> Result<GgufFileInfo, AppError> {
     use std::fs;
     use std::io::Read;
     use std::path::Path;
@@ -357,21 +389,13 @@ pub(crate) fn validate_gguf_file_impl(model_path: String) -> Result<GgufFileInfo
     let path = Path::new(&model_path);
 
     if !path.exists() {
-        return Err(format!("File not found: {}", model_path));
+        return Err(AppError::file_not_found(&model_path));
     }
 
-    let validated_path = validate_within_home(path).map_err(|e| match e {
-        ValidationError::PathTraversal => {
-            "Model file must be within your home directory".to_string()
-        }
-        ValidationError::InvalidFormat(msg) if msg.contains("sensitive") => {
-            "This path is blocked because it contains sensitive data".to_string()
-        }
-        _ => format!("Invalid model path: {}", e),
-    })?;
+    let validated_path = validate_within_home(path)?;
 
     if !validated_path.is_file() {
-        return Err("Model path is not a file".into());
+        return Err(AppError::invalid_format("Model path is not a file"));
     }
 
     let ext = validated_path
@@ -379,22 +403,26 @@ pub(crate) fn validate_gguf_file_impl(model_path: String) -> Result<GgufFileInfo
         .and_then(|e| e.to_str())
         .unwrap_or("");
     if ext.to_lowercase() != "gguf" {
-        return Err("Invalid file type. Only .gguf files are supported.".into());
+        return Err(AppError::invalid_format(
+            "Invalid file type. Only .gguf files are supported.",
+        ));
     }
 
-    let metadata = fs::metadata(&validated_path).map_err(|e| e.to_string())?;
+    let metadata = fs::metadata(&validated_path)?;
     let filename = validated_path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown")
         .to_string();
 
-    let mut file = fs::File::open(&validated_path).map_err(|e| e.to_string())?;
+    let mut file = fs::File::open(&validated_path)?;
     let mut magic = [0u8; 4];
-    file.read_exact(&mut magic).map_err(|e| e.to_string())?;
+    file.read_exact(&mut magic)?;
 
     if &magic != b"GGUF" {
-        return Err("Invalid GGUF file: magic bytes mismatch".into());
+        return Err(AppError::invalid_format(
+            "Invalid GGUF file: magic bytes mismatch",
+        ));
     }
 
     Ok(GgufFileInfo {
@@ -405,9 +433,11 @@ pub(crate) fn validate_gguf_file_impl(model_path: String) -> Result<GgufFileInfo
     })
 }
 
-pub(crate) fn unload_model_impl(state: State<'_, AppState>) -> Result<(), String> {
+pub(crate) fn unload_model_impl(state: State<'_, AppState>) -> Result<(), AppError> {
     let llm_guard = state.llm.read();
-    let engine = llm_guard.as_ref().ok_or("LLM engine not initialized")?;
+    let engine = llm_guard
+        .as_ref()
+        .ok_or_else(|| AppError::engine_not_initialized("LLM"))?;
     engine.unload_model();
     if let Ok(db_lock) = state.db.lock() {
         if let Some(db) = db_lock.as_ref() {
@@ -417,13 +447,17 @@ pub(crate) fn unload_model_impl(state: State<'_, AppState>) -> Result<(), String
     Ok(())
 }
 
-pub(crate) fn get_model_info_impl(state: State<'_, AppState>) -> Result<Option<ModelInfo>, String> {
+pub(crate) fn get_model_info_impl(
+    state: State<'_, AppState>,
+) -> Result<Option<ModelInfo>, AppError> {
     let llm_guard = state.llm.read();
-    let engine = llm_guard.as_ref().ok_or("LLM engine not initialized")?;
+    let engine = llm_guard
+        .as_ref()
+        .ok_or_else(|| AppError::engine_not_initialized("LLM"))?;
     Ok(engine.model_info())
 }
 
-pub(crate) fn is_model_loaded_impl(state: State<'_, AppState>) -> Result<bool, String> {
+pub(crate) fn is_model_loaded_impl(state: State<'_, AppState>) -> Result<bool, AppError> {
     let llm_guard = state.llm.read();
     match llm_guard.as_ref() {
         Some(engine) => Ok(engine.is_model_loaded()),
@@ -431,9 +465,11 @@ pub(crate) fn is_model_loaded_impl(state: State<'_, AppState>) -> Result<bool, S
     }
 }
 
-pub(crate) fn get_context_window_impl(state: State<'_, AppState>) -> Result<Option<u32>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+pub(crate) fn get_context_window_impl(
+    state: State<'_, AppState>,
+) -> Result<Option<u32>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let result: Result<String, _> = db.conn().query_row(
         "SELECT value FROM settings WHERE key = ?",
@@ -444,28 +480,30 @@ pub(crate) fn get_context_window_impl(state: State<'_, AppState>) -> Result<Opti
     match result {
         Ok(value) => Ok(value.parse::<u32>().ok()),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-        Err(e) => Err(e.to_string()),
+        Err(e) => Err(db_query_err(e)),
     }
 }
 
 pub(crate) fn set_context_window_impl(
     state: State<'_, AppState>,
     size: Option<u32>,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     match size {
         Some(s) => {
             if !(2048..=32768).contains(&s) {
-                return Err("Context window must be between 2048 and 32768".to_string());
+                return Err(AppError::invalid_format(
+                    "Context window must be between 2048 and 32768",
+                ));
             }
             db.conn()
                 .execute(
                     "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
                     rusqlite::params![CONTEXT_WINDOW_SETTING, s.to_string()],
                 )
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
         }
         None => {
             db.conn()
@@ -473,7 +511,7 @@ pub(crate) fn set_context_window_impl(
                     "DELETE FROM settings WHERE key = ?",
                     rusqlite::params![CONTEXT_WINDOW_SETTING],
                 )
-                .map_err(|e| e.to_string())?;
+                .map_err(db_query_err)?;
         }
     }
 
@@ -484,16 +522,18 @@ pub(crate) async fn generate_text_impl(
     state: State<'_, AppState>,
     prompt: String,
     params: Option<GenerateParams>,
-) -> Result<GenerationResult, String> {
-    validate_non_empty(&prompt).map_err(|e| e.to_string())?;
-    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+) -> Result<GenerationResult, AppError> {
+    validate_non_empty(&prompt)?;
+    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES)?;
 
     let llm = state.llm.clone();
     let engine_state = {
         let llm_guard = llm.read();
-        let engine = llm_guard.as_ref().ok_or("LLM engine not initialized")?;
+        let engine = llm_guard
+            .as_ref()
+            .ok_or_else(|| AppError::engine_not_initialized("LLM"))?;
         if !engine.is_model_loaded() {
-            return Err("No model loaded".into());
+            return Err(AppError::model_not_loaded());
         }
         engine.state.clone()
     };
@@ -507,7 +547,9 @@ pub(crate) async fn generate_text_impl(
     let tx_clone = tx.clone();
 
     tokio::spawn(async move {
-        let temp_engine = LlmEngine { state: engine_state };
+        let temp_engine = LlmEngine {
+            state: engine_state,
+        };
         let _ = temp_engine
             .generate_streaming(&prompt_clone, gen_params, tx_clone, cancel_clone)
             .await;
@@ -528,7 +570,7 @@ pub(crate) async fn generate_text_impl(
                 duration_ms = d;
                 break;
             }
-            GenerationEvent::Error(e) => return Err(e),
+            GenerationEvent::Error(e) => return Err(generation_err(e)),
         }
     }
 
@@ -542,21 +584,21 @@ pub(crate) async fn generate_text_impl(
 pub(crate) async fn generate_with_context_impl(
     state: State<'_, AppState>,
     params: GenerateWithContextParams,
-) -> Result<GenerateWithContextResult, String> {
-    validate_non_empty(&params.user_input).map_err(|e| e.to_string())?;
-    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+) -> Result<GenerateWithContextResult, AppError> {
+    validate_non_empty(&params.user_input)?;
+    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES)?;
     if let Some(query) = &params.kb_query {
-        validate_text_size(query, MAX_QUERY_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(query, MAX_QUERY_BYTES)?;
     }
     if let Some(ocr) = &params.ocr_text {
-        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES)?;
     }
     if let Some(notes) = &params.diagnostic_notes {
-        validate_text_size(notes, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(notes, MAX_TEXT_INPUT_BYTES)?;
     }
 
     let kb_results = {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
         if let Some(db) = db_lock.as_ref() {
             let query = params.kb_query.as_ref().unwrap_or(&params.user_input);
             let limit = params.kb_limit.unwrap_or(3);
@@ -609,7 +651,7 @@ pub(crate) async fn generate_with_context_impl(
     let prompt = builder.build();
     let prompt_length = prompt.len();
 
-    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES)?;
 
     let gen_result = generate_text_impl(state.clone(), prompt, params.gen_params).await?;
 
@@ -692,21 +734,21 @@ pub(crate) async fn generate_streaming_impl(
     window: tauri::Window,
     state: State<'_, AppState>,
     params: GenerateWithContextParams,
-) -> Result<GenerateWithContextResult, String> {
-    validate_non_empty(&params.user_input).map_err(|e| e.to_string())?;
-    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+) -> Result<GenerateWithContextResult, AppError> {
+    validate_non_empty(&params.user_input)?;
+    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES)?;
     if let Some(query) = &params.kb_query {
-        validate_text_size(query, MAX_QUERY_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(query, MAX_QUERY_BYTES)?;
     }
     if let Some(ocr) = &params.ocr_text {
-        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES)?;
     }
     if let Some(notes) = &params.diagnostic_notes {
-        validate_text_size(notes, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(notes, MAX_TEXT_INPUT_BYTES)?;
     }
 
     let kb_results = {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
         if let Some(db) = db_lock.as_ref() {
             let query = params.kb_query.as_ref().unwrap_or(&params.user_input);
             let limit = params.kb_limit.unwrap_or(3);
@@ -755,19 +797,24 @@ pub(crate) async fn generate_streaming_impl(
     let prompt = builder.build();
     let prompt_length = prompt.len();
 
-    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES)?;
 
     let llm = state.llm.clone();
     let engine_state = {
         let llm_guard = llm.read();
-        let engine = llm_guard.as_ref().ok_or("LLM engine not initialized")?;
+        let engine = llm_guard
+            .as_ref()
+            .ok_or_else(|| AppError::engine_not_initialized("LLM"))?;
         if !engine.is_model_loaded() {
-            return Err("No model loaded".into());
+            return Err(AppError::model_not_loaded());
         }
         engine.state.clone()
     };
 
-    let gen_params = params.gen_params.map(LlmGenerationParams::from).unwrap_or_default();
+    let gen_params = params
+        .gen_params
+        .map(LlmGenerationParams::from)
+        .unwrap_or_default();
     let (tx, mut rx) = mpsc::channel(100);
 
     GENERATION_CANCEL_FLAG.store(false, Ordering::SeqCst);
@@ -778,7 +825,9 @@ pub(crate) async fn generate_streaming_impl(
     let tx_clone = tx.clone();
 
     tokio::spawn(async move {
-        let temp_engine = LlmEngine { state: engine_state };
+        let temp_engine = LlmEngine {
+            state: engine_state,
+        };
         let _ = temp_engine
             .generate_streaming(&prompt_clone, gen_params, tx_clone, cancel_clone)
             .await;
@@ -816,6 +865,8 @@ pub(crate) async fn generate_streaming_impl(
                 break;
             }
             GenerationEvent::Error(e) => {
+                // Emit terminal frame so the frontend's streaming reducer
+                // drops the in-flight state regardless of the AppError path.
                 let _ = window.emit(
                     "llm-token",
                     crate::commands::model_commands::StreamToken {
@@ -823,7 +874,7 @@ pub(crate) async fn generate_streaming_impl(
                         done: true,
                     },
                 );
-                return Err(e);
+                return Err(generation_err(e));
             }
         }
     }
@@ -906,13 +957,13 @@ pub(crate) async fn generate_streaming_impl(
 pub(crate) async fn generate_first_response_impl(
     state: State<'_, AppState>,
     params: FirstResponseParams,
-) -> Result<FirstResponseResult, String> {
+) -> Result<FirstResponseResult, AppError> {
     use crate::prompts::{FIRST_RESPONSE_JIRA_PROMPT, FIRST_RESPONSE_SLACK_PROMPT};
 
-    validate_non_empty(&params.user_input).map_err(|e| e.to_string())?;
-    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+    validate_non_empty(&params.user_input)?;
+    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES)?;
     if let Some(ocr) = &params.ocr_text {
-        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES)?;
     }
 
     let system_prompt = match params.tone {
@@ -934,7 +985,7 @@ pub(crate) async fn generate_first_response_impl(
     }
 
     let prompt = builder.build();
-    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES)?;
 
     let gen_result = generate_text_impl(
         state,
@@ -960,16 +1011,16 @@ pub(crate) async fn generate_first_response_impl(
 pub(crate) async fn generate_troubleshooting_checklist_impl(
     state: State<'_, AppState>,
     params: ChecklistGenerateParams,
-) -> Result<ChecklistResult, String> {
+) -> Result<ChecklistResult, AppError> {
     use crate::prompts::CHECKLIST_SYSTEM_PROMPT;
 
-    validate_non_empty(&params.user_input).map_err(|e| e.to_string())?;
-    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+    validate_non_empty(&params.user_input)?;
+    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES)?;
     if let Some(ocr) = &params.ocr_text {
-        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES)?;
     }
     if let Some(notes) = &params.diagnostic_notes {
-        validate_text_size(notes, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(notes, MAX_TEXT_INPUT_BYTES)?;
     }
 
     let mut builder = PromptBuilder::new()
@@ -991,7 +1042,7 @@ pub(crate) async fn generate_troubleshooting_checklist_impl(
     }
 
     let prompt = builder.build();
-    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES)?;
 
     let gen_result = generate_text_impl(
         state,
@@ -1014,17 +1065,17 @@ pub(crate) async fn generate_troubleshooting_checklist_impl(
 pub(crate) async fn update_troubleshooting_checklist_impl(
     state: State<'_, AppState>,
     params: ChecklistUpdateParams,
-) -> Result<ChecklistResult, String> {
+) -> Result<ChecklistResult, AppError> {
     use crate::prompts::CHECKLIST_UPDATE_SYSTEM_PROMPT;
     use std::collections::HashSet;
 
-    validate_non_empty(&params.user_input).map_err(|e| e.to_string())?;
-    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+    validate_non_empty(&params.user_input)?;
+    validate_text_size(&params.user_input, MAX_TEXT_INPUT_BYTES)?;
     if let Some(ocr) = &params.ocr_text {
-        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(ocr, MAX_TEXT_INPUT_BYTES)?;
     }
     if let Some(notes) = &params.diagnostic_notes {
-        validate_text_size(notes, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+        validate_text_size(notes, MAX_TEXT_INPUT_BYTES)?;
     }
 
     let items = normalize_checklist_items(params.checklist.items);
@@ -1043,7 +1094,7 @@ pub(crate) async fn update_troubleshooting_checklist_impl(
 
     let checklist_json = serde_json::to_string_pretty(&checklist_state)
         .or_else(|_| serde_json::to_string(&checklist_state))
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::internal(e.to_string()))?;
 
     let completed_label = if checklist_state.completed_ids.is_empty() {
         "none".to_string()
@@ -1076,7 +1127,7 @@ pub(crate) async fn update_troubleshooting_checklist_impl(
     }
 
     let prompt = builder.build();
-    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES).map_err(|e| e.to_string())?;
+    validate_text_size(&prompt, MAX_TEXT_INPUT_BYTES)?;
 
     let gen_result = generate_text_impl(
         state,
@@ -1096,7 +1147,9 @@ pub(crate) async fn update_troubleshooting_checklist_impl(
     Ok(ChecklistResult { items })
 }
 
-pub(crate) async fn test_model_impl(state: State<'_, AppState>) -> Result<TestModelResult, String> {
+pub(crate) async fn test_model_impl(
+    state: State<'_, AppState>,
+) -> Result<TestModelResult, AppError> {
     let result = generate_text_impl(
         state,
         "Say hello in one sentence.".to_string(),
@@ -1125,19 +1178,19 @@ pub(crate) async fn test_model_impl(state: State<'_, AppState>) -> Result<TestMo
     })
 }
 
-pub(crate) fn cancel_generation_impl() -> Result<(), String> {
+pub(crate) fn cancel_generation_impl() -> Result<(), AppError> {
     GENERATION_CANCEL_FLAG.store(true, Ordering::SeqCst);
     Ok(())
 }
 
-pub(crate) fn get_model_state_impl(state: State<'_, AppState>) -> Result<ModelStateResult, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+pub(crate) fn get_model_state_impl(
+    state: State<'_, AppState>,
+) -> Result<ModelStateResult, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    let llm = db.get_model_state("llm").map_err(|e| e.to_string())?;
-    let embeddings = db
-        .get_model_state("embeddings")
-        .map_err(|e| e.to_string())?;
+    let llm = db.get_model_state("llm").map_err(db_query_err)?;
+    let embeddings = db.get_model_state("embeddings").map_err(db_query_err)?;
 
     let llm_loaded = state
         .llm
@@ -1164,11 +1217,11 @@ pub(crate) fn get_model_state_impl(state: State<'_, AppState>) -> Result<ModelSt
 
 pub(crate) fn get_startup_metrics_impl(
     state: State<'_, AppState>,
-) -> Result<StartupMetricsResult, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<StartupMetricsResult, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    let metrics = db.get_last_startup_metric().map_err(|e| e.to_string())?;
+    let metrics = db.get_last_startup_metric().map_err(db_query_err)?;
 
     match metrics {
         Some((total_ms, init_app_ms, models_cached)) => Ok(StartupMetricsResult {
