@@ -284,7 +284,6 @@ jobs:
   build:
     name: Build (macOS)
     needs:
-      - frontend-static
       - frontend-tests
       - ui-regression
       - backend-tests
