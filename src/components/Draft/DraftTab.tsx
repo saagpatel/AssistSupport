@@ -1293,42 +1293,58 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
 
     const workspacePanel = (
       <TicketWorkspaceRail
-        intake={caseIntake}
-        onIntakeChange={handleIntakeFieldChange}
-        onAnalyzeIntake={handleAnalyzeIntake}
-        onApplyIntakePreset={handleApplyIntakePreset}
-        onNoteAudienceChange={handleNoteAudienceChange}
-        nextActions={nextActions}
-        missingQuestions={missingQuestions}
-        onAcceptNextAction={handleAcceptNextAction}
-        similarCases={similarCases}
-        similarCasesLoading={similarCasesLoading}
-        onRefreshSimilarCases={handleRefreshSimilarCases}
-        onOpenSimilarCase={handleOpenSimilarCase}
-        onCompareSimilarCase={handleCompareSimilarCase}
-        onCompareLastResolution={handleCompareLastResolution}
-        compareCase={compareCase}
-        onCloseCompareCase={() => setCompareCase(null)}
-        handoffPack={handoffPack}
-        evidencePack={evidencePack}
-        kbDraft={kbDraft}
-        onCopyHandoffPack={handleCopyHandoffPack}
-        onCopyEvidencePack={handleCopyEvidencePack}
-        onCopyKbDraft={handleCopyKbDraft}
-        resolutionKits={resolutionKits}
-        onSaveResolutionKit={handleSaveCurrentResolutionKit}
-        onApplyResolutionKit={handleApplyResolutionKit}
-        favorites={workspaceFavorites}
-        onToggleFavorite={handleToggleWorkspaceFavorite}
-        runbookTemplates={runbookTemplates}
-        guidedRunbookSession={guidedRunbookSession}
-        runbookNote={guidedRunbookNote}
-        onRunbookNoteChange={handleGuidedRunbookNoteChange}
-        onStartGuidedRunbook={handleStartGuidedRunbook}
-        onAdvanceGuidedRunbook={handleAdvanceGuidedRunbook}
-        onCopyRunbookProgressToNotes={handleCopyRunbookProgressToNotes}
-        workspacePersonalization={workspacePersonalization}
-        onPersonalizationChange={handleWorkspacePersonalizationChange}
+        intake={{
+          data: caseIntake,
+          onChange: handleIntakeFieldChange,
+          onAnalyze: handleAnalyzeIntake,
+          onApplyPreset: handleApplyIntakePreset,
+          onNoteAudienceChange: handleNoteAudienceChange,
+          missingQuestions,
+        }}
+        nextActions={{
+          items: nextActions,
+          onAccept: handleAcceptNextAction,
+        }}
+        similarCases={{
+          items: similarCases,
+          loading: similarCasesLoading,
+          onRefresh: handleRefreshSimilarCases,
+          onOpen: handleOpenSimilarCase,
+          onCompare: handleCompareSimilarCase,
+          onCompareLast: handleCompareLastResolution,
+          compareCase,
+          onCloseCompare: () => setCompareCase(null),
+        }}
+        packs={{
+          handoffPack,
+          evidencePack,
+          kbDraft,
+          onCopyHandoff: handleCopyHandoffPack,
+          onCopyEvidence: handleCopyEvidencePack,
+          onCopyKb: handleCopyKbDraft,
+        }}
+        kits={{
+          items: resolutionKits,
+          onSaveCurrent: handleSaveCurrentResolutionKit,
+          onApply: handleApplyResolutionKit,
+        }}
+        favorites={{
+          items: workspaceFavorites,
+          onToggle: handleToggleWorkspaceFavorite,
+        }}
+        runbooks={{
+          templates: runbookTemplates,
+          session: guidedRunbookSession,
+          note: guidedRunbookNote,
+          onNoteChange: handleGuidedRunbookNoteChange,
+          onStart: handleStartGuidedRunbook,
+          onAdvance: handleAdvanceGuidedRunbook,
+          onCopyProgress: handleCopyRunbookProgressToNotes,
+        }}
+        personalization={{
+          value: workspacePersonalization,
+          onChange: handleWorkspacePersonalizationChange,
+        }}
         workspaceCatalogLoading={workspaceCatalogLoading}
         currentResponse={response}
       />

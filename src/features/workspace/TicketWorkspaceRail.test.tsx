@@ -97,73 +97,91 @@ const basePersonalization: WorkspacePersonalization = {
   default_evidence_format: "clipboard",
 };
 
-function renderRail(
-  overrides: Partial<ComponentProps<typeof TicketWorkspaceRail>> = {},
-) {
-  const props: ComponentProps<typeof TicketWorkspaceRail> = {
-    intake: baseIntake,
-    onIntakeChange: vi.fn(),
-    onAnalyzeIntake: vi.fn(),
-    onApplyIntakePreset: vi.fn(),
-    onNoteAudienceChange: vi.fn(),
-    nextActions: [],
-    missingQuestions: [],
-    onAcceptNextAction: vi.fn(),
-    similarCases: [baseSimilarCase],
-    similarCasesLoading: false,
-    onRefreshSimilarCases: vi.fn(),
-    onOpenSimilarCase: vi.fn(),
-    onCompareSimilarCase: vi.fn(),
-    onCompareLastResolution: vi.fn(),
-    compareCase: null,
-    onCloseCompareCase: vi.fn(),
-    handoffPack: {
-      summary: "VPN issue under review",
-      actions_taken: ["Reset VPN profile"],
-      current_blocker: "West region still affected",
-      next_step: "Escalate to network engineering",
-      customer_safe_update: "We are actively working the VPN issue.",
-      escalation_note: "Escalate the remaining west region failures.",
+type RailProps = ComponentProps<typeof TicketWorkspaceRail>;
+
+function makeBundles(): RailProps {
+  return {
+    intake: {
+      data: baseIntake,
+      onChange: vi.fn(),
+      onAnalyze: vi.fn(),
+      onApplyPreset: vi.fn(),
+      onNoteAudienceChange: vi.fn(),
+      missingQuestions: [],
     },
-    evidencePack: {
-      title: "Evidence Pack · INC-1001",
-      summary: "VPN issue under review",
-      sections: [],
+    nextActions: {
+      items: [],
+      onAccept: vi.fn(),
     },
-    kbDraft: {
-      title: "VPN disconnects every morning",
-      summary: "Repeated VPN disconnects for remote users.",
-      symptoms: "Users disconnect every morning.",
-      environment: "Managed Windows laptops",
-      cause: "Likely regional gateway issue",
-      resolution: "Reset profile and escalate to network engineering.",
-      warnings: [],
-      prerequisites: [],
-      policy_links: [],
-      tags: ["incident"],
+    similarCases: {
+      items: [baseSimilarCase],
+      loading: false,
+      onRefresh: vi.fn(),
+      onOpen: vi.fn(),
+      onCompare: vi.fn(),
+      onCompareLast: vi.fn(),
+      compareCase: null,
+      onCloseCompare: vi.fn(),
     },
-    onCopyHandoffPack: vi.fn(),
-    onCopyEvidencePack: vi.fn(),
-    onCopyKbDraft: vi.fn(),
-    resolutionKits: [baseResolutionKit],
-    onSaveResolutionKit: vi.fn(),
-    onApplyResolutionKit: vi.fn(),
-    favorites: baseFavorites,
-    onToggleFavorite: vi.fn(),
-    runbookTemplates: [baseRunbookTemplate],
-    guidedRunbookSession: baseRunbookSession,
-    runbookNote: "",
-    onRunbookNoteChange: vi.fn(),
-    onStartGuidedRunbook: vi.fn(),
-    onAdvanceGuidedRunbook: vi.fn(),
-    onCopyRunbookProgressToNotes: vi.fn(),
-    workspacePersonalization: basePersonalization,
-    onPersonalizationChange: vi.fn(),
+    packs: {
+      handoffPack: {
+        summary: "VPN issue under review",
+        actions_taken: ["Reset VPN profile"],
+        current_blocker: "West region still affected",
+        next_step: "Escalate to network engineering",
+        customer_safe_update: "We are actively working the VPN issue.",
+        escalation_note: "Escalate the remaining west region failures.",
+      },
+      evidencePack: {
+        title: "Evidence Pack · INC-1001",
+        summary: "VPN issue under review",
+        sections: [],
+      },
+      kbDraft: {
+        title: "VPN disconnects every morning",
+        summary: "Repeated VPN disconnects for remote users.",
+        symptoms: "Users disconnect every morning.",
+        environment: "Managed Windows laptops",
+        cause: "Likely regional gateway issue",
+        resolution: "Reset profile and escalate to network engineering.",
+        warnings: [],
+        prerequisites: [],
+        policy_links: [],
+        tags: ["incident"],
+      },
+      onCopyHandoff: vi.fn(),
+      onCopyEvidence: vi.fn(),
+      onCopyKb: vi.fn(),
+    },
+    kits: {
+      items: [baseResolutionKit],
+      onSaveCurrent: vi.fn(),
+      onApply: vi.fn(),
+    },
+    favorites: {
+      items: baseFavorites,
+      onToggle: vi.fn(),
+    },
+    runbooks: {
+      templates: [baseRunbookTemplate],
+      session: baseRunbookSession,
+      note: "",
+      onNoteChange: vi.fn(),
+      onStart: vi.fn(),
+      onAdvance: vi.fn(),
+      onCopyProgress: vi.fn(),
+    },
+    personalization: {
+      value: basePersonalization,
+      onChange: vi.fn(),
+    },
     workspaceCatalogLoading: false,
     currentResponse: "Reset the VPN profile and verify MFA enrollment.",
-    ...overrides,
   };
+}
 
+function renderRail(overrides: Partial<RailProps> = {}) {
+  const props: RailProps = { ...makeBundles(), ...overrides };
   return {
     props,
     ...render(<TicketWorkspaceRail {...props} />),
@@ -211,9 +229,9 @@ describe("TicketWorkspaceRail", () => {
       }),
     );
 
-    expect(props.onCompareLastResolution).toHaveBeenCalledTimes(1);
-    expect(props.onApplyResolutionKit).toHaveBeenCalledTimes(1);
-    expect(props.onCopyRunbookProgressToNotes).toHaveBeenCalledTimes(1);
+    expect(props.similarCases.onCompareLast).toHaveBeenCalledTimes(1);
+    expect(props.kits.onApply).toHaveBeenCalledTimes(1);
+    expect(props.runbooks.onCopyProgress).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Favorites")).toBeTruthy();
     expect(screen.getByText("Guided runbooks")).toBeTruthy();
   });
@@ -243,19 +261,19 @@ describe("TicketWorkspaceRail", () => {
       { target: { value: "Long" } },
     );
 
-    expect(props.onPersonalizationChange).toHaveBeenCalledWith({
+    expect(props.personalization.onChange).toHaveBeenCalledWith({
       preferred_output_length: "Long",
     });
   });
 
   it("shows empty states when the catalog is unavailable and compare is not ready", () => {
+    const base = makeBundles();
     const { container } = renderRail({
       currentResponse: "",
-      similarCases: [],
-      resolutionKits: [],
-      favorites: [],
-      guidedRunbookSession: null,
-      runbookTemplates: [],
+      similarCases: { ...base.similarCases, items: [] },
+      kits: { ...base.kits, items: [] },
+      favorites: { ...base.favorites, items: [] },
+      runbooks: { ...base.runbooks, session: null, templates: [] },
     });
     const rail = getRailRoot(container);
 
