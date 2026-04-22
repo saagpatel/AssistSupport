@@ -16,9 +16,7 @@ import {
   readPanelDensityMode,
 } from "./draftTabDefaults";
 import { auditResponseCopyOverride, exportDraft } from "./draftTauriCommands";
-import { DraftResponsePanel } from "./DraftResponsePanel";
-import { InputPanel } from "./InputPanel";
-import { DiagnosisPanel, TreeResult } from "./DiagnosisPanel";
+import type { TreeResult } from "./DiagnosisPanel";
 import { ConversationThread } from "./ConversationThread";
 import type { ConversationEntry } from "./ConversationThread";
 import { useDraftApproval } from "./useDraftApproval";
@@ -30,7 +28,6 @@ import { useDraftIntake } from "./useDraftIntake";
 import { useDraftLifecycle } from "./useDraftLifecycle";
 import { useDraftPersistence } from "./useDraftPersistence";
 import { useGuidedRunbook } from "./useGuidedRunbook";
-import { useNextActionHandler } from "./useNextActionHandler";
 import { useResponseActions } from "./useResponseActions";
 import { useWorkspaceArtifacts } from "./useWorkspaceArtifacts";
 import { useWorkspaceClipboardPacks } from "./useWorkspaceClipboardPacks";
@@ -38,8 +35,6 @@ import { ConversationInput } from "./ConversationInput";
 import { useConversationSubmit } from "./useConversationSubmit";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 import { WorkspaceModeShell } from "./WorkspaceModeShell";
-import { WorkspacePanels } from "./WorkspacePanels";
-import { WorkspaceWorkflowStrip } from "./WorkspaceWorkflowStrip";
 import { useLlmGeneration } from "../../hooks/useLlmGeneration";
 import { useLlmStreaming } from "../../hooks/useLlmStreaming";
 import { useDrafts } from "../../hooks/useDrafts";
@@ -53,12 +48,11 @@ import { useToastContext } from "../../contexts/ToastContext";
 import { useAppStatus } from "../../contexts/AppStatusContext";
 import { AiReadinessBanner } from "./AiReadinessBanner";
 import { resolveRevampFlags } from "../../features/revamp";
-import { TicketWorkspaceRail } from "../../features/workspace/TicketWorkspaceRail";
+import { ClaudeDesignWorkspace } from "../../features/workspace/ClaudeDesignWorkspace";
 import { useWorkspaceCatalog } from "../../features/workspace/useWorkspaceCatalog";
 import { useWorkspaceDerivedArtifacts } from "../../features/workspace/useWorkspaceDerivedArtifacts";
 import { useWorkspaceCommandBridge } from "../../features/workspace/useWorkspaceCommandBridge";
 import { useWorkspaceDraftState } from "../../features/workspace/useWorkspaceDraftState";
-import { countWords } from "../../features/analytics/qualityMetrics";
 import type { JiraTicket } from "../../hooks/useJira";
 import type {
   ConfidenceAssessment,
@@ -114,7 +108,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       updateDraft,
       triggerAutosave,
       cancelAutosave,
-      templates,
       loadTemplates,
       searchDrafts,
       getDraft,
@@ -157,18 +150,12 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     const {
       approvalQuery,
       setApprovalQuery,
-      approvalResults,
       setApprovalResults,
-      approvalSearching,
       approvalSummary,
       setApprovalSummary,
-      approvalSummarizing,
       approvalSources,
       setApprovalSources,
-      approvalError,
       setApprovalError,
-      handleApprovalSearch,
-      handleApprovalSummarize,
       resetApproval,
     } = useDraftApproval({
       searchKb,
@@ -193,7 +180,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     const [responseLength, setResponseLength] = useState<ResponseLength>(
       () => loadWorkspacePersonalization().preferred_output_length,
     );
-    const [diagnosisCollapsed, setDiagnosisCollapsed] = useState(false);
+    // Diagnosis is always expanded in the Claude Design workspace layout.
+    const diagnosisCollapsed = false;
     const [currentTicketId, setCurrentTicketId] = useState<string | null>(null);
     const [currentTicket, setCurrentTicket] = useState<JiraTicket | null>(null);
     const [originalResponse, setOriginalResponse] = useState<string>("");
@@ -226,17 +214,13 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       saveAlternative,
       chooseAlternative,
     } = useAlternatives();
-    const { suggestions, findSimilar, saveAsTemplate, incrementUsage } =
-      useSavedResponses();
-    const [suggestionsDismissed, setSuggestionsDismissed] = useState(false);
+    const { findSimilar, saveAsTemplate, incrementUsage } = useSavedResponses();
+    const [, setSuggestionsDismissed] = useState(false);
 
     const {
       generating,
       setGenerating,
-      generatingAlternative,
       handleGenerate,
-      handleGenerateAlternative,
-      handleChooseAlternative,
       handleUseAlternative,
       resetGeneration,
     } = useDraftGeneration({
@@ -272,10 +256,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setFirstResponse,
       firstResponseTone,
       setFirstResponseTone,
-      firstResponseGenerating,
-      handleGenerateFirstResponse,
-      handleCopyFirstResponse,
-      handleClearFirstResponse,
       resetFirstResponse,
     } = useDraftFirstResponse({
       input,
@@ -292,14 +272,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setChecklistItems,
       checklistCompleted,
       setChecklistCompleted,
-      checklistGenerating,
-      checklistUpdating,
-      checklistError,
       setChecklistError,
-      handleChecklistGenerate,
-      handleChecklistUpdate,
-      handleChecklistToggle,
-      handleChecklistClear,
       resetChecklist,
     } = useDraftChecklist({
       input,
@@ -314,12 +287,10 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     });
 
     const {
-      resolutionKits,
       workspaceFavorites,
       runbookTemplates,
       guidedRunbookSession,
       setGuidedRunbookSession,
-      workspaceCatalogLoading,
       runbookSessionSourceScopeKey,
       runbookSessionTouched,
       setRunbookSessionSourceScopeKey,
@@ -345,8 +316,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setCaseIntake,
       handleIntakeFieldChange,
       handleAnalyzeIntake,
-      handleApplyIntakePreset,
-      handleNoteAudienceChange,
     } = useDraftIntake({
       initialNoteAudience: workspacePersonalization.preferred_note_audience,
       input,
@@ -357,14 +326,7 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setWorkspacePersonalization,
     });
 
-    const {
-      guidedRunbookNote,
-      setGuidedRunbookNote,
-      handleStartGuidedRunbook,
-      handleAdvanceGuidedRunbook,
-      handleCopyRunbookProgressToNotes,
-      handleGuidedRunbookNoteChange,
-    } = useGuidedRunbook({
+    const { guidedRunbookNote, setGuidedRunbookNote } = useGuidedRunbook({
       runbookTemplates,
       guidedRunbookSession,
       workspaceRunbookScopeKey,
@@ -390,36 +352,12 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       }));
     }, []);
 
-    const handleWorkspacePersonalizationChange = useCallback(
-      (patch: Partial<WorkspacePersonalization>) => {
-        setWorkspacePersonalization((prev) => {
-          const next = { ...prev, ...patch };
-          if (patch.preferred_note_audience && !savedDraftId) {
-            setCaseIntake((current) => ({
-              ...current,
-              note_audience:
-                current.note_audience ??
-                patch.preferred_note_audience ??
-                next.preferred_note_audience,
-            }));
-          }
-          if (patch.preferred_output_length) {
-            setResponseLength(patch.preferred_output_length);
-          }
-          return next;
-        });
-      },
-      [savedDraftId, setCaseIntake],
-    );
-
     const {
       showTemplateModal,
       setShowTemplateModal,
       templateModalRating,
-      handleApplyTemplate,
       handleSaveAsTemplate,
       handleTemplateModalSave,
-      handleResponseChange,
       handleCancel,
       handleCopyResponse,
       handleExportResponse,
@@ -446,28 +384,12 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       onShowError: showError,
     });
 
-    const handleSuggestionApply = useCallback(
-      (content: string, templateId: string) => {
-        setResponse(content);
-        setOriginalResponse(content);
-        setIsResponseEdited(false);
-        incrementUsage(templateId);
-        setSuggestionsDismissed(true);
-      },
-      [incrementUsage],
-    );
-
-    const handleSuggestionDismiss = useCallback(() => {
-      setSuggestionsDismissed(true);
-    }, []);
-
-    const handleTreeComplete = useCallback((result: TreeResult) => {
-      setTreeResult(result);
-    }, []);
-
-    const handleTreeClear = useCallback(() => {
-      setTreeResult(null);
-    }, []);
+    // Note: legacy suggestion apply/dismiss and tree handlers were tied to
+    // InputPanel/DiagnosisPanel; the Claude Design workspace layout does not
+    // surface these controls (they were never promoted to PR-worthy UX).
+    // `incrementUsage` is still available via useSavedResponses above for
+    // future wiring.
+    void incrementUsage;
 
     const handleViewModeChange = useCallback(
       (mode: "panels" | "conversation") => {
@@ -541,15 +463,10 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       handoffPack,
       serializedCaseIntake,
       activeWorkspaceDraft,
-      missingQuestions,
-      nextActions,
       evidencePack,
       kbDraft,
       hasSaveableWorkspaceContent,
       hasLiveWorkspaceContent,
-      responseWordCount,
-      responseEditRatio,
-      checklistCompletedCount,
     } = useWorkspaceDerivedArtifacts({
       structuredIntakeEnabled,
       nextBestActionEnabled,
@@ -578,16 +495,9 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
     });
 
     const {
-      similarCases,
-      similarCasesLoading,
-      compareCase,
       setCompareCase,
       handleRefreshSimilarCases,
       handleCompareLastResolution,
-      handleCompareSimilarCase,
-      handleSaveCurrentResolutionKit,
-      handleApplyResolutionKit,
-      handleToggleWorkspaceFavorite,
       resetWorkspaceArtifacts,
     } = useWorkspaceArtifacts({
       similarCasesEnabled,
@@ -745,54 +655,12 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       [getDraft, handleLoadDraft],
     );
 
-    const handleOpenSimilarCase = useCallback(
-      async (similarCase: SimilarCase) => {
-        if (!requestOpenSimilarCase(similarCase)) {
-          return;
-        }
-
-        try {
-          await loadSimilarCaseIntoWorkspace(similarCase);
-          setPendingSimilarCaseOpen(null);
-          void logEvent("workspace_similar_case_opened", {
-            ticket_id: currentTicketId,
-            similar_case_id: similarCase.draft_id,
-            similar_case_ticket: similarCase.ticket_id,
-          });
-          showSuccess("Loaded similar case into the workspace");
-        } catch {
-          showError("Failed to open similar case");
-        }
-      },
-      [
-        loadSimilarCaseIntoWorkspace,
-        logEvent,
-        currentTicketId,
-        requestOpenSimilarCase,
-        setPendingSimilarCaseOpen,
-        showError,
-        showSuccess,
-      ],
-    );
-
-    const handleAcceptNextAction = useNextActionHandler({
-      currentTicketId,
-      currentTicketSummary: currentTicket?.summary,
-      diagnosticNotes,
-      input,
-      caseIntakeIssue: caseIntake.issue,
-      missingQuestions,
-      runbookTemplates,
-      setDiagnosticNotes,
-      setPanelDensityMode,
-      setApprovalQuery,
-      setCaseIntake,
-      handleGenerate,
-      handleStartGuidedRunbook,
-      handleCopyKbDraft,
-      logEvent,
-      onShowSuccess: showSuccess,
-    });
+    // handleOpenSimilarCase + handleAcceptNextAction were consumed by the
+    // old TicketWorkspaceRail; the Claude Design layout does not surface
+    // those flows. Helpers kept available for future wiring.
+    void loadSimilarCaseIntoWorkspace;
+    void requestOpenSimilarCase;
+    void setPendingSimilarCaseOpen;
 
     useWorkspaceCommandBridge({
       enabled: workspaceRailEnabled,
@@ -924,189 +792,41 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       />
     );
 
-    const workflowStrip = (
-      <WorkspaceWorkflowStrip
-        inputWordCount={countWords(input)}
-        currentTicketId={currentTicketId}
-        treeCompleted={Boolean(treeResult)}
-        checklistCompletedCount={checklistCompletedCount}
-        checklistItemCount={checklistItems.length}
-        responseWordCount={responseWordCount}
-        isResponseEdited={isResponseEdited}
-        responseEditRatio={responseEditRatio}
-        hasResponseReady={Boolean(response?.trim())}
-        handoffTouched={handoffTouched}
-        panelDensityMode={panelDensityMode}
-        modelLoaded={modelLoaded}
-        firstResponseGenerating={firstResponseGenerating}
-        checklistGenerating={checklistGenerating}
-        generating={generating}
-        hasInput={Boolean(input.trim())}
-        hasChecklistInput={Boolean(
-          input.trim() || ocrText?.trim() || currentTicket,
-        )}
-        onPanelDensityModeChange={handlePanelDensityModeChange}
-        onGenerateFirstResponse={handleGenerateFirstResponse}
-        onChecklistGenerate={handleChecklistGenerate}
-        onGenerate={handleGenerate}
-        onSaveDraft={() => {
-          void handleSaveDraft();
-        }}
-      />
-    );
-
-    const inputPanel = (
-      <InputPanel
-        value={input}
-        onChange={setInput}
-        ocrText={ocrText}
-        onOcrTextChange={setOcrText}
-        onGenerate={handleGenerate}
-        onClear={handleClear}
-        generating={generating}
-        modelLoaded={modelLoaded}
+    const claudeDesignWorkspacePanel = (
+      <ClaudeDesignWorkspace
+        ticket={currentTicket}
+        ticketId={currentTicketId}
+        input={input}
+        onInputChange={setInput}
         responseLength={responseLength}
         onResponseLengthChange={handleResponseLengthChange}
-        ticketId={currentTicketId}
-        onTicketIdChange={setCurrentTicketId}
-        ticket={currentTicket}
-        onTicketChange={setCurrentTicket}
-        firstResponse={firstResponse}
-        onFirstResponseChange={setFirstResponse}
-        firstResponseTone={firstResponseTone}
-        onFirstResponseToneChange={setFirstResponseTone}
-        onGenerateFirstResponse={handleGenerateFirstResponse}
-        onCopyFirstResponse={handleCopyFirstResponse}
-        onClearFirstResponse={handleClearFirstResponse}
-        firstResponseGenerating={firstResponseGenerating}
-        templates={templates}
-        onApplyTemplate={handleApplyTemplate}
-        onNavigateToSource={onNavigateToSource}
-      />
-    );
-
-    const diagnosisPanel = (
-      <DiagnosisPanel
-        input={input}
-        ocrText={ocrText}
-        notes={diagnosticNotes}
-        onNotesChange={setDiagnosticNotes}
-        treeResult={treeResult}
-        onTreeComplete={handleTreeComplete}
-        onTreeClear={handleTreeClear}
-        checklistItems={checklistItems}
-        checklistCompleted={checklistCompleted}
-        checklistGenerating={checklistGenerating}
-        checklistUpdating={checklistUpdating}
-        checklistError={checklistError}
-        onChecklistToggle={handleChecklistToggle}
-        onChecklistGenerate={handleChecklistGenerate}
-        onChecklistUpdate={handleChecklistUpdate}
-        onChecklistClear={handleChecklistClear}
-        approvalQuery={approvalQuery}
-        onApprovalQueryChange={setApprovalQuery}
-        approvalResults={approvalResults}
-        approvalSearching={approvalSearching}
-        approvalSummary={approvalSummary}
-        approvalSummarizing={approvalSummarizing}
-        approvalSources={approvalSources}
-        onApprovalSearch={handleApprovalSearch}
-        onApprovalSummarize={handleApprovalSummarize}
-        approvalError={approvalError}
-        modelLoaded={modelLoaded}
-        hasTicket={!!currentTicket}
-        collapsed={diagnosisCollapsed}
-        onToggleCollapse={() => setDiagnosisCollapsed(!diagnosisCollapsed)}
-      />
-    );
-
-    const responsePanel = (
-      <DraftResponsePanel
-        suggestions={suggestions}
-        suggestionsDismissed={suggestionsDismissed}
-        onSuggestionApply={handleSuggestionApply}
-        onSuggestionDismiss={handleSuggestionDismiss}
+        hasInput={Boolean(input.trim())}
+        hasDiagnosis={Boolean(
+          diagnosticNotes.trim() || treeResult || caseIntake.likely_category,
+        )}
+        hasResponseReady={Boolean(response?.trim())}
+        handoffTouched={handoffTouched}
         response={response}
         streamingText={streamingText}
         isStreaming={isStreaming}
         sources={sources}
-        generating={generating}
         metrics={metrics}
         confidence={confidence}
         grounding={grounding}
-        savedDraftId={savedDraftId}
-        hasInput={!!input.trim()}
-        isResponseEdited={isResponseEdited}
-        loadedModelName={loadedModelName}
-        currentTicketId={currentTicketId}
-        onSaveDraft={handleSaveDraft}
-        onCancel={handleCancel}
-        onResponseChange={handleResponseChange}
-        onGenerateAlternative={handleGenerateAlternative}
-        generatingAlternative={generatingAlternative}
-        onSaveAsTemplate={handleSaveAsTemplate}
         alternatives={alternatives}
-        onChooseAlternative={handleChooseAlternative}
-        onUseAlternative={handleUseAlternative}
-      />
-    );
-
-    const workspacePanel = (
-      <TicketWorkspaceRail
-        intake={{
-          data: caseIntake,
-          onChange: handleIntakeFieldChange,
-          onAnalyze: handleAnalyzeIntake,
-          onApplyPreset: handleApplyIntakePreset,
-          onNoteAudienceChange: handleNoteAudienceChange,
-          missingQuestions,
+        generating={generating}
+        modelLoaded={modelLoaded}
+        loadedModelName={loadedModelName}
+        caseIntake={caseIntake}
+        onIntakeFieldChange={(field, value) => {
+          handleIntakeFieldChange(field, value ?? "");
         }}
-        nextActions={{
-          items: nextActions,
-          onAccept: handleAcceptNextAction,
-        }}
-        similarCases={{
-          items: similarCases,
-          loading: similarCasesLoading,
-          onRefresh: handleRefreshSimilarCases,
-          onOpen: handleOpenSimilarCase,
-          onCompare: handleCompareSimilarCase,
-          onCompareLast: handleCompareLastResolution,
-          compareCase,
-          onCloseCompare: () => setCompareCase(null),
-        }}
-        packs={{
-          handoffPack,
-          evidencePack,
-          kbDraft,
-          onCopyHandoff: handleCopyHandoffPack,
-          onCopyEvidence: handleCopyEvidencePack,
-          onCopyKb: handleCopyKbDraft,
-        }}
-        kits={{
-          items: resolutionKits,
-          onSaveCurrent: handleSaveCurrentResolutionKit,
-          onApply: handleApplyResolutionKit,
-        }}
-        favorites={{
-          items: workspaceFavorites,
-          onToggle: handleToggleWorkspaceFavorite,
-        }}
-        runbooks={{
-          templates: runbookTemplates,
-          session: guidedRunbookSession,
-          note: guidedRunbookNote,
-          onNoteChange: handleGuidedRunbookNoteChange,
-          onStart: handleStartGuidedRunbook,
-          onAdvance: handleAdvanceGuidedRunbook,
-          onCopyProgress: handleCopyRunbookProgressToNotes,
-        }}
-        personalization={{
-          value: workspacePersonalization,
-          onChange: handleWorkspacePersonalizationChange,
-        }}
-        workspaceCatalogLoading={workspaceCatalogLoading}
-        currentResponse={response}
+        onGenerate={handleGenerate}
+        onCancel={handleCancel}
+        onCopyResponse={handleCopyResponse}
+        onSaveAsTemplate={() => handleSaveAsTemplate(0)}
+        onUseAlternative={(alt) => handleUseAlternative(alt.alternative_text)}
+        onNavigateToSource={onNavigateToSource}
       />
     );
 
@@ -1154,17 +874,8 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
             onCancel={handleCancel}
           />
         }
-        workflowStrip={workflowStrip}
-        panels={
-          <WorkspacePanels
-            diagnosisCollapsed={diagnosisCollapsed}
-            workspaceRailEnabled={workspaceRailEnabled}
-            inputPanel={inputPanel}
-            diagnosisPanel={diagnosisPanel}
-            responsePanel={responsePanel}
-            workspacePanel={workspacePanel}
-          />
-        }
+        workflowStrip={null}
+        panels={claudeDesignWorkspacePanel}
         dialogs={dialogs}
       />
     );

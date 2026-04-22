@@ -1,0 +1,815 @@
+/*
+ * Claude Design Workspace — content-level styles for the Workspace (Draft) tab.
+ *
+ * Ported from the Claude Design handoff bundle
+ *   (assistsupport/project/styles/workspace.css)
+ * with a `.cdw` container scope so the bundle's generic class names
+ * (`.panel`, `.badge`, `.chip`, etc.) do not collide with global styles.
+ */
+
+.cdw {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+/* ========================  TICKET CARD  ======================== */
+.cdw .ticket {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, var(--as-glass-3), var(--as-glass-2));
+  border: 1px solid var(--as-border-1);
+  border-radius: var(--as-radius-2);
+}
+
+.cdw .ticket__id {
+  font-family: var(--as-font-mono);
+  font-size: 11px;
+  color: var(--as-text-3);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.cdw .ticket__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--as-text-1);
+  margin-top: 2px;
+  text-wrap: pretty;
+}
+
+.cdw .ticket__meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--as-text-3);
+}
+
+.cdw .ticket__meta b {
+  font-weight: 500;
+  color: var(--as-text-2);
+}
+
+.cdw .ticket__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  display: grid;
+  place-items: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.cdw .ticket__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* ========================  WORKFLOW STRIP  ======================== */
+.cdw .ws-strip {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 10px 14px;
+  background: var(--as-glass-2);
+  border: 1px solid var(--as-border-1);
+  border-radius: var(--as-radius-2);
+}
+
+.cdw .ws-stage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--as-text-3);
+  flex: 1;
+}
+
+.cdw .ws-stage__num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--as-glass-3);
+  color: var(--as-text-2);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: var(--as-font-mono);
+}
+
+.cdw .ws-stage.is-active {
+  color: var(--as-text-1);
+  background: var(--as-accent-surface-1);
+}
+
+.cdw .ws-stage.is-active .ws-stage__num {
+  background: var(--as-accent-1);
+  color: var(--as-accent-ink);
+}
+
+.cdw .ws-stage.is-done {
+  color: var(--as-text-2);
+}
+
+.cdw .ws-stage.is-done .ws-stage__num {
+  background: var(--as-good-surface);
+  color: var(--as-good-text);
+  border: 1px solid var(--as-good-border);
+}
+
+.cdw .ws-stage__connector {
+  flex: 0 0 14px;
+  height: 1px;
+  background: var(--as-border-1);
+}
+
+/* ========================  PANEL LAYOUT  ======================== */
+.cdw .ws-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .cdw .ws-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cdw .panel {
+  background: var(--as-glass-2);
+  border: 1px solid var(--as-border-1);
+  border-radius: var(--as-radius-2);
+  overflow: hidden;
+}
+
+.cdw .panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--as-border-1);
+  background: var(--as-panel-header-bg);
+}
+
+.cdw .panel__titleBlock {
+  min-width: 0;
+}
+
+.cdw .panel__title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--as-text-1);
+  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cdw .panel__subtitle {
+  font-size: 11px;
+  color: var(--as-text-3);
+  margin-top: 1px;
+}
+
+.cdw .panel__actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.cdw .panel__body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ========================  INPUT AREA  ======================== */
+.cdw .input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cdw .input-area textarea {
+  width: 100%;
+  min-height: 120px;
+  background: var(--as-glass-1);
+  border: 1px solid var(--as-border-1);
+  border-radius: var(--as-radius-1);
+  padding: 12px 14px;
+  color: var(--as-text-1);
+  font-family: var(--as-font-sans);
+  font-size: 13.5px;
+  line-height: 1.55;
+  resize: vertical;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.cdw .input-area textarea:focus {
+  outline: none;
+  border-color: var(--as-accent-border-1);
+  background: var(--as-glass-2);
+}
+
+.cdw .input-area textarea::placeholder {
+  color: var(--as-placeholder);
+}
+
+.cdw .input-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cdw .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--as-text-2);
+  padding: 4px 9px;
+  border-radius: var(--as-radius-pill);
+  background: var(--as-glass-2);
+  border: 1px solid var(--as-border-1);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.cdw .chip:hover {
+  background: var(--as-glass-3);
+}
+
+.cdw .chip.is-on {
+  background: var(--as-accent-surface-1);
+  color: var(--as-accent-1);
+  border-color: var(--as-accent-border-1);
+}
+
+.cdw .chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+/* ========================  SEGMENT CONTROL  ======================== */
+.cdw .seg {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--as-glass-2);
+  border: 1px solid var(--as-border-1);
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.cdw .seg button {
+  padding: 5px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  color: var(--as-text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.cdw .seg button:hover {
+  color: var(--as-text-2);
+}
+
+.cdw .seg button.is-on {
+  background: var(--as-glass-3);
+  color: var(--as-text-1);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* ========================  BUTTONS  ======================== */
+.cdw .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--as-border-1);
+  background: var(--as-glass-2);
+  color: var(--as-text-1);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 80ms ease;
+}
+
+.cdw .btn:hover {
+  background: var(--as-glass-3);
+  border-color: var(--as-border-2);
+}
+
+.cdw .btn:active {
+  transform: translateY(1px);
+}
+
+.cdw .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cdw .btn--primary {
+  background: var(--as-accent-btn-bg);
+  border-color: var(--as-accent-btn-border);
+  color: var(--as-accent-btn-text);
+}
+
+.cdw .btn--primary:hover {
+  background: var(--as-accent-btn-bg-hover, rgba(79, 209, 197, 0.22));
+  border-color: var(--as-accent-btn-border);
+}
+
+.cdw .btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--as-text-3);
+}
+
+.cdw .btn--ghost:hover {
+  background: var(--as-glass-3);
+  color: var(--as-text-1);
+}
+
+.cdw .btn--sm {
+  padding: 4px 9px;
+  font-size: 11.5px;
+}
+
+.cdw .btn__kbd {
+  font-family: var(--as-font-mono);
+  font-size: 10.5px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--as-text-2);
+  margin-left: 4px;
+}
+
+/* ========================  INTAKE (context selects)  ======================== */
+.cdw .intake {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cdw .intake__row label {
+  display: block;
+  font-size: 11px;
+  color: var(--as-text-3);
+  margin-bottom: 4px;
+  letter-spacing: 0.2px;
+}
+
+.cdw .intake__row select,
+.cdw .intake__row input {
+  width: 100%;
+  background: var(--as-glass-1);
+  border: 1px solid var(--as-border-1);
+  border-radius: 7px;
+  color: var(--as-text-1);
+  padding: 6px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+.cdw .intake__row input:focus,
+.cdw .intake__row select:focus {
+  outline: none;
+  border-color: var(--as-accent-border-1);
+}
+
+/* ========================  INTENT BANNER  ======================== */
+.cdw .intent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--as-border-1);
+  background: var(--as-info-surface);
+}
+
+.cdw .intent__label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--as-info-text);
+}
+
+.cdw .intent__class {
+  font-family: var(--as-font-mono);
+  font-size: 12px;
+  color: var(--as-text-1);
+  font-weight: 500;
+}
+
+.cdw .intent__conf {
+  margin-left: auto;
+  font-family: var(--as-font-mono);
+  font-size: 11.5px;
+  color: var(--as-info-text);
+}
+
+/* ========================  GROUNDING GAUGE  ======================== */
+.cdw .gauge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--as-good-surface);
+  border-bottom: 1px solid var(--as-good-border);
+}
+
+.cdw .gauge__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--as-radius-pill);
+  background: var(--as-good-surface);
+  border: 1px solid var(--as-good-border);
+  color: var(--as-good-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.cdw .gauge__bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  position: relative;
+}
+
+.cdw .gauge__bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--v, 86%);
+  background: linear-gradient(90deg, var(--as-good), var(--as-accent-1));
+  border-radius: 999px;
+}
+
+.cdw .gauge__num {
+  font-family: var(--as-font-mono);
+  font-size: 12px;
+  color: var(--as-good-text);
+  font-weight: 600;
+}
+
+/* ========================  RESPONSE META BAR  ======================== */
+.cdw .response-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--as-border-1);
+  font-size: 11.5px;
+  color: var(--as-text-3);
+}
+
+.cdw .response-meta__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cdw .response-meta__item b {
+  color: var(--as-text-2);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========================  RESPONSE BODY  ======================== */
+.cdw .response-body {
+  padding: 16px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--as-text-1);
+  text-wrap: pretty;
+  white-space: pre-wrap;
+}
+
+.cdw .response-body p {
+  margin: 0 0 12px;
+}
+
+.cdw .response-body p:last-child {
+  margin-bottom: 0;
+}
+
+.cdw .response-body .cite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--as-accent-surface-1);
+  border: 1px solid var(--as-accent-border-1);
+  color: var(--as-accent-1);
+  font-family: var(--as-font-mono);
+  font-size: 10px;
+  vertical-align: middle;
+  margin: 0 1px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 120ms ease;
+}
+
+.cdw .response-body .cite:hover {
+  background: rgba(79, 209, 197, 0.18);
+}
+
+.cdw .response-body strong {
+  font-weight: 600;
+  color: var(--as-text-1);
+}
+
+/* ========================  RESPONSE ACTIONS  ======================== */
+.cdw .response-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--as-border-1);
+  background: rgba(0, 0, 0, 0.15);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.cdw .response-actions .spacer {
+  flex: 1;
+}
+
+/* ========================  SOURCES LIST  ======================== */
+.cdw .sources {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cdw .source {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--as-glass-1);
+  border: 1px solid var(--as-border-1);
+  border-radius: 8px;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+}
+
+.cdw .source:hover {
+  background: var(--as-glass-3);
+  border-color: var(--as-border-2);
+}
+
+.cdw .source__num {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--as-accent-surface-1);
+  border: 1px solid var(--as-accent-border-1);
+  color: var(--as-accent-1);
+  font-family: var(--as-font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.cdw .source__body {
+  min-width: 0;
+}
+
+.cdw .source__title {
+  font-size: 12.5px;
+  color: var(--as-text-1);
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cdw .source__meta {
+  font-size: 11px;
+  color: var(--as-text-3);
+  margin-top: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--as-font-mono);
+}
+
+.cdw .source__score {
+  font-family: var(--as-font-mono);
+  font-size: 10.5px;
+  color: var(--as-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========================  ALTERNATIVES STRIP  ======================== */
+.cdw .alternatives {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cdw .alt-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--as-border-1);
+  background: var(--as-glass-1);
+  font-size: 11.5px;
+  color: var(--as-text-2);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+  min-width: 120px;
+  max-width: 260px;
+  flex: 1 1 200px;
+  text-align: left;
+  font-family: inherit;
+}
+
+.cdw .alt-chip:hover {
+  border-color: var(--as-accent-border-1);
+  background: var(--as-glass-3);
+}
+
+.cdw .alt-chip__label {
+  font-size: 10.5px;
+  color: var(--as-text-3);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.cdw .alt-chip__preview {
+  color: var(--as-text-2);
+  font-size: 11.5px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ========================  BADGE (scoped override)  ======================== */
+.cdw .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  height: auto;
+  border-radius: var(--as-radius-pill);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: 1px solid var(--as-border-1);
+  background: var(--as-glass-2);
+  color: var(--as-text-2);
+  line-height: 1.2;
+}
+
+.cdw .badge--good {
+  background: var(--as-good-surface);
+  border-color: var(--as-good-border);
+  color: var(--as-good-text);
+}
+
+.cdw .badge--warn {
+  background: var(--as-warn-surface);
+  border-color: var(--as-warn-border);
+  color: var(--as-warn-text);
+}
+
+.cdw .badge--bad {
+  background: var(--as-bad-surface);
+  border-color: var(--as-bad-border);
+  color: var(--as-bad-text);
+}
+
+.cdw .badge--info {
+  background: var(--as-info-surface);
+  border-color: var(--as-info-border);
+  color: var(--as-info-text);
+}
+
+.cdw .badge--accent {
+  background: var(--as-accent-surface-1);
+  border-color: var(--as-accent-border-1);
+  color: var(--as-accent-1);
+}
+
+/* ========================  STREAMING DOT  ======================== */
+.cdw .streaming-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--as-accent-1);
+  animation: cdw-pulse 1.2s ease-in-out infinite;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+@keyframes cdw-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+/* ========================  UTILITIES  ======================== */
+.cdw .hstack {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cdw .vstack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cdw .muted {
+  color: var(--as-text-3);
+}
+
+.cdw .mono {
+  font-family: var(--as-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========================  EMPTY STATES  ======================== */
+.cdw .empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--as-text-3);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
