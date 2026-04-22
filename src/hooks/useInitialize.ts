@@ -24,7 +24,6 @@ const IS_DEV = Boolean(import.meta.env?.DEV);
 
 function logNonFatal(message: string, error: unknown) {
   if (!IS_DEV) return;
-  // eslint-disable-next-line no-console
   console.warn(message, error);
 }
 
@@ -191,7 +190,6 @@ export function useInitialize() {
         await finishInitializedState(result);
       } catch (e) {
         if (IS_DEV) {
-          // eslint-disable-next-line no-console
           console.error("Passphrase unlock failed:", e);
         }
         setState((prev) => ({
@@ -230,7 +228,6 @@ export function useInitialize() {
         await finishInitializedState(result);
       } catch (e) {
         if (IS_DEV) {
-          // eslint-disable-next-line no-console
           console.error("Critical initialization failed:", e);
         }
         setState((prev) => ({
