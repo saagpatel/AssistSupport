@@ -19,7 +19,8 @@ import { auditResponseCopyOverride, exportDraft } from "./draftTauriCommands";
 import { DraftResponsePanel } from "./DraftResponsePanel";
 import { InputPanel } from "./InputPanel";
 import { DiagnosisPanel, TreeResult } from "./DiagnosisPanel";
-import { ConversationThread, ConversationEntry } from "./ConversationThread";
+import { ConversationThread } from "./ConversationThread";
+import type { ConversationEntry } from "./ConversationThread";
 import { useDraftApproval } from "./useDraftApproval";
 import { useDraftChecklist } from "./useDraftChecklist";
 import { useDraftFirstResponse } from "./useDraftFirstResponse";
@@ -33,6 +34,7 @@ import { useResponseActions } from "./useResponseActions";
 import { useWorkspaceArtifacts } from "./useWorkspaceArtifacts";
 import { useWorkspaceClipboardPacks } from "./useWorkspaceClipboardPacks";
 import { ConversationInput } from "./ConversationInput";
+import { useConversationSubmit } from "./useConversationSubmit";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 import { WorkspaceModeShell } from "./WorkspaceModeShell";
 import { WorkspacePanels } from "./WorkspacePanels";
@@ -518,59 +520,21 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       [],
     );
 
-    const handleConversationSubmit = useCallback(
-      async (text: string) => {
-        if (!modelLoaded) return;
-
-        // Add input entry
-        const inputEntry: ConversationEntry = {
-          id: crypto.randomUUID(),
-          type: "input",
-          timestamp: new Date().toISOString(),
-          content: text,
-        };
-        setConversationEntries((prev) => [...prev, inputEntry]);
-        setInput(text);
-
-        // Generate
-        setGenerating(true);
-        setResponse("");
-        clearStreamingText();
-        setConfidence(null);
-        setGrounding([]);
-        try {
-          const result = await generateStreaming(text, responseLength, {});
-          setResponse(result.text);
-          setOriginalResponse(result.text);
-          setIsResponseEdited(false);
-          setSources(result.sources);
-          setConfidence(result.confidence ?? null);
-          setGrounding(result.grounding ?? []);
-
-          // Add response entry
-          const responseEntry: ConversationEntry = {
-            id: crypto.randomUUID(),
-            type: "response",
-            timestamp: new Date().toISOString(),
-            content: result.text,
-            sources: result.sources,
-            metrics: result.metrics
-              ? {
-                  tokens_per_second: result.metrics.tokens_per_second,
-                  sources_used: result.metrics.sources_used,
-                  word_count: result.metrics.word_count,
-                }
-              : undefined,
-          };
-          setConversationEntries((prev) => [...prev, responseEntry]);
-        } catch (e) {
-          console.error("Generation failed:", e);
-        } finally {
-          setGenerating(false);
-        }
-      },
-      [modelLoaded, responseLength, generateStreaming, clearStreamingText],
-    );
+    const handleConversationSubmit = useConversationSubmit({
+      modelLoaded,
+      responseLength,
+      generateStreaming,
+      clearStreamingText,
+      setConversationEntries,
+      setInput,
+      setGenerating,
+      setResponse,
+      setOriginalResponse,
+      setIsResponseEdited,
+      setSources,
+      setConfidence,
+      setGrounding,
+    });
 
     const buildDiagnosisJson = useCallback(
       () =>
