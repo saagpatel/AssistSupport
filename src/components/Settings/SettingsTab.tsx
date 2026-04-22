@@ -517,7 +517,7 @@ export function SettingsTab() {
         `Exported ${result.drafts_count} drafts, ${result.templates_count} templates, ${result.variables_count} variables, ${result.trees_count} trees`,
       );
     } catch (err) {
-      if (String(err) !== "Export cancelled") {
+      if (!String(err).startsWith("[CANCELLED_BY_USER]")) {
         showError(`Export failed: ${err}`);
       }
     } finally {
@@ -541,7 +541,7 @@ export function SettingsTab() {
       loadInitialState();
       loadVariables();
     } catch (err) {
-      if (String(err) !== "Import cancelled") {
+      if (!String(err).startsWith("[CANCELLED_BY_USER]")) {
         showError(`Import failed: ${err}`);
       }
     } finally {
@@ -568,7 +568,7 @@ export function SettingsTab() {
       });
       showSuccess(`Audit log exported to ${output}`);
     } catch (err) {
-      if (String(err) !== "Export cancelled") {
+      if (!String(err).startsWith("[CANCELLED_BY_USER]")) {
         showError(`Audit export failed: ${err}`);
       }
     } finally {
