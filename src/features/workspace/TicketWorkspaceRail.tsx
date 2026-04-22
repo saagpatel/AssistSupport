@@ -25,115 +25,117 @@ import {
 } from "./IntakeFieldControl";
 import "./TicketWorkspaceRail.css";
 
-interface TicketWorkspaceRailProps {
-  intake: CaseIntake;
-  onIntakeChange: (field: IntakeField, value: string) => void;
-  onAnalyzeIntake: () => void;
-  onApplyIntakePreset: (
-    preset: "incident" | "access" | "rollout" | "device",
-  ) => void;
+export interface TicketWorkspaceRailIntakeBundle {
+  data: CaseIntake;
+  onChange: (field: IntakeField, value: string) => void;
+  onAnalyze: () => void;
+  onApplyPreset: (preset: "incident" | "access" | "rollout" | "device") => void;
   onNoteAudienceChange: (audience: NoteAudience) => void;
-  nextActions: NextActionRecommendation[];
   missingQuestions: MissingQuestion[];
-  onAcceptNextAction: (action: NextActionRecommendation) => void;
-  similarCases: SimilarCase[];
-  similarCasesLoading: boolean;
-  onRefreshSimilarCases: () => void;
-  onOpenSimilarCase: (similarCase: SimilarCase) => void;
-  onCompareSimilarCase: (similarCase: SimilarCase) => void;
-  onCompareLastResolution: () => void;
+}
+
+export interface TicketWorkspaceRailNextActionsBundle {
+  items: NextActionRecommendation[];
+  onAccept: (action: NextActionRecommendation) => void;
+}
+
+export interface TicketWorkspaceRailSimilarCasesBundle {
+  items: SimilarCase[];
+  loading: boolean;
+  onRefresh: () => void;
+  onOpen: (similarCase: SimilarCase) => void;
+  onCompare: (similarCase: SimilarCase) => void;
+  onCompareLast: () => void;
   compareCase: SimilarCase | null;
-  onCloseCompareCase: () => void;
+  onCloseCompare: () => void;
+}
+
+export interface TicketWorkspaceRailPacksBundle {
   handoffPack: HandoffPack;
   evidencePack: EvidencePack;
   kbDraft: KbDraft;
-  onCopyHandoffPack: () => void;
-  onCopyEvidencePack: () => void;
-  onCopyKbDraft: () => void;
-  resolutionKits: ResolutionKit[];
-  onSaveResolutionKit: () => void;
-  onApplyResolutionKit: (kit: ResolutionKit) => void;
-  favorites: WorkspaceFavorite[];
-  onToggleFavorite: (
+  onCopyHandoff: () => void;
+  onCopyEvidence: () => void;
+  onCopyKb: () => void;
+}
+
+export interface TicketWorkspaceRailKitsBundle {
+  items: ResolutionKit[];
+  onSaveCurrent: () => void;
+  onApply: (kit: ResolutionKit) => void;
+}
+
+export interface TicketWorkspaceRailFavoritesBundle {
+  items: WorkspaceFavorite[];
+  onToggle: (
     kind: WorkspaceFavorite["kind"],
     resourceId: string,
     label: string,
     metadata?: Record<string, string> | null,
   ) => void;
-  runbookTemplates: GuidedRunbookTemplate[];
-  guidedRunbookSession: GuidedRunbookSession | null;
-  runbookNote: string;
-  onRunbookNoteChange: (value: string) => void;
-  onStartGuidedRunbook: (templateId: string) => void;
-  onAdvanceGuidedRunbook: (status: "completed" | "skipped" | "failed") => void;
-  onCopyRunbookProgressToNotes: () => void;
-  workspacePersonalization: WorkspacePersonalization;
-  onPersonalizationChange: (patch: Partial<WorkspacePersonalization>) => void;
+}
+
+export interface TicketWorkspaceRailRunbooksBundle {
+  templates: GuidedRunbookTemplate[];
+  session: GuidedRunbookSession | null;
+  note: string;
+  onNoteChange: (value: string) => void;
+  onStart: (templateId: string) => void;
+  onAdvance: (status: "completed" | "skipped" | "failed") => void;
+  onCopyProgress: () => void;
+}
+
+export interface TicketWorkspaceRailPersonalizationBundle {
+  value: WorkspacePersonalization;
+  onChange: (patch: Partial<WorkspacePersonalization>) => void;
+}
+
+interface TicketWorkspaceRailProps {
+  intake: TicketWorkspaceRailIntakeBundle;
+  nextActions: TicketWorkspaceRailNextActionsBundle;
+  similarCases: TicketWorkspaceRailSimilarCasesBundle;
+  packs: TicketWorkspaceRailPacksBundle;
+  kits: TicketWorkspaceRailKitsBundle;
+  favorites: TicketWorkspaceRailFavoritesBundle;
+  runbooks: TicketWorkspaceRailRunbooksBundle;
+  personalization: TicketWorkspaceRailPersonalizationBundle;
   workspaceCatalogLoading: boolean;
   currentResponse: string;
 }
 
 export function TicketWorkspaceRail({
   intake,
-  onIntakeChange,
-  onAnalyzeIntake,
-  onApplyIntakePreset,
-  onNoteAudienceChange,
   nextActions,
-  missingQuestions,
-  onAcceptNextAction,
   similarCases,
-  similarCasesLoading,
-  onRefreshSimilarCases,
-  onOpenSimilarCase,
-  onCompareSimilarCase,
-  onCompareLastResolution,
-  compareCase,
-  onCloseCompareCase,
-  handoffPack,
-  evidencePack,
-  kbDraft,
-  onCopyHandoffPack,
-  onCopyEvidencePack,
-  onCopyKbDraft,
-  resolutionKits,
-  onSaveResolutionKit,
-  onApplyResolutionKit,
+  packs,
+  kits,
   favorites,
-  onToggleFavorite,
-  runbookTemplates,
-  guidedRunbookSession,
-  runbookNote,
-  onRunbookNoteChange,
-  onStartGuidedRunbook,
-  onAdvanceGuidedRunbook,
-  onCopyRunbookProgressToNotes,
-  workspacePersonalization,
-  onPersonalizationChange,
+  runbooks,
+  personalization,
   workspaceCatalogLoading,
   currentResponse,
 }: TicketWorkspaceRailProps) {
   const [selectedRunbookTemplateId, setSelectedRunbookTemplateId] =
     useState("");
   const intakeMissing = useMemo(
-    () => intake.missing_data ?? [],
-    [intake.missing_data],
+    () => intake.data.missing_data ?? [],
+    [intake.data.missing_data],
   );
   const favoriteLookup = useMemo(
     () =>
       new Set(
-        favorites.map((favorite) => `${favorite.kind}:${favorite.resource_id}`),
+        favorites.items.map(
+          (favorite) => `${favorite.kind}:${favorite.resource_id}`,
+        ),
       ),
-    [favorites],
+    [favorites.items],
   );
   const currentRunbookStepLabel = useMemo(() => {
-    if (!guidedRunbookSession) {
+    if (!runbooks.session) {
       return null;
     }
-    return (
-      guidedRunbookSession.steps[guidedRunbookSession.current_step] ?? null
-    );
-  }, [guidedRunbookSession]);
+    return runbooks.session.steps[runbooks.session.current_step] ?? null;
+  }, [runbooks.session]);
 
   useEffect(() => {
     markWorkspaceReady();
@@ -150,7 +152,7 @@ export function TicketWorkspaceRail({
               draft.
             </p>
           </div>
-          <Button variant="secondary" size="small" onClick={onAnalyzeIntake}>
+          <Button variant="secondary" size="small" onClick={intake.onAnalyze}>
             Analyze intake
           </Button>
         </div>
@@ -161,9 +163,9 @@ export function TicketWorkspaceRail({
             <label className="ticket-workspace-rail__field">
               <span>Default note audience</span>
               <select
-                value={workspacePersonalization.preferred_note_audience}
+                value={personalization.value.preferred_note_audience}
                 onChange={(event) =>
-                  onPersonalizationChange({
+                  personalization.onChange({
                     preferred_note_audience: event.target.value as NoteAudience,
                   })
                 }
@@ -178,9 +180,9 @@ export function TicketWorkspaceRail({
             <label className="ticket-workspace-rail__field">
               <span>Default output length</span>
               <select
-                value={workspacePersonalization.preferred_output_length}
+                value={personalization.value.preferred_output_length}
                 onChange={(event) =>
-                  onPersonalizationChange({
+                  personalization.onChange({
                     preferred_output_length: event.target
                       .value as WorkspacePersonalization["preferred_output_length"],
                   })
@@ -194,9 +196,9 @@ export function TicketWorkspaceRail({
             <label className="ticket-workspace-rail__field">
               <span>Evidence pack format</span>
               <select
-                value={workspacePersonalization.default_evidence_format}
+                value={personalization.value.default_evidence_format}
                 onChange={(event) =>
-                  onPersonalizationChange({
+                  personalization.onChange({
                     default_evidence_format: event.target
                       .value as WorkspacePersonalization["default_evidence_format"],
                   })
@@ -218,9 +220,9 @@ export function TicketWorkspaceRail({
             <button
               key={audience.id}
               type="button"
-              className={`ticket-workspace-rail__chip ${intake.note_audience === audience.id ? "is-active" : ""}`}
-              aria-pressed={intake.note_audience === audience.id}
-              onClick={() => onNoteAudienceChange(audience.id)}
+              className={`ticket-workspace-rail__chip ${intake.data.note_audience === audience.id ? "is-active" : ""}`}
+              aria-pressed={intake.data.note_audience === audience.id}
+              onClick={() => intake.onNoteAudienceChange(audience.id)}
             >
               {audience.label}
             </button>
@@ -233,28 +235,28 @@ export function TicketWorkspaceRail({
             <button
               type="button"
               className="ticket-workspace-rail__mini-btn"
-              onClick={() => onApplyIntakePreset("incident")}
+              onClick={() => intake.onApplyPreset("incident")}
             >
               Incident
             </button>
             <button
               type="button"
               className="ticket-workspace-rail__mini-btn"
-              onClick={() => onApplyIntakePreset("access")}
+              onClick={() => intake.onApplyPreset("access")}
             >
               Access
             </button>
             <button
               type="button"
               className="ticket-workspace-rail__mini-btn"
-              onClick={() => onApplyIntakePreset("rollout")}
+              onClick={() => intake.onApplyPreset("rollout")}
             >
               Change
             </button>
             <button
               type="button"
               className="ticket-workspace-rail__mini-btn"
-              onClick={() => onApplyIntakePreset("device")}
+              onClick={() => intake.onApplyPreset("device")}
             >
               Device
             </button>
@@ -272,9 +274,11 @@ export function TicketWorkspaceRail({
             <IntakeFieldControl
               key={field.key}
               label={field.label}
-              value={(intake[field.key] as string | null | undefined) ?? ""}
+              value={
+                (intake.data[field.key] as string | null | undefined) ?? ""
+              }
               rows={field.rows}
-              onChange={(value) => onIntakeChange(field.key, value)}
+              onChange={(value) => intake.onChange(field.key, value)}
             />
           ))}
         </div>
@@ -287,14 +291,14 @@ export function TicketWorkspaceRail({
             <p>Decision support stays explicit and explainable.</p>
           </div>
         </div>
-        {nextActions.length === 0 ? (
+        {nextActions.items.length === 0 ? (
           <p className="ticket-workspace-rail__empty">
             No suggested actions yet. Complete intake or generate a response
             first.
           </p>
         ) : (
           <div className="ticket-workspace-rail__stack">
-            {nextActions.map((action) => (
+            {nextActions.items.map((action) => (
               <article key={action.id} className="ticket-workspace-rail__card">
                 <div className="ticket-workspace-rail__card-header">
                   <strong>{action.label}</strong>
@@ -311,7 +315,7 @@ export function TicketWorkspaceRail({
                 <Button
                   variant="ghost"
                   size="small"
-                  onClick={() => onAcceptNextAction(action)}
+                  onClick={() => nextActions.onAccept(action)}
                 >
                   Use this action
                 </Button>
@@ -320,11 +324,11 @@ export function TicketWorkspaceRail({
           </div>
         )}
 
-        {missingQuestions.length > 0 && (
+        {intake.missingQuestions.length > 0 && (
           <div className="ticket-workspace-rail__subsection">
             <h4>Missing questions</h4>
             <ul className="ticket-workspace-rail__questions">
-              {missingQuestions.map((question) => (
+              {intake.missingQuestions.map((question) => (
                 <li key={question.id}>
                   <strong>{question.question}</strong>
                   <span>{question.reason}</span>
@@ -345,31 +349,33 @@ export function TicketWorkspaceRail({
             <Button
               variant="ghost"
               size="small"
-              onClick={onRefreshSimilarCases}
+              onClick={similarCases.onRefresh}
             >
-              {similarCasesLoading ? "Refreshing..." : "Refresh"}
+              {similarCases.loading ? "Refreshing..." : "Refresh"}
             </Button>
             <Button
               variant="secondary"
               size="small"
-              disabled={!currentResponse.trim() || similarCases.length === 0}
-              onClick={onCompareLastResolution}
+              disabled={
+                !currentResponse.trim() || similarCases.items.length === 0
+              }
+              onClick={similarCases.onCompareLast}
             >
               Compare latest
             </Button>
           </div>
         </div>
-        {similarCasesLoading ? (
+        {similarCases.loading ? (
           <p className="ticket-workspace-rail__empty">
             Looking for similar solved work...
           </p>
-        ) : similarCases.length === 0 ? (
+        ) : similarCases.items.length === 0 ? (
           <p className="ticket-workspace-rail__empty">
             No similar cases yet for this ticket.
           </p>
         ) : (
           <div className="ticket-workspace-rail__stack">
-            {similarCases.map((similarCase) => (
+            {similarCases.items.map((similarCase) => (
               <article
                 key={similarCase.draft_id}
                 className="ticket-workspace-rail__card"
@@ -391,7 +397,7 @@ export function TicketWorkspaceRail({
                   <Button
                     variant="secondary"
                     size="small"
-                    onClick={() => onOpenSimilarCase(similarCase)}
+                    onClick={() => similarCases.onOpen(similarCase)}
                   >
                     Open case
                   </Button>
@@ -402,7 +408,7 @@ export function TicketWorkspaceRail({
                       !currentResponse.trim() ||
                       !similarCase.response_text.trim()
                     }
-                    onClick={() => onCompareSimilarCase(similarCase)}
+                    onClick={() => similarCases.onCompare(similarCase)}
                   >
                     Compare
                   </Button>
@@ -419,25 +425,29 @@ export function TicketWorkspaceRail({
             <h3>Handoff pack</h3>
             <p>Keep the next operator or escalation path ready.</p>
           </div>
-          <Button variant="secondary" size="small" onClick={onCopyHandoffPack}>
+          <Button
+            variant="secondary"
+            size="small"
+            onClick={packs.onCopyHandoff}
+          >
             Copy pack
           </Button>
         </div>
         <div className="ticket-workspace-rail__summary-block">
           <strong>Summary</strong>
-          <p>{handoffPack.summary}</p>
+          <p>{packs.handoffPack.summary}</p>
         </div>
         <div className="ticket-workspace-rail__summary-block">
           <strong>Current blocker</strong>
-          <p>{handoffPack.current_blocker}</p>
+          <p>{packs.handoffPack.current_blocker}</p>
         </div>
         <div className="ticket-workspace-rail__summary-block">
           <strong>Next step</strong>
-          <p>{handoffPack.next_step}</p>
+          <p>{packs.handoffPack.next_step}</p>
         </div>
         <div className="ticket-workspace-rail__summary-block">
           <strong>Customer-safe update</strong>
-          <p>{handoffPack.customer_safe_update}</p>
+          <p>{packs.handoffPack.customer_safe_update}</p>
         </div>
       </section>
 
@@ -449,21 +459,25 @@ export function TicketWorkspaceRail({
           </div>
         </div>
         <div className="ticket-workspace-rail__actions">
-          <Button variant="secondary" size="small" onClick={onCopyEvidencePack}>
+          <Button
+            variant="secondary"
+            size="small"
+            onClick={packs.onCopyEvidence}
+          >
             Copy evidence pack
           </Button>
-          <Button variant="ghost" size="small" onClick={onCopyKbDraft}>
+          <Button variant="ghost" size="small" onClick={packs.onCopyKb}>
             Copy KB draft
           </Button>
         </div>
         <div className="ticket-workspace-rail__summary-block">
-          <strong>{evidencePack.title}</strong>
-          <p>{evidencePack.summary}</p>
+          <strong>{packs.evidencePack.title}</strong>
+          <p>{packs.evidencePack.summary}</p>
         </div>
         <div className="ticket-workspace-rail__summary-block">
           <strong>KB draft</strong>
-          <p>{kbDraft.title}</p>
-          <span>{kbDraft.tags.join(", ") || "No tags yet"}</span>
+          <p>{packs.kbDraft.title}</p>
+          <span>{packs.kbDraft.tags.join(", ") || "No tags yet"}</span>
         </div>
       </section>
 
@@ -476,24 +490,20 @@ export function TicketWorkspaceRail({
               pattern.
             </p>
           </div>
-          <Button
-            variant="secondary"
-            size="small"
-            onClick={onSaveResolutionKit}
-          >
+          <Button variant="secondary" size="small" onClick={kits.onSaveCurrent}>
             Save current as kit
           </Button>
         </div>
-        {workspaceCatalogLoading && resolutionKits.length === 0 ? (
+        {workspaceCatalogLoading && kits.items.length === 0 ? (
           <p className="ticket-workspace-rail__empty">Loading saved kits...</p>
-        ) : resolutionKits.length === 0 ? (
+        ) : kits.items.length === 0 ? (
           <p className="ticket-workspace-rail__empty">
             No saved kits yet. Save the current workspace when you solve a
             repeatable issue.
           </p>
         ) : (
           <div className="ticket-workspace-rail__stack">
-            {resolutionKits.map((kit) => {
+            {kits.items.map((kit) => {
               const isFavorite = favoriteLookup.has(`kit:${kit.id}`);
               return (
                 <article key={kit.id} className="ticket-workspace-rail__card">
@@ -513,7 +523,7 @@ export function TicketWorkspaceRail({
                     <Button
                       variant="secondary"
                       size="small"
-                      onClick={() => onApplyResolutionKit(kit)}
+                      onClick={() => kits.onApply(kit)}
                     >
                       Apply kit
                     </Button>
@@ -521,7 +531,7 @@ export function TicketWorkspaceRail({
                       variant="ghost"
                       size="small"
                       onClick={() =>
-                        onToggleFavorite("kit", kit.id, kit.name, {
+                        favorites.onToggle("kit", kit.id, kit.name, {
                           category: kit.category,
                         })
                       }
@@ -556,7 +566,7 @@ export function TicketWorkspaceRail({
               }
             >
               <option value="">Choose a template</option>
-              {runbookTemplates.map((template) => (
+              {runbooks.templates.map((template) => (
                 <option key={template.id} value={template.id}>
                   {template.name}
                 </option>
@@ -569,7 +579,7 @@ export function TicketWorkspaceRail({
             variant="secondary"
             size="small"
             disabled={!selectedRunbookTemplateId}
-            onClick={() => onStartGuidedRunbook(selectedRunbookTemplateId)}
+            onClick={() => runbooks.onStart(selectedRunbookTemplateId)}
           >
             Start template
           </Button>
@@ -578,11 +588,11 @@ export function TicketWorkspaceRail({
               variant="ghost"
               size="small"
               onClick={() => {
-                const selectedTemplate = runbookTemplates.find(
+                const selectedTemplate = runbooks.templates.find(
                   (template) => template.id === selectedRunbookTemplateId,
                 );
                 if (selectedTemplate) {
-                  onToggleFavorite(
+                  favorites.onToggle(
                     "runbook",
                     selectedTemplate.id,
                     selectedTemplate.name,
@@ -598,7 +608,7 @@ export function TicketWorkspaceRail({
           )}
         </div>
 
-        {!guidedRunbookSession ? (
+        {!runbooks.session ? (
           <p className="ticket-workspace-rail__empty">
             No guided runbook active yet.
           </p>
@@ -606,8 +616,8 @@ export function TicketWorkspaceRail({
           <div className="ticket-workspace-rail__stack">
             <article className="ticket-workspace-rail__card">
               <div className="ticket-workspace-rail__card-header">
-                <strong>{guidedRunbookSession.scenario}</strong>
-                <span>{guidedRunbookSession.status}</span>
+                <strong>{runbooks.session.scenario}</strong>
+                <span>{runbooks.session.status}</span>
               </div>
               <p>
                 {currentRunbookStepLabel
@@ -618,36 +628,38 @@ export function TicketWorkspaceRail({
                 <span>Evidence or operator note</span>
                 <textarea
                   rows={3}
-                  value={runbookNote}
-                  onChange={(event) => onRunbookNoteChange(event.target.value)}
+                  value={runbooks.note}
+                  onChange={(event) =>
+                    runbooks.onNoteChange(event.target.value)
+                  }
                 />
               </label>
               <div className="ticket-workspace-rail__actions">
                 <Button
                   variant="secondary"
                   size="small"
-                  onClick={() => onAdvanceGuidedRunbook("completed")}
+                  onClick={() => runbooks.onAdvance("completed")}
                 >
                   Complete step
                 </Button>
                 <Button
                   variant="ghost"
                   size="small"
-                  onClick={() => onAdvanceGuidedRunbook("skipped")}
+                  onClick={() => runbooks.onAdvance("skipped")}
                 >
                   Skip
                 </Button>
                 <Button
                   variant="ghost"
                   size="small"
-                  onClick={() => onAdvanceGuidedRunbook("failed")}
+                  onClick={() => runbooks.onAdvance("failed")}
                 >
                   Fail / pause
                 </Button>
                 <Button
                   variant="ghost"
                   size="small"
-                  onClick={onCopyRunbookProgressToNotes}
+                  onClick={runbooks.onCopyProgress}
                 >
                   Copy into notes
                 </Button>
@@ -655,23 +667,24 @@ export function TicketWorkspaceRail({
             </article>
             <div className="ticket-workspace-rail__summary-block">
               <strong>Progress</strong>
-              {guidedRunbookSession.steps.length === 0 ? (
+              {runbooks.session.steps.length === 0 ? (
                 <p>No steps in this runbook.</p>
               ) : (
                 <ul className="ticket-workspace-rail__questions">
-                  {guidedRunbookSession.steps.map((step, index) => {
-                    const evidence = guidedRunbookSession.evidence.find(
+                  {runbooks.session.steps.map((step, index) => {
+                    const session = runbooks.session!;
+                    const evidence = session.evidence.find(
                       (item) => item.step_index === index,
                     );
                     const statusLabel =
                       evidence?.status ??
-                      (index < guidedRunbookSession.current_step
+                      (index < session.current_step
                         ? "completed"
-                        : index === guidedRunbookSession.current_step
+                        : index === session.current_step
                           ? "current"
                           : "pending");
                     return (
-                      <li key={`${guidedRunbookSession.id}-${index}`}>
+                      <li key={`${session.id}-${index}`}>
                         <strong>{step}</strong>
                         <span>{statusLabel}</span>
                       </li>
@@ -693,25 +706,23 @@ export function TicketWorkspaceRail({
             </p>
           </div>
         </div>
-        {workspaceCatalogLoading && favorites.length === 0 ? (
+        {workspaceCatalogLoading && favorites.items.length === 0 ? (
           <p className="ticket-workspace-rail__empty">Loading favorites...</p>
-        ) : favorites.length === 0 ? (
+        ) : favorites.items.length === 0 ? (
           <p className="ticket-workspace-rail__empty">
             No favorites yet. Favorite a runbook or resolution kit to surface it
             here.
           </p>
         ) : (
           <div className="ticket-workspace-rail__stack">
-            {favorites.map((favorite) => {
+            {favorites.items.map((favorite) => {
               const matchingKit =
                 favorite.kind === "kit"
-                  ? resolutionKits.find(
-                      (kit) => kit.id === favorite.resource_id,
-                    )
+                  ? kits.items.find((kit) => kit.id === favorite.resource_id)
                   : null;
               const matchingRunbook =
                 favorite.kind === "runbook"
-                  ? runbookTemplates.find(
+                  ? runbooks.templates.find(
                       (template) => template.id === favorite.resource_id,
                     )
                   : null;
@@ -733,11 +744,11 @@ export function TicketWorkspaceRail({
                       disabled={!canApply}
                       onClick={() => {
                         if (matchingKit) {
-                          onApplyResolutionKit(matchingKit);
+                          kits.onApply(matchingKit);
                           return;
                         }
                         if (matchingRunbook) {
-                          onStartGuidedRunbook(matchingRunbook.id);
+                          runbooks.onStart(matchingRunbook.id);
                         }
                       }}
                     >
@@ -751,7 +762,7 @@ export function TicketWorkspaceRail({
                       variant="ghost"
                       size="small"
                       onClick={() =>
-                        onToggleFavorite(
+                        favorites.onToggle(
                           favorite.kind,
                           favorite.resource_id,
                           favorite.label,
@@ -769,13 +780,13 @@ export function TicketWorkspaceRail({
         )}
       </section>
 
-      {compareCase && (
+      {similarCases.compareCase && (
         <DiffViewer
           textA={currentResponse}
-          textB={compareCase.response_text}
+          textB={similarCases.compareCase.response_text}
           labelA="Current draft"
-          labelB={compareCase.title}
-          onClose={onCloseCompareCase}
+          labelB={similarCases.compareCase.title}
+          onClose={similarCases.onCloseCompare}
         />
       )}
     </div>
