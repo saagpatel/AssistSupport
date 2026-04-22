@@ -26,7 +26,8 @@ import { WorkspaceDialogs } from "./WorkspaceDialogs";
 import { WorkspaceModeShell } from "./WorkspaceModeShell";
 import { WorkspacePanels } from "./WorkspacePanels";
 import { WorkspaceWorkflowStrip } from "./WorkspaceWorkflowStrip";
-import { useLlm } from "../../hooks/useLlm";
+import { useLlmGeneration } from "../../hooks/useLlmGeneration";
+import { useLlmStreaming } from "../../hooks/useLlmStreaming";
 import { useDrafts } from "../../hooks/useDrafts";
 import { useKb } from "../../hooks/useKb";
 import { useAnalytics } from "../../hooks/useAnalytics";
@@ -190,11 +191,13 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       isStreaming,
       clearStreamingText,
       cancelGeneration,
+    } = useLlmStreaming();
+    const {
       generateFirstResponse,
       generateChecklist,
       updateChecklist,
       generateWithContextParams,
-    } = useLlm();
+    } = useLlmGeneration();
     const {
       saveDraft,
       updateDraft,

@@ -121,8 +121,8 @@ vi.mock("../shared/Button", () => ({
   ),
 }));
 
-vi.mock("../../hooks/useLlm", () => ({
-  useLlm: () => ({
+vi.mock("../../hooks/useLlmModel", () => ({
+  useLlmModel: () => ({
     loadModel: loadModelMock,
     unloadModel: unloadModelMock,
     getLoadedModel: getLoadedModelMock,
