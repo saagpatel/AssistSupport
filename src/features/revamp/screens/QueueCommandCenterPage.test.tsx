@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueueCommandCenterPage } from "./QueueCommandCenterPage";
 import type { SavedDraft } from "../../../types/workspace";
@@ -200,17 +195,19 @@ describe("QueueCommandCenterPage", () => {
     expect(loadDraftsMock).toHaveBeenCalledWith(100);
   });
 
-  it("shows an error recovery state when queue data cannot be loaded", () => {
+  it("shows an error recovery state when queue data cannot be loaded", async () => {
+    const user = userEvent.setup();
     draftState.error = "draft load failed";
 
     render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
 
     expect(screen.getByText("Queue unavailable")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Retry Load" }));
+    await user.click(screen.getByRole("button", { name: "Retry Load" }));
     expect(loadDraftsMock).toHaveBeenCalledTimes(2);
   });
 
   it("switches between triage, history, and templates without leaving the queue surface", async () => {
+    const user = userEvent.setup();
     draftState.drafts = [makeDraft()];
     draftState.templates = [
       {
@@ -230,27 +227,28 @@ describe("QueueCommandCenterPage", () => {
     ).toBeTruthy();
     expect(screen.getByLabelText("Search queue")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    await user.click(screen.getByRole("button", { name: "History" }));
     expect(await screen.findByPlaceholderText("Search drafts...")).toBeTruthy();
     expect(screen.queryByLabelText("Search queue")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Templates" }));
+    await user.click(screen.getByRole("button", { name: "Templates" }));
     expect(
       await screen.findByRole("button", { name: "Create Template" }),
     ).toBeTruthy();
     expect(screen.getByText("Escalation note")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Triage" }));
+    await user.click(screen.getByRole("button", { name: "Triage" }));
     expect(await screen.findByLabelText("Search queue")).toBeTruthy();
   });
 
   it("opens a queue item into Workspace from the canonical triage surface", async () => {
+    const user = userEvent.setup();
     draftState.drafts = [makeDraft()];
     const onLoadDraft = vi.fn();
 
     render(<QueueCommandCenterPage onLoadDraft={onLoadDraft} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Open Draft" }));
+    await user.click(await screen.findByRole("button", { name: "Open Draft" }));
 
     expect(onLoadDraft).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -261,6 +259,7 @@ describe("QueueCommandCenterPage", () => {
   });
 
   it("consumes one-shot queue views and returns history/templates users to triage when a queue deep link arrives", async () => {
+    const user = userEvent.setup();
     draftState.drafts = [makeDraft()];
     const onQueueViewConsumed = vi.fn();
     const { rerender } = render(
@@ -275,7 +274,7 @@ describe("QueueCommandCenterPage", () => {
       expect(onQueueViewConsumed).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    await user.click(screen.getByRole("button", { name: "History" }));
     expect(await screen.findByPlaceholderText("Search drafts...")).toBeTruthy();
 
     rerender(
@@ -291,6 +290,7 @@ describe("QueueCommandCenterPage", () => {
   });
 
   it("filters missing-context work and runs batch triage from the visible queue", async () => {
+    const user = userEvent.setup();
     draftState.drafts = [
       makeDraft({
         case_intake_json: JSON.stringify({
@@ -310,16 +310,16 @@ describe("QueueCommandCenterPage", () => {
 
     render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Missing context" }));
+    await user.click(screen.getByRole("button", { name: "Missing context" }));
     expect(screen.getAllByText("INC-1001")).toHaveLength(2);
 
-    fireEvent.click(screen.getByRole("button", { name: "Use visible queue" }));
+    await user.click(screen.getByRole("button", { name: "Use visible queue" }));
     const input = screen.getByLabelText(
       "Batch triage input",
     ) as HTMLTextAreaElement;
     expect(input.value).toContain("INC-1001|VPN outage");
 
-    fireEvent.click(screen.getByRole("button", { name: "Run triage" }));
+    await user.click(screen.getByRole("button", { name: "Run triage" }));
 
     await waitFor(() => {
       expect(clusterTicketsForTriageMock).toHaveBeenCalledWith([
@@ -331,6 +331,7 @@ describe("QueueCommandCenterPage", () => {
   });
 
   it("previews and records a queue dispatch send when collaboration dispatch is enabled", async () => {
+    const user = userEvent.setup();
     collaborationDispatchEnabled = true;
     draftState.drafts = [makeDraft()];
     previewCollaborationDispatchMock.mockResolvedValue({
@@ -374,7 +375,7 @@ describe("QueueCommandCenterPage", () => {
 
     render(<QueueCommandCenterPage onLoadDraft={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview payload" }));
+    await user.click(screen.getByRole("button", { name: "Preview payload" }));
 
     await waitFor(() => {
       expect(previewCollaborationDispatchMock).toHaveBeenCalled();
@@ -382,7 +383,7 @@ describe("QueueCommandCenterPage", () => {
 
     expect(await screen.findByText("Jira escalation payload")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Confirm sent" }));
+    await user.click(screen.getByRole("button", { name: "Confirm sent" }));
 
     await waitFor(() => {
       expect(confirmCollaborationDispatchMock).toHaveBeenCalledWith(

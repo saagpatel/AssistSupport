@@ -1,23 +1,24 @@
 // @vitest-environment jsdom
-import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { KnowledgeBrowser } from './KnowledgeBrowser';
+import React from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { KnowledgeBrowser } from "./KnowledgeBrowser";
 
 const useKnowledgeMock = vi.fn();
 
-vi.mock('../../hooks/useKnowledge', () => ({
+vi.mock("../../hooks/useKnowledge", () => ({
   useKnowledge: () => useKnowledgeMock(),
 }));
 
-vi.mock('../../contexts/ToastContext', () => ({
+vi.mock("../../contexts/ToastContext", () => ({
   useToastContext: () => ({
     success: vi.fn(),
     error: vi.fn(),
   }),
 }));
 
-vi.mock('../shared/Button', () => ({
+vi.mock("../shared/Button", () => ({
   Button: ({
     children,
     onClick,
@@ -33,11 +34,11 @@ vi.mock('../shared/Button', () => ({
   ),
 }));
 
-vi.mock('./KbHealthPanel', () => ({
+vi.mock("./KbHealthPanel", () => ({
   KbHealthPanel: () => <div>Health Panel</div>,
 }));
 
-vi.mock('./ChunkEditor', () => ({
+vi.mock("./ChunkEditor", () => ({
   ChunkEditor: () => <div>Chunk Editor</div>,
 }));
 
@@ -46,25 +47,26 @@ afterEach(() => {
   useKnowledgeMock.mockReset();
 });
 
-describe('KnowledgeBrowser', () => {
-  it('uses semantic buttons for namespace and document selection', () => {
+describe("KnowledgeBrowser", () => {
+  it("uses semantic buttons for namespace and document selection", async () => {
+    const user = userEvent.setup();
     const selectNamespace = vi.fn();
     const selectDocument = vi.fn();
 
     useKnowledgeMock.mockReturnValue({
       namespaces: [
-        { id: 'default', name: 'Default', documentCount: 1, sourceCount: 1 },
+        { id: "default", name: "Default", documentCount: 1, sourceCount: 1 },
       ],
-      selectedNamespace: 'default',
+      selectedNamespace: "default",
       documents: [
         {
-          id: 'doc-1',
-          title: 'VPN Guide',
-          file_path: '/kb/vpn.md',
+          id: "doc-1",
+          title: "VPN Guide",
+          file_path: "/kb/vpn.md",
           chunk_count: 2,
-          indexed_at: '2026-03-01T00:00:00Z',
+          indexed_at: "2026-03-01T00:00:00Z",
           last_reviewed_at: null,
-          source_type: 'file',
+          source_type: "file",
         },
       ],
       selectedDocument: null,
@@ -82,28 +84,29 @@ describe('KnowledgeBrowser', () => {
 
     render(<KnowledgeBrowser />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Default/i }));
-    fireEvent.click(screen.getByRole('button', { name: /VPN Guide/i }));
+    await user.click(screen.getByRole("button", { name: /Default/i }));
+    await user.click(screen.getByRole("button", { name: /VPN Guide/i }));
 
-    expect(selectNamespace).toHaveBeenCalledWith('default');
+    expect(selectNamespace).toHaveBeenCalledWith("default");
     expect(selectDocument).toHaveBeenCalled();
   });
 
-  it('opens a confirmation dialog before delete actions', () => {
+  it("opens a confirmation dialog before delete actions", async () => {
+    const user = userEvent.setup();
     useKnowledgeMock.mockReturnValue({
       namespaces: [
-        { id: 'default', name: 'Default', documentCount: 1, sourceCount: 1 },
+        { id: "default", name: "Default", documentCount: 1, sourceCount: 1 },
       ],
-      selectedNamespace: 'default',
+      selectedNamespace: "default",
       documents: [
         {
-          id: 'doc-1',
-          title: 'VPN Guide',
-          file_path: '/kb/vpn.md',
+          id: "doc-1",
+          title: "VPN Guide",
+          file_path: "/kb/vpn.md",
           chunk_count: 2,
-          indexed_at: '2026-03-01T00:00:00Z',
+          indexed_at: "2026-03-01T00:00:00Z",
           last_reviewed_at: null,
-          source_type: 'file',
+          source_type: "file",
         },
       ],
       selectedDocument: null,
@@ -121,9 +124,9 @@ describe('KnowledgeBrowser', () => {
 
     render(<KnowledgeBrowser />);
 
-    fireEvent.click(screen.getByTitle('Delete document'));
+    await user.click(screen.getByTitle("Delete document"));
 
-    expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByText('Confirm Delete')).toBeTruthy();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByText("Confirm Delete")).toBeTruthy();
   });
 });

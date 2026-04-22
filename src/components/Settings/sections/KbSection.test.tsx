@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { KbSection } from "./KbSection";
 
 describe("KbSection", () => {
   afterEach(() => cleanup());
 
-  it("renders the empty placeholder and Select Folder button when no folder is set", () => {
+  it("renders the empty placeholder and Select Folder button when no folder is set", async () => {
+    const user = userEvent.setup();
     const onSelectKbFolder = vi.fn();
     render(
       <KbSection
@@ -19,11 +21,12 @@ describe("KbSection", () => {
     );
 
     expect(screen.getByText("No folder selected")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Select Folder" }));
+    await user.click(screen.getByRole("button", { name: "Select Folder" }));
     expect(onSelectKbFolder).toHaveBeenCalledTimes(1);
   });
 
-  it("shows index stats and triggers rebuild when a folder is configured", () => {
+  it("shows index stats and triggers rebuild when a folder is configured", async () => {
+    const user = userEvent.setup();
     const onRebuildIndex = vi.fn();
     render(
       <KbSection
@@ -39,7 +42,7 @@ describe("KbSection", () => {
     expect(screen.getByText("7")).toBeTruthy();
     expect(screen.getByText("42")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Rebuild Index" }));
+    await user.click(screen.getByRole("button", { name: "Rebuild Index" }));
     expect(onRebuildIndex).toHaveBeenCalledTimes(1);
   });
 });

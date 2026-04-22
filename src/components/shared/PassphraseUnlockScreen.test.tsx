@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { PassphraseUnlockScreen } from "./PassphraseUnlockScreen";
 
 vi.mock("./Button", () => ({
@@ -31,27 +32,27 @@ afterEach(() => {
 });
 
 describe("PassphraseUnlockScreen", () => {
-  it("keeps unlock disabled until a passphrase is entered", () => {
+  it("keeps unlock disabled until a passphrase is entered", async () => {
+    const user = userEvent.setup();
     render(<PassphraseUnlockScreen error={null} onUnlock={vi.fn()} />);
 
     const unlockButton = screen.getByRole("button", { name: "Unlock" });
     expect(unlockButton.hasAttribute("disabled")).toBe(true);
 
-    fireEvent.change(screen.getByLabelText("Passphrase"), {
-      target: { value: "correct horse battery staple" },
-    });
+    await user.click(screen.getByLabelText("Passphrase"));
+    await user.paste("correct horse battery staple");
 
     expect(unlockButton.hasAttribute("disabled")).toBe(false);
   });
 
   it("submits the entered passphrase to the unlock handler", async () => {
+    const user = userEvent.setup();
     const onUnlock = vi.fn().mockResolvedValue(undefined);
     render(<PassphraseUnlockScreen error={null} onUnlock={onUnlock} />);
 
-    fireEvent.change(screen.getByLabelText("Passphrase"), {
-      target: { value: "local-secret" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
+    await user.click(screen.getByLabelText("Passphrase"));
+    await user.paste("local-secret");
+    await user.click(screen.getByRole("button", { name: "Unlock" }));
 
     await waitFor(() => {
       expect(onUnlock).toHaveBeenCalledWith("local-secret");
@@ -66,6 +67,8 @@ describe("PassphraseUnlockScreen", () => {
       />,
     );
 
-    expect(screen.getByRole("alert").textContent).toContain("Passphrase required");
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Passphrase required",
+    );
   });
 });

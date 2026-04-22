@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { OnboardingWizard } from "./OnboardingWizard";
 
 const openMock = vi.fn();
@@ -40,10 +41,11 @@ afterEach(() => {
 });
 
 describe("OnboardingWizard", () => {
-  it("treats security setup as informational instead of fake completion", () => {
+  it("treats security setup as informational instead of fake completion", async () => {
+    const user = userEvent.setup();
     render(<OnboardingWizard onComplete={vi.fn()} onSkip={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
+    await user.click(screen.getByRole("button", { name: "Get Started" }));
 
     expect(
       screen.getByText(/no extra setup is required during onboarding/i),
@@ -56,21 +58,22 @@ describe("OnboardingWizard", () => {
     expect(screen.queryByText(/security mode configured/i)).toBeNull();
   });
 
-  it("points users to Settings for semantic-search model setup", () => {
+  it("points users to Settings for semantic-search model setup", async () => {
+    const user = userEvent.setup();
     render(<OnboardingWizard onComplete={vi.fn()} onSkip={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Get Started" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(
       screen.getByText(/semantic-search models are also managed there/i),
     ).toBeTruthy();
 
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Continue Without Model" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(
       screen.getByText(

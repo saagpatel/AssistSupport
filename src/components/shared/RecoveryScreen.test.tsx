@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { RecoveryScreen } from "./RecoveryScreen";
 import type { StartupRecoveryIssue } from "../../types/app";
 
@@ -70,6 +65,7 @@ describe("RecoveryScreen", () => {
   });
 
   it("invokes the repair command and shows its message", async () => {
+    const user = userEvent.setup();
     invokeMock.mockResolvedValue({
       component: "Database",
       success: true,
@@ -78,7 +74,7 @@ describe("RecoveryScreen", () => {
     });
 
     render(<RecoveryScreen issue={baseIssue} />);
-    fireEvent.click(screen.getByRole("button", { name: "Repair Database" }));
+    await user.click(screen.getByRole("button", { name: "Repair Database" }));
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("repair_database_cmd");

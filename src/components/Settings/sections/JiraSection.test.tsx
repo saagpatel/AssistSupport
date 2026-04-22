@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { JiraSection } from "./JiraSection";
 
@@ -13,6 +8,7 @@ describe("JiraSection", () => {
   afterEach(() => cleanup());
 
   it("submits the form with the entered credentials when not configured", async () => {
+    const user = userEvent.setup();
     const onJiraConnect = vi.fn().mockResolvedValue(undefined);
     render(
       <JiraSection
@@ -24,16 +20,13 @@ describe("JiraSection", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Jira URL"), {
-      target: { value: "https://example.atlassian.net" },
-    });
-    fireEvent.change(screen.getByLabelText("Email"), {
-      target: { value: "dev@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText("API Token"), {
-      target: { value: "secret-token" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await user.type(
+      screen.getByLabelText("Jira URL"),
+      "https://example.atlassian.net",
+    );
+    await user.type(screen.getByLabelText("Email"), "dev@example.com");
+    await user.type(screen.getByLabelText("API Token"), "secret-token");
+    await user.click(screen.getByRole("button", { name: "Connect" }));
 
     await waitFor(() =>
       expect(onJiraConnect).toHaveBeenCalledWith(
@@ -44,7 +37,8 @@ describe("JiraSection", () => {
     );
   });
 
-  it("renders the connected state and triggers disconnect when Disconnect is clicked", () => {
+  it("renders the connected state and triggers disconnect when Disconnect is clicked", async () => {
+    const user = userEvent.setup();
     const onJiraDisconnect = vi.fn();
     render(
       <JiraSection
@@ -63,7 +57,7 @@ describe("JiraSection", () => {
       screen.getByText("Connected to https://example.atlassian.net"),
     ).toBeTruthy();
     expect(screen.getByText("Account: dev@example.com")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
     expect(onJiraDisconnect).toHaveBeenCalledTimes(1);
   });
 });

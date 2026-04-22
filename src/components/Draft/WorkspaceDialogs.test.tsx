@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceDialogs } from "./WorkspaceDialogs";
 
@@ -54,7 +55,8 @@ describe("WorkspaceDialogs", () => {
     expect(screen.queryByText("Template modal:Draft response")).toBeNull();
   });
 
-  it("keeps compare disabled without a response and routes the other confirm actions correctly", () => {
+  it("keeps compare disabled without a response and routes the other confirm actions correctly", async () => {
+    const user = userEvent.setup();
     const onConfirmOpenSimilarCase = vi.fn();
     const onConfirmOpenDraft = vi.fn();
 
@@ -122,14 +124,14 @@ describe("WorkspaceDialogs", () => {
       name: "Open anyway",
     });
 
-    fireEvent.click(saveAndOpenButtons[0] as HTMLButtonElement);
-    fireEvent.click(openAnywayButtons[0] as HTMLButtonElement);
+    await user.click(saveAndOpenButtons[0] as HTMLButtonElement);
+    await user.click(openAnywayButtons[0] as HTMLButtonElement);
 
     expect(onConfirmOpenSimilarCase).toHaveBeenCalledWith("save-and-open");
     expect(onConfirmOpenSimilarCase).toHaveBeenCalledWith("replace");
 
-    fireEvent.click(saveAndOpenButtons[1] as HTMLButtonElement);
-    fireEvent.click(openAnywayButtons[1] as HTMLButtonElement);
+    await user.click(saveAndOpenButtons[1] as HTMLButtonElement);
+    await user.click(openAnywayButtons[1] as HTMLButtonElement);
     expect(onConfirmOpenDraft).toHaveBeenCalledWith("save-and-open");
     expect(onConfirmOpenDraft).toHaveBeenCalledWith("replace");
   });
