@@ -131,7 +131,7 @@ export function RevampShell({
   }, [statusOpen]);
 
   return (
-    <div className="as-shell">
+    <div className="as-shell" data-accent="teal" data-density="cozy">
       <aside className="as-shell__nav" aria-label="Primary navigation">
         <div className="as-shell__brand">
           <div className="as-shell__brandMark" aria-hidden="true">
@@ -179,7 +179,13 @@ export function RevampShell({
       <div className="as-shell__main">
         <header className="as-shell__topbar">
           <div className="as-shell__topbarLeft">
-            <div className="as-shell__pageTitle">{tabTitle(activeTab)}</div>
+            <div className="as-shell__pageTitle">
+              <span className="crumb">AssistSupport</span>
+              <span className="crumb-sep" aria-hidden="true">
+                /
+              </span>
+              <span>{tabTitle(activeTab)}</span>
+            </div>
             <div className="as-shell__pageSub">
               Cmd+K for commands · Cmd+0 for settings
             </div>

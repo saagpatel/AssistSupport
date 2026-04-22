@@ -32,10 +32,16 @@
   border-radius: var(--as-radius-1);
   display: grid;
   place-items: center;
-  background: var(--as-accent-surface-1);
-  border: 1px solid var(--as-accent-border-1);
-  color: var(--as-accent-1);
+  background: linear-gradient(
+    135deg,
+    var(--as-accent-1) 0%,
+    var(--as-accent-2) 100%
+  );
+  color: var(--as-accent-ink);
   font-weight: 700;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 6px 18px -6px rgba(0, 0, 0, 0.5);
 }
 
 .as-shell__brandName {
@@ -70,6 +76,7 @@
 }
 
 .as-shell__navItem {
+  position: relative;
   width: 100%;
   display: flex;
   gap: var(--as-space-2);
@@ -95,6 +102,18 @@
   background: var(--as-accent-surface-1);
   border-color: var(--as-accent-border-1);
   color: var(--as-text-1);
+}
+
+/* Accent indicator bar on the active nav item — Claude Design polish */
+.as-shell__navItem.is-active::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--as-accent-1);
+  border-radius: 2px;
 }
 
 .as-shell__main {
@@ -125,8 +144,24 @@
 }
 
 .as-shell__pageTitle {
-  font-size: var(--as-font-size-4);
+  font-size: var(--as-font-size-3);
+  font-weight: 600;
   line-height: var(--as-line-compact);
+  letter-spacing: 0.1px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--as-text-1);
+}
+
+.as-shell__pageTitle .crumb {
+  color: var(--as-text-3);
+  font-weight: 500;
+}
+
+.as-shell__pageTitle .crumb-sep {
+  color: var(--as-text-3);
+  font-weight: 400;
 }
 
 .as-shell__pageSub {
