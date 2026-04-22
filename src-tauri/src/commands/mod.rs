@@ -149,22 +149,32 @@ fn custom_model_verification_status(
 }
 
 #[tauri::command]
-pub fn get_allow_unverified_local_models(state: State<'_, AppState>) -> Result<bool, String> {
-    allow_unverified_local_models(state.inner())
+pub fn get_allow_unverified_local_models(
+    state: State<'_, AppState>,
+) -> Result<bool, crate::error::AppError> {
+    // allow_unverified_local_models is kept on String because it's shared with
+    // still-unmigrated dead-code wrappers further down in this file. Bridge via
+    // AppError::internal to preserve the [CODE] message wire format.
+    allow_unverified_local_models(state.inner()).map_err(crate::error::AppError::internal)
 }
 
 #[tauri::command]
 pub fn set_allow_unverified_local_models(
     state: State<'_, AppState>,
     enabled: bool,
-) -> Result<(), String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<(), crate::error::AppError> {
+    let db_lock = state
+        .db
+        .lock()
+        .map_err(|_| crate::error::AppError::db_lock_failed())?;
+    let db = db_lock
+        .as_ref()
+        .ok_or_else(crate::error::AppError::db_not_initialized)?;
     db.set_setting_value(
         ALLOW_UNVERIFIED_LOCAL_MODELS_KEY,
         if enabled { "true" } else { "false" },
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| crate::error::AppError::db_query_failed(e.to_string()))
 }
 
 /// Verify FTS5 is available (release gate command)
