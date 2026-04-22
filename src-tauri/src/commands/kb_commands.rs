@@ -260,17 +260,32 @@ pub(crate) async fn start_kb_watcher_impl(
 
     let validated_path = validate_stored_kb_path(&folder_path)?;
 
-    // Create and start watcher
-    let mut watcher = KbWatcher::new(&validated_path).map_err(|e| e.to_string())?;
-    let mut rx = watcher.start().map_err(|e| e.to_string())?;
-
-    // Store watcher instance
-    {
+    // Acquire the global watcher slot up-front, then create and start the
+    // watcher *inside* the critical section. This closes a TOCTOU race
+    // where two concurrent start_kb_watcher_impl calls could each
+    // successfully construct + start their own KbWatcher instance before
+    // either reached the KB_WATCHER.lock() — one of the instances would
+    // then be overwritten in the slot while still running on the
+    // filesystem as an orphan notify thread. With the lock held for the
+    // full init sequence, a racing second starter observes the populated
+    // slot and returns Ok(false) without ever creating its own watcher.
+    //
+    // KbWatcher::new and watcher.start() are synchronous — no .await is
+    // performed while the StdMutex guard is held, so this is safe under
+    // tokio's work-stealing scheduler.
+    let mut rx = {
         let mut guard = KB_WATCHER.lock().map_err(|e| e.to_string())?;
+        if guard.is_some() {
+            return Ok(false);
+        }
+        let mut watcher = KbWatcher::new(&validated_path).map_err(|e| e.to_string())?;
+        let rx = watcher.start().map_err(|e| e.to_string())?;
         *guard = Some(watcher);
-    }
+        rx
+    };
 
-    // Spawn event handler
+    // Spawn event handler outside the lock so receiving doesn't starve
+    // other KB commands.
     let window_clone = window.clone();
     tokio::spawn(async move {
         while let Some(event) = rx.recv().await {
