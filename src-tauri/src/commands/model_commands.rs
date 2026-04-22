@@ -379,7 +379,9 @@ pub fn is_ocr_available() -> bool {
 }
 
 #[tauri::command]
-pub fn list_decision_trees(state: State<'_, AppState>) -> Result<Vec<DecisionTree>, String> {
+pub fn list_decision_trees(
+    state: State<'_, AppState>,
+) -> Result<Vec<DecisionTree>, crate::error::AppError> {
     list_decision_trees_impl(state)
 }
 
@@ -387,7 +389,7 @@ pub fn list_decision_trees(state: State<'_, AppState>) -> Result<Vec<DecisionTre
 pub fn get_decision_tree(
     state: State<'_, AppState>,
     tree_id: String,
-) -> Result<DecisionTree, String> {
+) -> Result<DecisionTree, crate::error::AppError> {
     get_decision_tree_impl(state, tree_id)
 }
 
