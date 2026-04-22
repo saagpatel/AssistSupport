@@ -1,3 +1,4 @@
+use crate::error::{AppError, ErrorCategory};
 use crate::jobs::{Job, JobStatus, JobType};
 use crate::AppState;
 use tauri::State;
@@ -60,25 +61,37 @@ pub struct BatchStatus {
     pub error: Option<String>,
 }
 
+/// Consistent "job not found" error — there is no dedicated ErrorCode for job
+/// records, so we surface the job id as detail and route to the NotFound
+/// category so the frontend can branch on category.
+fn job_not_found(job_id: &str) -> AppError {
+    AppError::new(
+        "NOT_FOUND_JOB",
+        format!("Job not found: {}", job_id),
+        ErrorCategory::NotFound,
+    )
+}
+
 #[tauri::command]
 pub fn create_job(
     state: State<'_, AppState>,
     job_type: String,
     metadata: Option<serde_json::Value>,
-) -> Result<String, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<String, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let job_type_enum: JobType = job_type
         .parse()
-        .map_err(|_| format!("Invalid job type: {}", job_type))?;
+        .map_err(|_| AppError::invalid_format(format!("Invalid job type: {}", job_type)))?;
     let mut job = Job::new(job_type_enum);
     if let Some(meta) = metadata {
         job = job.with_metadata(meta);
     }
 
     let job_id = job.id.clone();
-    db.create_job(&job).map_err(|e| e.to_string())?;
+    db.create_job(&job)
+        .map_err(|e| AppError::db_query_failed(e.to_string()))?;
     Ok(job_id)
 }
 
@@ -87,33 +100,36 @@ pub fn list_jobs(
     state: State<'_, AppState>,
     status: Option<String>,
     limit: Option<usize>,
-) -> Result<Vec<JobSummary>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<JobSummary>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
-    let status_filter = status.as_deref().and_then(|value| value.parse::<JobStatus>().ok());
+    let status_filter = status
+        .as_deref()
+        .and_then(|value| value.parse::<JobStatus>().ok());
     let jobs = db
         .list_jobs(status_filter, limit.unwrap_or(50))
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::db_query_failed(e.to_string()))?;
 
     Ok(jobs.into_iter().map(JobSummary::from).collect())
 }
 
 #[tauri::command]
-pub fn get_job(state: State<'_, AppState>, job_id: String) -> Result<Option<Job>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.get_job(&job_id).map_err(|e| e.to_string())
+pub fn get_job(state: State<'_, AppState>, job_id: String) -> Result<Option<Job>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_job(&job_id)
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
-pub fn cancel_job(state: State<'_, AppState>, job_id: String) -> Result<(), String> {
+pub fn cancel_job(state: State<'_, AppState>, job_id: String) -> Result<(), AppError> {
     state.jobs.cancel_job(&job_id);
 
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.update_job_status(&job_id, JobStatus::Cancelled, Some("Cancelled by user"))
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
@@ -121,29 +137,30 @@ pub fn get_job_logs(
     state: State<'_, AppState>,
     job_id: String,
     limit: Option<usize>,
-) -> Result<Vec<crate::jobs::JobLog>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<Vec<crate::jobs::JobLog>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.get_job_logs(&job_id, limit.unwrap_or(100))
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
-pub fn get_job_counts(state: State<'_, AppState>) -> Result<Vec<(String, i64)>, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
-    db.get_job_counts().map_err(|e| e.to_string())
+pub fn get_job_counts(state: State<'_, AppState>) -> Result<Vec<(String, i64)>, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+    db.get_job_counts()
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
 pub fn cleanup_old_jobs(
     state: State<'_, AppState>,
     keep_days: Option<i64>,
-) -> Result<usize, String> {
-    let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-    let db = db_lock.as_ref().ok_or("Database not initialized")?;
+) -> Result<usize, AppError> {
+    let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
     db.cleanup_old_jobs(keep_days.unwrap_or(30))
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::db_query_failed(e.to_string()))
 }
 
 #[tauri::command]
@@ -151,13 +168,13 @@ pub async fn batch_generate(
     state: State<'_, AppState>,
     inputs: Vec<String>,
     response_length: String,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     if inputs.is_empty() {
-        return Err("Inputs list cannot be empty".to_string());
+        return Err(AppError::empty_input("Inputs list"));
     }
 
     for input in &inputs {
-        crate::validation::validate_non_empty(input).map_err(|e| e.to_string())?;
+        crate::validation::validate_non_empty(input)?;
     }
 
     let job =
@@ -171,12 +188,10 @@ pub async fn batch_generate(
     let job_id = job.id.clone();
 
     {
-        let db_guard = state
-            .db
-            .lock()
-            .map_err(|e| format!("DB lock error: {}", e))?;
-        let db = db_guard.as_ref().ok_or("Database not initialized")?;
-        db.create_job(&job).map_err(|e| e.to_string())?;
+        let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
+        db.create_job(&job)
+            .map_err(|e| AppError::db_query_failed(e.to_string()))?;
     }
 
     let cancel_token = state.jobs.register_job(&job_id);
@@ -189,16 +204,16 @@ pub async fn batch_generate(
         match llm_guard.as_ref() {
             Some(engine) => {
                 if !engine.is_model_loaded() {
-                    let db_guard = state
-                        .db
-                        .lock()
-                        .map_err(|e| format!("DB lock error: {}", e))?;
+                    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
                     if let Some(db) = db_guard.as_ref() {
-                        let _ =
-                            db.update_job_status(&job_id, JobStatus::Failed, Some("No model loaded"));
+                        let _ = db.update_job_status(
+                            &job_id,
+                            JobStatus::Failed,
+                            Some("No model loaded"),
+                        );
                     }
                     jobs_arc.unregister_job(&job_id);
-                    return Err("No model loaded".to_string());
+                    return Err(AppError::model_not_loaded());
                 }
                 Some(engine.state.clone())
             }
@@ -207,26 +222,20 @@ pub async fn batch_generate(
     };
 
     {
-        let db_guard = state
-            .db
-            .lock()
-            .map_err(|e| format!("DB lock error: {}", e))?;
-        let db = db_guard.as_ref().ok_or("Database not initialized")?;
+        let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+        let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
         db.update_job_status(&job_id, JobStatus::Running, None)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| AppError::db_query_failed(e.to_string()))?;
     }
 
     let mut results: Vec<BatchResult> = Vec::new();
 
     for (i, input_text) in inputs.iter().enumerate() {
         if cancel_token.is_cancelled() {
-            let db_guard = state
-                .db
-                .lock()
-                .map_err(|e| format!("DB lock error: {}", e))?;
-            let db = db_guard.as_ref().ok_or("Database not initialized")?;
+            let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+            let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
             db.update_job_status(&job_id, JobStatus::Cancelled, Some("Cancelled by user"))
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| AppError::db_query_failed(e.to_string()))?;
             jobs_arc.unregister_job(&job_id);
             return Ok(job_id);
         }
@@ -234,10 +243,7 @@ pub async fn batch_generate(
         let start = std::time::Instant::now();
 
         let sources = {
-            let db_guard = state
-                .db
-                .lock()
-                .map_err(|e| format!("DB lock error: {}", e))?;
+            let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
             if let Some(db) = db_guard.as_ref() {
                 crate::kb::search::HybridSearch::search(db, input_text, 3)
                     .unwrap_or_default()
@@ -290,10 +296,7 @@ pub async fn batch_generate(
         });
 
         {
-            let db_guard = state
-                .db
-                .lock()
-                .map_err(|e| format!("DB lock error: {}", e))?;
+            let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
             if let Some(db) = db_guard.as_ref() {
                 let progress = ((i + 1) as f32 / total as f32) * 100.0;
                 let _ = db.update_job_progress(
@@ -318,10 +321,7 @@ pub async fn batch_generate(
     }
 
     {
-        let db_guard = state
-            .db
-            .lock()
-            .map_err(|e| format!("DB lock error: {}", e))?;
+        let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
         if let Some(db) = db_guard.as_ref() {
             let final_metadata = serde_json::json!({
                 "input_count": total,
@@ -347,17 +347,14 @@ pub async fn batch_generate(
 pub async fn get_batch_status(
     state: State<'_, AppState>,
     job_id: String,
-) -> Result<BatchStatus, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<BatchStatus, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let job = db
         .get_job(&job_id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("Job not found: {}", job_id))?;
+        .map_err(|e| AppError::db_query_failed(e.to_string()))?
+        .ok_or_else(|| job_not_found(&job_id))?;
 
     let (results, completed, total) = if let Some(metadata) = &job.metadata {
         let batch_results: Vec<BatchResult> = metadata
@@ -392,17 +389,14 @@ pub async fn export_batch_results(
     state: State<'_, AppState>,
     job_id: String,
     format: String,
-) -> Result<bool, String> {
-    let db_guard = state
-        .db
-        .lock()
-        .map_err(|e| format!("DB lock error: {}", e))?;
-    let db = db_guard.as_ref().ok_or("Database not initialized")?;
+) -> Result<bool, AppError> {
+    let db_guard = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+    let db = db_guard.as_ref().ok_or_else(AppError::db_not_initialized)?;
 
     let job = db
         .get_job(&job_id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("Job not found: {}", job_id))?;
+        .map_err(|e| AppError::db_query_failed(e.to_string()))?
+        .ok_or_else(|| job_not_found(&job_id))?;
 
     let results: Vec<BatchResult> = job
         .metadata
@@ -412,17 +406,23 @@ pub async fn export_batch_results(
         .unwrap_or_default();
 
     if results.is_empty() {
-        return Err("No results to export".to_string());
+        return Err(AppError::new(
+            "NOT_FOUND_JOB",
+            "No results to export",
+            ErrorCategory::NotFound,
+        ));
     }
 
     let export_dir = crate::db::get_app_data_dir().join("exports");
-    std::fs::create_dir_all(&export_dir).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&export_dir).map_err(AppError::from)?;
 
     match format.as_str() {
         "json" => {
             let path = export_dir.join(format!("batch_{}.json", job_id));
-            let json = serde_json::to_string_pretty(&results).map_err(|e| e.to_string())?;
-            std::fs::write(&path, json).map_err(|e| e.to_string())?;
+            let json = serde_json::to_string_pretty(&results).map_err(|e| {
+                AppError::internal(format!("Failed to serialize batch results: {}", e))
+            })?;
+            std::fs::write(&path, json).map_err(AppError::from)?;
         }
         "csv" => {
             let path = export_dir.join(format!("batch_{}.csv", job_id));
@@ -438,9 +438,14 @@ pub async fn export_batch_results(
                     sources_str.join("; ")
                 ));
             }
-            std::fs::write(&path, csv_content).map_err(|e| e.to_string())?;
+            std::fs::write(&path, csv_content).map_err(AppError::from)?;
         }
-        _ => return Err(format!("Unsupported export format: {}", format)),
+        _ => {
+            return Err(AppError::invalid_format(format!(
+                "Unsupported export format: {}",
+                format
+            )))
+        }
     }
 
     Ok(true)
