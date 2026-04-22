@@ -1,18 +1,29 @@
 use crate::audit;
 use crate::commands::model_commands::DOWNLOAD_CANCEL_FLAG;
 use crate::downloads::{recommended_models, DownloadManager, ModelSource};
+use crate::error::{AppError, ErrorCategory, ErrorCode};
 use crate::model_integrity::{verify_model_integrity, ModelAllowlist, VerificationResult};
 use std::sync::atomic::Ordering;
 use tauri::Emitter;
+
+/// Map a generic download-layer error to a categorized AppError with detail.
+fn download_err(op: &str, e: impl std::fmt::Display) -> AppError {
+    AppError::new(
+        ErrorCode::INTERNAL_ERROR,
+        format!("Model download {} failed", op),
+        ErrorCategory::Internal,
+    )
+    .with_detail(e.to_string())
+}
 
 pub(crate) fn get_recommended_models_impl() -> Vec<ModelSource> {
     recommended_models()
 }
 
-pub(crate) fn list_downloaded_models_impl() -> Result<Vec<String>, String> {
+pub(crate) fn list_downloaded_models_impl() -> Result<Vec<String>, AppError> {
     let app_dir = crate::db::get_app_data_dir();
     let manager = DownloadManager::new(&app_dir);
-    let models = manager.list_models().map_err(|e| e.to_string())?;
+    let models = manager.list_models().map_err(|e| download_err("list", e))?;
 
     let model_ids: Vec<String> = models
         .into_iter()
@@ -35,9 +46,9 @@ pub(crate) fn list_downloaded_models_impl() -> Result<Vec<String>, String> {
     Ok(model_ids)
 }
 
-pub(crate) fn get_embedding_model_path_impl(model_id: String) -> Result<Option<String>, String> {
+pub(crate) fn get_embedding_model_path_impl(model_id: String) -> Result<Option<String>, AppError> {
     let filename = get_embedding_model_filename(&model_id)
-        .ok_or_else(|| format!("Unknown embedding model ID: {}", model_id))?;
+        .ok_or_else(|| AppError::invalid_format(format!("Unknown embedding model ID: {}", model_id)))?;
 
     let app_dir = crate::db::get_app_data_dir();
     let model_path = app_dir.join("models").join(filename);
@@ -49,7 +60,7 @@ pub(crate) fn get_embedding_model_path_impl(model_id: String) -> Result<Option<S
     }
 }
 
-pub(crate) fn is_embedding_model_downloaded_impl() -> Result<bool, String> {
+pub(crate) fn is_embedding_model_downloaded_impl() -> Result<bool, AppError> {
     let app_dir = crate::db::get_app_data_dir();
     let model_path = app_dir
         .join("models")
@@ -57,13 +68,13 @@ pub(crate) fn is_embedding_model_downloaded_impl() -> Result<bool, String> {
     Ok(model_path.exists())
 }
 
-pub(crate) fn get_models_dir_impl() -> Result<String, String> {
+pub(crate) fn get_models_dir_impl() -> Result<String, AppError> {
     let app_dir = crate::db::get_app_data_dir();
     let manager = DownloadManager::new(&app_dir);
     Ok(manager.models_dir().display().to_string())
 }
 
-pub(crate) fn delete_downloaded_model_impl(filename: String) -> Result<(), String> {
+pub(crate) fn delete_downloaded_model_impl(filename: String) -> Result<(), AppError> {
     use std::path::Component;
     use std::path::Path;
 
@@ -72,7 +83,7 @@ pub(crate) fn delete_downloaded_model_impl(filename: String) -> Result<(), Strin
     let is_single_filename =
         matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none();
     if path.is_absolute() || !is_single_filename {
-        return Err("Invalid model filename".into());
+        return Err(AppError::invalid_format("Invalid model filename"));
     }
 
     let has_gguf_ext = path
@@ -81,15 +92,19 @@ pub(crate) fn delete_downloaded_model_impl(filename: String) -> Result<(), Strin
         .map(|ext| ext.eq_ignore_ascii_case("gguf"))
         .unwrap_or(false);
     if !has_gguf_ext {
-        return Err("Only .gguf model files can be deleted".into());
+        return Err(AppError::invalid_format(
+            "Only .gguf model files can be deleted",
+        ));
     }
 
     let app_dir = crate::db::get_app_data_dir();
     let manager = DownloadManager::new(&app_dir);
-    manager.delete_model(&filename).map_err(|e| e.to_string())
+    manager
+        .delete_model(&filename)
+        .map_err(|e| download_err("delete", e))
 }
 
-pub(crate) fn get_model_source(model_id: &str) -> Result<(&'static str, &'static str), String> {
+pub(crate) fn get_model_source(model_id: &str) -> Result<(&'static str, &'static str), AppError> {
     match model_id {
         "llama-3.1-8b-instruct" => Ok((
             "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
@@ -111,7 +126,10 @@ pub(crate) fn get_model_source(model_id: &str) -> Result<(&'static str, &'static
             "nomic-ai/nomic-embed-text-v1.5-GGUF",
             "nomic-embed-text-v1.5.Q5_K_M.gguf",
         )),
-        _ => Err(format!("Unknown model ID: {}", model_id)),
+        _ => Err(AppError::invalid_format(format!(
+            "Unknown model ID: {}",
+            model_id
+        ))),
     }
 }
 
@@ -125,35 +143,47 @@ pub(crate) fn get_embedding_model_filename(model_id: &str) -> Option<&'static st
 pub(crate) async fn download_model_impl(
     window: tauri::Window,
     model_id: String,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     let (repo, filename) = get_model_source(&model_id)?;
     audit::audit_model_download_started(&model_id, repo, filename);
 
     let app_dir = crate::db::get_app_data_dir();
     let manager = DownloadManager::new(&app_dir);
-    manager.init().map_err(|e| e.to_string())?;
+    manager.init().map_err(|e| download_err("init", e))?;
 
     let mut source = ModelSource::huggingface(repo, filename);
     let (size, sha256) = crate::downloads::fetch_hf_file_info(repo, filename)
         .await
         .map_err(|e| {
             audit::audit_model_download_failed(&model_id, "metadata_fetch_failed", &e.to_string());
-            format!("Failed to fetch checksum metadata: {}", e)
+            AppError::connection_failed(format!("Failed to fetch checksum metadata: {}", e))
         })?;
     let allowlist = ModelAllowlist::new();
     let allowed = allowlist.get_allowed_model(filename).ok_or_else(|| {
         audit::audit_model_download_failed(&model_id, "allowlist_missing", filename);
-        "Model is not in the allowlist".to_string()
+        AppError::new(
+            ErrorCode::SECURITY_AUTH_FAILED,
+            "Model is not in the allowlist",
+            ErrorCategory::Security,
+        )
     })?;
 
     if allowed.repo != repo {
         audit::audit_model_download_failed(&model_id, "allowlist_repo_mismatch", repo);
-        return Err("Model allowlist mismatch (repo)".to_string());
+        return Err(AppError::new(
+            ErrorCode::SECURITY_AUTH_FAILED,
+            "Model allowlist mismatch (repo)",
+            ErrorCategory::Security,
+        ));
     }
 
     if allowed.size_bytes != size || allowed.sha256.to_lowercase() != sha256.to_lowercase() {
         audit::audit_model_download_failed(&model_id, "allowlist_metadata_mismatch", filename);
-        return Err("Model allowlist mismatch (size or checksum)".to_string());
+        return Err(AppError::new(
+            ErrorCode::SECURITY_AUTH_FAILED,
+            "Model allowlist mismatch (size or checksum)",
+            ErrorCategory::Security,
+        ));
     }
 
     source.size_bytes = Some(allowed.size_bytes);
@@ -177,14 +207,14 @@ pub(crate) async fn download_model_impl(
 
     let download_result = download_handle.await.map_err(|e| {
         audit::audit_model_download_failed(&model_id, "download_task_failed", &e.to_string());
-        e.to_string()
+        AppError::internal(e.to_string())
     })?;
 
     let _ = event_handle.await;
 
     let result = download_result.map_err(|e| {
         audit::audit_model_download_failed(&model_id, "download_failed", &e.to_string());
-        e.to_string()
+        AppError::connection_failed(e.to_string())
     })?;
 
     let verify_path = result.clone();
@@ -197,7 +227,7 @@ pub(crate) async fn download_model_impl(
                     "integrity_task_failed",
                     &e.to_string(),
                 );
-                e.to_string()
+                AppError::internal(e.to_string())
             })?;
 
     match verify_result {
@@ -209,7 +239,12 @@ pub(crate) async fn download_model_impl(
         }
         Err(e) => {
             audit::audit_model_download_failed(&model_id, "integrity_check_failed", &e.to_string());
-            return Err(format!("Model integrity verification failed: {}", e));
+            return Err(AppError::new(
+                ErrorCode::SECURITY_AUTH_FAILED,
+                "Model integrity verification failed",
+                ErrorCategory::Security,
+            )
+            .with_detail(e.to_string()));
         }
     }
 

@@ -2290,7 +2290,7 @@ pub(super) async fn generate_kb_embeddings_internal(
         }
     }
 
-    ensure_vector_store_initialized(state).await?;
+    ensure_vector_store_initialized(state).await.map_err(|e| e.to_string())?;
 
     let chunks: Vec<ChunkEmbeddingRecord> = {
         let db_lock = state.db.lock().map_err(|e| e.to_string())?;
@@ -2309,7 +2309,7 @@ pub(super) async fn generate_kb_embeddings_internal(
         let store = vectors_lock
             .as_ref()
             .ok_or("Vector store not initialized")?;
-        vector_store_requires_rebuild(tracked_vector_version, store).await?
+        vector_store_requires_rebuild(tracked_vector_version, store).await.map_err(|e| e.to_string())?
     };
 
     if reset_table || requires_rebuild {
@@ -2576,7 +2576,7 @@ pub fn is_embedding_model_loaded(state: State<'_, AppState>) -> Result<bool, Str
 
 /// Initialize the vector store
 pub async fn init_vector_store(state: State<'_, AppState>) -> Result<(), String> {
-    ensure_vector_store_initialized(state.inner()).await?;
+    ensure_vector_store_initialized(state.inner()).await.map_err(|e| e.to_string())?;
 
     let ready = {
         let tracked_vector_version = {
@@ -2588,7 +2588,7 @@ pub async fn init_vector_store(state: State<'_, AppState>) -> Result<(), String>
         let store = vectors_lock
             .as_ref()
             .ok_or("Vector store not initialized")?;
-        !vector_store_requires_rebuild(tracked_vector_version, store).await?
+        !vector_store_requires_rebuild(tracked_vector_version, store).await.map_err(|e| e.to_string())?
     };
 
     if ready {
@@ -2611,7 +2611,7 @@ pub async fn init_vector_store(state: State<'_, AppState>) -> Result<(), String>
 
 /// Enable or disable vector search
 pub async fn set_vector_enabled(state: State<'_, AppState>, enabled: bool) -> Result<(), String> {
-    ensure_vector_store_initialized(state.inner()).await?;
+    ensure_vector_store_initialized(state.inner()).await.map_err(|e| e.to_string())?;
 
     if enabled {
         let tracked_vector_version = {
@@ -2623,7 +2623,7 @@ pub async fn set_vector_enabled(state: State<'_, AppState>, enabled: bool) -> Re
         let store = vectors_lock
             .as_ref()
             .ok_or("Vector store not initialized")?;
-        if vector_store_requires_rebuild(tracked_vector_version, store).await? {
+        if vector_store_requires_rebuild(tracked_vector_version, store).await.map_err(|e| e.to_string())? {
             return Err("Vector store requires rebuild before it can be enabled".into());
         }
     }
@@ -3256,7 +3256,7 @@ pub fn rename_namespace(
 
 /// Delete a namespace and all its content
 pub async fn delete_namespace(state: State<'_, AppState>, name: String) -> Result<(), String> {
-    purge_vectors_for_namespace(state.inner(), &name).await?;
+    purge_vectors_for_namespace(state.inner(), &name).await.map_err(|e| e.to_string())?;
 
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -3496,7 +3496,7 @@ pub async fn delete_kb_document(
     state: State<'_, AppState>,
     document_id: String,
 ) -> Result<(), String> {
-    purge_vectors_for_document(state.inner(), &document_id).await?;
+    purge_vectors_for_document(state.inner(), &document_id).await.map_err(|e| e.to_string())?;
 
     let db_lock = state.db.lock().map_err(|e| e.to_string())?;
     let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -3520,7 +3520,7 @@ pub async fn clear_knowledge_data(
 
     match namespace_id {
         Some(ns) => {
-            purge_vectors_for_namespace(state.inner(), &ns).await?;
+            purge_vectors_for_namespace(state.inner(), &ns).await.map_err(|e| e.to_string())?;
 
             let db_lock = state.db.lock().map_err(|e| e.to_string())?;
             let db = db_lock.as_ref().ok_or("Database not initialized")?;
@@ -3533,7 +3533,7 @@ pub async fn clear_knowledge_data(
                 .map_err(|e| e.to_string())?;
         }
         None => {
-            ensure_vector_store_initialized(state.inner()).await?;
+            ensure_vector_store_initialized(state.inner()).await.map_err(|e| e.to_string())?;
             {
                 let mut vectors_lock = state.vectors.write().await;
                 if let Some(store) = vectors_lock.as_mut() {

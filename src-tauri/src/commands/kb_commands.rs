@@ -32,9 +32,6 @@ fn kb_folder_not_configured() -> AppError {
 }
 
 /// Map a vector-runtime string error (still pre-migration) into AppError.
-fn vector_runtime_err(e: String) -> AppError {
-    AppError::internal(e)
-}
 
 #[tauri::command]
 pub fn set_kb_folder(state: State<'_, AppState>, folder_path: String) -> Result<(), AppError> {
@@ -253,7 +250,7 @@ pub(crate) async fn remove_kb_document_impl(
     if let Some(document_id) = document_id.as_deref() {
         purge_vectors_for_document(state.inner(), document_id)
             .await
-            .map_err(vector_runtime_err)?;
+            ?;
     }
 
     let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
@@ -928,7 +925,7 @@ pub fn rename_namespace(
 pub async fn delete_namespace(state: State<'_, AppState>, name: String) -> Result<(), AppError> {
     super::vector_runtime::purge_vectors_for_namespace(state.inner(), &name)
         .await
-        .map_err(vector_runtime_err)?;
+        ?;
 
     let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
     let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
@@ -1132,7 +1129,7 @@ pub async fn delete_kb_document(
 ) -> Result<(), AppError> {
     purge_vectors_for_document(state.inner(), &document_id)
         .await
-        .map_err(vector_runtime_err)?;
+        ?;
 
     let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
     let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
@@ -1156,7 +1153,7 @@ pub async fn clear_knowledge_data(
         Some(ns) => {
             super::vector_runtime::purge_vectors_for_namespace(state.inner(), &ns)
                 .await
-                .map_err(vector_runtime_err)?;
+                ?;
 
             let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
             let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
@@ -1170,7 +1167,7 @@ pub async fn clear_knowledge_data(
         None => {
             super::vector_runtime::ensure_vector_store_initialized(state.inner())
                 .await
-                .map_err(vector_runtime_err)?;
+                ?;
             {
                 let mut vectors_lock = state.vectors.write().await;
                 if let Some(store) = vectors_lock.as_mut() {
