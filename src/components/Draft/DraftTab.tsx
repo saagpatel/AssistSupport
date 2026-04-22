@@ -23,6 +23,7 @@ import { ConversationThread } from "./ConversationThread";
 import type { ConversationEntry } from "./ConversationThread";
 import { useDraftApproval } from "./useDraftApproval";
 import { useDraftChecklist } from "./useDraftChecklist";
+import { useDraftClear } from "./useDraftClear";
 import { useDraftFirstResponse } from "./useDraftFirstResponse";
 import { useDraftGeneration } from "./useDraftGeneration";
 import { useDraftIntake } from "./useDraftIntake";
@@ -56,7 +57,6 @@ import { useWorkspaceCatalog } from "../../features/workspace/useWorkspaceCatalo
 import { useWorkspaceDerivedArtifacts } from "../../features/workspace/useWorkspaceDerivedArtifacts";
 import { useWorkspaceCommandBridge } from "../../features/workspace/useWorkspaceCommandBridge";
 import { useWorkspaceDraftState } from "../../features/workspace/useWorkspaceDraftState";
-import { parseCaseIntake } from "../../features/workspace/workspaceAssistant";
 import { countWords } from "../../features/analytics/qualityMetrics";
 import type { JiraTicket } from "../../hooks/useJira";
 import type {
@@ -458,44 +458,6 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       setSuggestionsDismissed(true);
     }, []);
 
-    const handleClear = useCallback(() => {
-      setInput("");
-      setOcrText(null);
-      setDiagnosticNotes("");
-      setTreeResult(null);
-      resetChecklist();
-      resetFirstResponse();
-      resetApproval();
-      setResponse("");
-      setOriginalResponse("");
-      setIsResponseEdited(false);
-      setSources([]);
-      setMetrics(null);
-      setConfidence(null);
-      setGrounding([]);
-      setCurrentTicketId(null);
-      setCurrentTicket(null);
-      setSavedDraftId(null);
-      setSavedDraftCreatedAt(null);
-      setConversationEntries([]);
-      setHandoffTouched(false);
-      resetResponseActions();
-      setSuggestionsDismissed(false);
-      setCaseIntake({
-        ...parseCaseIntake(null),
-        note_audience: workspacePersonalization.preferred_note_audience,
-      });
-      resetWorkspaceArtifacts();
-      setGuidedRunbookSession(null);
-      setGuidedRunbookNote("");
-      setRunbookSessionSourceScopeKey(null);
-      setRunbookSessionTouched(false);
-      setAutosaveDraftId(null);
-      setPendingSimilarCaseOpen(null);
-      setWorkspaceRunbookScopeKey(createWorkspaceRunbookScopeKey());
-      resetGeneration();
-    }, [workspacePersonalization.preferred_note_audience, resetGeneration]);
-
     const handleTreeComplete = useCallback((result: TreeResult) => {
       setTreeResult(result);
     }, []);
@@ -732,6 +694,42 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
         onShowSuccess: showSuccess,
         onShowError: showError,
       });
+
+    const handleClear = useDraftClear({
+      preferredNoteAudience: workspacePersonalization.preferred_note_audience,
+      setInput,
+      setOcrText,
+      setDiagnosticNotes,
+      setTreeResult,
+      setResponse,
+      setOriginalResponse,
+      setIsResponseEdited,
+      setSources,
+      setMetrics,
+      setConfidence,
+      setGrounding,
+      setCurrentTicketId,
+      setCurrentTicket,
+      setSavedDraftId,
+      setSavedDraftCreatedAt,
+      setConversationEntries,
+      setHandoffTouched,
+      setSuggestionsDismissed,
+      setCaseIntake,
+      setGuidedRunbookSession,
+      setGuidedRunbookNote,
+      setRunbookSessionSourceScopeKey,
+      setRunbookSessionTouched,
+      setAutosaveDraftId,
+      setPendingSimilarCaseOpen,
+      setWorkspaceRunbookScopeKey,
+      resetChecklist,
+      resetFirstResponse,
+      resetApproval,
+      resetResponseActions,
+      resetWorkspaceArtifacts,
+      resetGeneration,
+    });
 
     const loadSimilarCaseIntoWorkspace = useCallback(
       async (similarCase: SimilarCase) => {
