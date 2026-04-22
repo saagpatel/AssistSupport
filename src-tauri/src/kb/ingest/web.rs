@@ -17,11 +17,37 @@ use crate::kb::network::{
     NetworkError, SsrfConfig,
 };
 use futures::StreamExt;
+use once_cell::sync::Lazy;
+use regex_lite::Regex;
 use reqwest::Client;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
+
+// HTML-scrubbing regexes. The patterns are static literals, so compilation is
+// infallible in practice — we panic once at first use with a descriptive
+// message if that invariant is ever broken, rather than recompiling and
+// unwrapping on every call.
+static HEADING_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"<h([1-6])[^>]*>([^<]+)</h[1-6]>").expect("heading regex must compile")
+});
+static SCRIPT_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?is)<script[^>]*>.*?</script>").expect("script regex must compile")
+});
+static STYLE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?is)<style[^>]*>.*?</style>").expect("style regex must compile"));
+static COMMENT_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"<!--.*?-->").expect("comment regex must compile"));
+static BLOCK_ELEMENT_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"<(?:p|div|br|h[1-6]|li|tr)[^>]*>").expect("block-element regex must compile")
+});
+static HTML_TAG_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"<[^>]+>").expect("html-tag regex must compile"));
+static WHITESPACE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\s+").expect("whitespace regex must compile"));
+static NEWLINE_COLLAPSE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\n\s*\n").expect("newline-collapse regex must compile"));
 
 /// Web page ingestion configuration
 #[derive(Debug, Clone)]
@@ -739,9 +765,8 @@ fn extract_html_title(html: &str) -> Option<String> {
 /// Extract headings from HTML
 fn extract_headings(html: &str) -> Vec<(usize, String)> {
     let mut headings = Vec::new();
-    let re = regex_lite::Regex::new(r"<h([1-6])[^>]*>([^<]+)</h[1-6]>").unwrap();
 
-    for cap in re.captures_iter(html) {
+    for cap in HEADING_RE.captures_iter(html) {
         if let (Some(level), Some(text)) = (cap.get(1), cap.get(2)) {
             if let Ok(level) = level.as_str().parse::<usize>() {
                 let text = html_entities_decode(text.as_str().trim());
@@ -757,33 +782,25 @@ fn extract_headings(html: &str) -> Vec<(usize, String)> {
 
 /// Convert HTML to plain text (simple implementation)
 fn html_to_text(html: &str) -> String {
-    // Remove script and style blocks
-    let re_script = regex_lite::Regex::new(r"(?is)<script[^>]*>.*?</script>").unwrap();
-    let re_style = regex_lite::Regex::new(r"(?is)<style[^>]*>.*?</style>").unwrap();
-    let re_comments = regex_lite::Regex::new(r"<!--.*?-->").unwrap();
-
-    let text = re_script.replace_all(html, "");
-    let text = re_style.replace_all(&text, "");
-    let text = re_comments.replace_all(&text, "");
+    // Remove script, style, and comment blocks
+    let text = SCRIPT_RE.replace_all(html, "");
+    let text = STYLE_RE.replace_all(&text, "");
+    let text = COMMENT_RE.replace_all(&text, "");
 
     // Replace block elements with newlines
-    let re_blocks = regex_lite::Regex::new(r"<(?:p|div|br|h[1-6]|li|tr)[^>]*>").unwrap();
-    let text = re_blocks.replace_all(&text, "\n");
+    let text = BLOCK_ELEMENT_RE.replace_all(&text, "\n");
 
     // Remove all remaining tags
-    let re_tags = regex_lite::Regex::new(r"<[^>]+>").unwrap();
-    let text = re_tags.replace_all(&text, "");
+    let text = HTML_TAG_RE.replace_all(&text, "");
 
     // Decode HTML entities
     let text = html_entities_decode(&text);
 
     // Normalize whitespace
-    let re_whitespace = regex_lite::Regex::new(r"\s+").unwrap();
-    let text = re_whitespace.replace_all(&text, " ");
+    let text = WHITESPACE_RE.replace_all(&text, " ");
 
     // Normalize newlines
-    let re_newlines = regex_lite::Regex::new(r"\n\s*\n").unwrap();
-    let text = re_newlines.replace_all(&text, "\n\n");
+    let text = NEWLINE_COLLAPSE_RE.replace_all(&text, "\n\n");
 
     text.trim().to_string()
 }
