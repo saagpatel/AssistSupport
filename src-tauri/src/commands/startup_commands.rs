@@ -1,6 +1,7 @@
 use super::vector_runtime::vector_store_requires_rebuild;
 use crate::audit::{self, AuditLogger};
 use crate::db::{get_app_data_dir, get_db_path, get_vectors_dir, Database};
+use crate::error::AppError;
 use crate::kb::vectors::{VectorStore, VectorStoreConfig};
 use crate::security::{FileKeyStore, KeyStorageMode};
 use crate::{AppState, PendingRecoveryContext, StartupRecoveryConflict, StartupRecoveryIssue};
@@ -35,14 +36,23 @@ fn init_result(
     }
 }
 
-fn set_pending_recovery(state: &AppState, context: PendingRecoveryContext) -> Result<(), String> {
-    let mut recovery_lock = state.recovery.lock().map_err(|e| e.to_string())?;
+fn set_pending_recovery(
+    state: &AppState,
+    context: PendingRecoveryContext,
+) -> Result<(), AppError> {
+    let mut recovery_lock = state
+        .recovery
+        .lock()
+        .map_err(|_| AppError::lock_failed("recovery context"))?;
     *recovery_lock = Some(context);
     Ok(())
 }
 
-fn clear_pending_recovery(state: &AppState) -> Result<(), String> {
-    let mut recovery_lock = state.recovery.lock().map_err(|e| e.to_string())?;
+fn clear_pending_recovery(state: &AppState) -> Result<(), AppError> {
+    let mut recovery_lock = state
+        .recovery
+        .lock()
+        .map_err(|_| AppError::lock_failed("recovery context"))?;
     *recovery_lock = None;
     Ok(())
 }
@@ -75,6 +85,10 @@ fn build_migration_conflict_issue(
     }
 }
 
+/// Pattern-matches the upstream database error text to decide whether this
+/// startup failure can route through recovery mode. The caller must pass the
+/// raw error text — rusqlite-specific phrases like "database disk image is
+/// malformed" are what identify a recoverable condition.
 fn classify_startup_recovery_issue(error: &str) -> Option<StartupRecoveryIssue> {
     let lower = error.to_ascii_lowercase();
 
@@ -98,6 +112,11 @@ fn classify_startup_recovery_issue(error: &str) -> Option<StartupRecoveryIssue> 
     None
 }
 
+/// Convert a database open/init failure into either a recovery-mode success
+/// (if the error text matches a known recoverable condition) or a real
+/// failed AppError. Takes the error as `String` because callers have already
+/// flattened it via `.to_string()` so that `classify_startup_recovery_issue`
+/// can do its text-pattern match.
 fn recovery_result_from_database_error(
     state: &AppState,
     is_first_run: bool,
@@ -105,7 +124,7 @@ fn recovery_result_from_database_error(
     db_path: PathBuf,
     master_key: crate::security::MasterKey,
     error: String,
-) -> Result<InitResult, String> {
+) -> Result<InitResult, AppError> {
     if let Some(issue) = classify_startup_recovery_issue(&error) {
         set_pending_recovery(
             state,
@@ -127,7 +146,7 @@ fn recovery_result_from_database_error(
         ));
     }
 
-    Err(error)
+    Err(AppError::db_query_failed(error))
 }
 
 async fn finalize_initialized_app(
@@ -136,9 +155,11 @@ async fn finalize_initialized_app(
     is_first_run: bool,
     init_start: std::time::Instant,
     key_storage_mode: String,
-) -> Result<InitResult, String> {
-    db.seed_builtin_trees().map_err(|e| e.to_string())?;
-    db.ensure_templates_table().map_err(|e| e.to_string())?;
+) -> Result<InitResult, AppError> {
+    db.seed_builtin_trees()
+        .map_err(|e| AppError::db_query_failed(e.to_string()))?;
+    db.ensure_templates_table()
+        .map_err(|e| AppError::db_query_failed(e.to_string()))?;
 
     match db.migrate_namespace_ids() {
         Ok(migrated) => {
@@ -162,7 +183,7 @@ async fn finalize_initialized_app(
     clear_pending_recovery(state)?;
 
     {
-        let mut db_lock = state.db.lock().map_err(|e| e.to_string())?;
+        let mut db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
         *db_lock = Some(db);
     }
 
@@ -182,16 +203,19 @@ async fn finalize_initialized_app(
                     false
                 } else {
                     let tracked_vector_version = {
-                        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
-                        let db = db_lock.as_ref().ok_or("Database not initialized")?;
-                        db.get_vector_store_version().map_err(|e| e.to_string())?
+                        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
+                        let db = db_lock.as_ref().ok_or_else(AppError::db_not_initialized)?;
+                        db.get_vector_store_version()
+                            .map_err(|e| AppError::db_query_failed(e.to_string()))?
                     };
                     let ready =
                         !vector_store_requires_rebuild(tracked_vector_version, &vector_store)
-                            .await.map_err(|e| e.to_string())?;
+                            .await?;
 
                     if ready {
-                        vector_store.enable(true).map_err(|e| e.to_string())?;
+                        vector_store
+                            .enable(true)
+                            .map_err(|e| AppError::internal(e.to_string()))?;
                     } else {
                         tracing::warn!(
                             "Vector store requires rebuild before semantic search can be enabled"
@@ -216,7 +240,7 @@ async fn finalize_initialized_app(
 
     let init_app_ms = init_start.elapsed().as_millis() as i64;
     {
-        let db_lock = state.db.lock().map_err(|e| e.to_string())?;
+        let db_lock = state.db.lock().map_err(|_| AppError::db_lock_failed())?;
         if let Some(db) = db_lock.as_ref() {
             let _ = db.record_startup_metric(
                 &chrono::Utc::now().to_rfc3339(),
@@ -241,7 +265,7 @@ async fn finalize_initialized_app(
 
 /// Initialize the application
 #[tauri::command]
-pub async fn initialize_app(state: State<'_, AppState>) -> Result<InitResult, String> {
+pub async fn initialize_app(state: State<'_, AppState>) -> Result<InitResult, AppError> {
     let init_start = std::time::Instant::now();
     clear_pending_recovery(state.inner())?;
     let is_first_run_hint = !FileKeyStore::has_master_key();
@@ -291,7 +315,8 @@ pub async fn initialize_app(state: State<'_, AppState>) -> Result<InitResult, St
     }
 
     let app_dir = get_app_data_dir();
-    crate::security::create_secure_dir(&app_dir).map_err(|e| e.to_string())?;
+    crate::security::create_secure_dir(&app_dir)
+        .map_err(|e| AppError::internal(format!("Failed to create app data dir: {}", e)))?;
 
     let _ = AuditLogger::init();
 
@@ -309,7 +334,8 @@ pub async fn initialize_app(state: State<'_, AppState>) -> Result<InitResult, St
                 None,
             ));
         }
-        Err(e) => return Err(e.to_string()),
+        // Existing From<SecurityError> impl maps other variants to AppError.
+        Err(e) => return Err(e.into()),
     };
 
     audit::audit_app_initialized(is_first_run);
@@ -353,11 +379,12 @@ pub async fn initialize_app(state: State<'_, AppState>) -> Result<InitResult, St
 pub async fn unlock_with_passphrase(
     state: State<'_, AppState>,
     passphrase: String,
-) -> Result<InitResult, String> {
+) -> Result<InitResult, AppError> {
     let init_start = std::time::Instant::now();
     clear_pending_recovery(state.inner())?;
-    let master_key =
-        FileKeyStore::get_master_key_with_passphrase(&passphrase).map_err(|e| e.to_string())?;
+    // SecurityError flows through the existing From<SecurityError> impl —
+    // wrong passphrase surfaces as SECURITY_DECRYPTION_FAILED.
+    let master_key = FileKeyStore::get_master_key_with_passphrase(&passphrase)?;
 
     let db_path = get_db_path();
     let db = match Database::open(&db_path, &master_key) {
