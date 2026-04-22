@@ -120,7 +120,6 @@ pub fn run() {
     configure_ggml_metal_env();
 
     let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .invoke_handler(crate::assistsupport_generate_handler!());

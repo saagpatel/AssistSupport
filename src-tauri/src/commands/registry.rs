@@ -9,7 +9,6 @@ macro_rules! assistsupport_generate_handler {
     () => {
         tauri::generate_handler![
             // startup core
-            crate::commands::app_core_commands::greet,
             crate::commands::startup_commands::initialize_app,
             crate::commands::startup_commands::unlock_with_passphrase,
             crate::commands::app_core_commands::check_fts5_enabled,
@@ -18,7 +17,6 @@ macro_rules! assistsupport_generate_handler {
             crate::commands::app_core_commands::set_vector_consent,
             crate::commands::startup_commands::check_keychain_available,
             crate::commands::model_commands::get_startup_metrics,
-
             // diagnostics and recovery
             crate::commands::backup::export_backup,
             crate::commands::backup::preview_backup_import,
@@ -36,7 +34,6 @@ macro_rules! assistsupport_generate_handler {
             crate::commands::diagnostics::get_vector_maintenance_info_cmd,
             crate::commands::get_audit_entries,
             crate::commands::export_audit_log,
-
             // vector and model runtime
             crate::commands::kb_commands::search_kb,
             crate::commands::kb_commands::search_kb_with_options,
@@ -94,7 +91,6 @@ macro_rules! assistsupport_generate_handler {
             crate::commands::model_commands::list_decision_trees,
             crate::commands::model_commands::get_decision_tree,
             crate::commands::kb_commands::check_ytdlp_available,
-
             // knowledge base
             crate::commands::kb_commands::set_kb_folder,
             crate::commands::kb_commands::get_kb_folder,
@@ -137,7 +133,6 @@ macro_rules! assistsupport_generate_handler {
             crate::commands::kb_commands::get_kb_health_stats,
             crate::commands::kb_commands::mark_document_reviewed,
             crate::commands::kb_commands::get_documents_needing_review,
-
             // drafts and templates
             crate::commands::backup::export_draft,
             crate::commands::draft_commands::export_draft_formatted,
@@ -180,7 +175,6 @@ macro_rules! assistsupport_generate_handler {
             crate::commands::draft_commands::save_response_alternative,
             crate::commands::draft_commands::get_alternatives_for_draft,
             crate::commands::draft_commands::choose_alternative,
-
             // customization and workspace
             crate::commands::product_workspace::start_runbook_session,
             crate::commands::product_workspace::advance_runbook_session,
@@ -207,7 +201,6 @@ macro_rules! assistsupport_generate_handler {
             crate::commands::product_workspace::list_dispatch_history,
             crate::commands::product_workspace::set_workspace_role,
             crate::commands::product_workspace::list_workspace_roles,
-
             // integrations and secrets
             crate::commands::jira_commands::is_jira_configured,
             crate::commands::jira_commands::get_jira_config,
@@ -225,7 +218,6 @@ macro_rules! assistsupport_generate_handler {
             crate::commands::memory_kernel::get_memory_kernel_integration_pin,
             crate::commands::memory_kernel::get_memory_kernel_preflight_status,
             crate::commands::memory_kernel::memory_kernel_query_ask,
-
             // search sidecar
             crate::commands::search_api::hybrid_search,
             crate::commands::search_api::submit_search_feedback,
@@ -234,7 +226,6 @@ macro_rules! assistsupport_generate_handler {
             crate::commands::search_api::check_search_api_health,
             crate::commands::search_api::get_search_api_embedding_model_status,
             crate::commands::search_api::install_search_api_embedding_model,
-
             // jobs and evals
             crate::commands::jobs_commands::create_job,
             crate::commands::jobs_commands::list_jobs,
@@ -246,7 +237,6 @@ macro_rules! assistsupport_generate_handler {
             crate::commands::jobs_commands::batch_generate,
             crate::commands::jobs_commands::get_batch_status,
             crate::commands::jobs_commands::export_batch_results,
-
             // operations and analytics
             crate::commands::operations_analytics_commands::rate_response,
             crate::commands::operations_analytics_commands::get_draft_rating,

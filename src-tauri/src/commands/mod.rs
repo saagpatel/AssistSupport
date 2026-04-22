@@ -335,11 +335,6 @@ pub async fn get_search_context(
     Ok(crate::kb::search::HybridSearch::format_context(&results))
 }
 
-/// Greet command (placeholder for testing)
-pub fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 // ============================================================================
 // LLM Commands
 // ============================================================================
