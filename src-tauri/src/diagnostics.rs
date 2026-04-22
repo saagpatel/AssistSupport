@@ -650,6 +650,23 @@ fn get_process_memory_bytes() -> u64 {
         ) -> KernReturn;
     }
 
+    // SAFETY: Standard Mach FFI pattern for introspecting the current task.
+    // - `mach_task_self()` returns the calling task's own port send right; it
+    //   takes no inputs and cannot fail for an in-process query.
+    // - `task_info` is called with MACH_TASK_BASIC_INFO (flavor 20), whose
+    //   out-struct is `task_basic_info_64_data_t`. We pass a matching
+    //   `MachTaskBasicInfo` buffer and the correctly computed
+    //   MACH_TASK_BASIC_INFO_COUNT, so the kernel writes exactly the fields
+    //   we declared.
+    // - The buffer is allocated via `MaybeUninit::<_>::zeroed()`, which is
+    //   correctly aligned for the struct, and MachTaskBasicInfo is composed
+    //   entirely of plain-old-data integer types for which all-zero is a
+    //   valid bit pattern — so even on a partial kernel write nothing reads
+    //   uninitialized memory.
+    // - `assume_init()` is only called on the success path (kr == 0), after
+    //   the kernel guarantees it has fully populated the struct.
+    // - On failure we return 0 without touching `info`, so no uninitialized
+    //   data ever escapes.
     unsafe {
         let mut info = MaybeUninit::<MachTaskBasicInfo>::zeroed();
         let mut count = MACH_TASK_BASIC_INFO_COUNT;
