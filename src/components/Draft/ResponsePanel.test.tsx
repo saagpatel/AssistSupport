@@ -1,12 +1,6 @@
 // @vitest-environment jsdom
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ResponsePanel } from "./ResponsePanel";
 import type { ContextSource } from "../../types/knowledge";
@@ -91,6 +85,13 @@ describe("ResponsePanel", () => {
   });
 
   it("gates copy when mode is clarify and records an audit override", async () => {
+    const user = userEvent.setup();
+    // Re-install our clipboard mock AFTER userEvent.setup(), which otherwise
+    // replaces navigator.clipboard with its own stub for paste/copy plumbing.
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: writeTextMock },
+    });
     invokeMock.mockResolvedValue(undefined);
 
     render(
@@ -109,20 +110,16 @@ describe("ResponsePanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await user.click(screen.getByRole("button", { name: "Copy" }));
 
     const reasonInput = await screen.findByPlaceholderText(
       /Explain why copying without citations/,
     );
-    fireEvent.change(reasonInput, {
-      target: { value: "User confirmed out-of-band, tolerable risk." },
-    });
+    await user.type(reasonInput, "User confirmed out-of-band, tolerable risk.");
 
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", { name: /Copy with override/ }),
-      );
-    });
+    await user.click(
+      screen.getByRole("button", { name: /Copy with override/ }),
+    );
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith(
@@ -134,15 +131,18 @@ describe("ResponsePanel", () => {
         }),
       );
     });
-    expect(writeTextMock).toHaveBeenCalledWith(
-      "Please gather more logs before acting.",
-    );
+    await waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalledWith(
+        "Please gather more logs before acting.",
+      );
+    });
     expect(showSuccessMock).toHaveBeenCalledWith(
       "Response copied (override logged)",
     );
   });
 
   it("expands a source row and fetches its preview content", async () => {
+    const user = userEvent.setup();
     invokeMock.mockResolvedValue([
       {
         id: "chunk-1",
@@ -168,9 +168,7 @@ describe("ResponsePanel", () => {
       .getByText("Reset Password")
       .closest("button") as HTMLButtonElement;
     expect(expandToggle).toBeTruthy();
-    await act(async () => {
-      fireEvent.click(expandToggle);
-    });
+    await user.click(expandToggle);
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("get_document_chunks", {

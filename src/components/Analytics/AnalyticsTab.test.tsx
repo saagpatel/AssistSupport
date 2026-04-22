@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AnalyticsTab } from "./AnalyticsTab";
 
@@ -203,6 +198,7 @@ describe("AnalyticsTab", () => {
   });
 
   it("keeps raw logs hidden by default and reveals them only after an explicit action", async () => {
+    const user = userEvent.setup();
     mockOverviewData();
     mockPilotInvoke({
       totalQueries: 1,
@@ -223,12 +219,15 @@ describe("AnalyticsTab", () => {
     expect(await screen.findByText("Show Query Log (1)")).toBeTruthy();
     expect(screen.queryByText("Can I use a flash drive?")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Show Query Log (1)" }));
+    await user.click(
+      screen.getByRole("button", { name: "Show Query Log (1)" }),
+    );
 
     expect(await screen.findByText("Can I use a flash drive?")).toBeTruthy();
   });
 
   it("shows export controls only inside pilot diagnostics when pilot data exists", async () => {
+    const user = userEvent.setup();
     mockOverviewData();
     mockPilotInvoke({ totalQueries: 1 });
 
@@ -236,7 +235,7 @@ describe("AnalyticsTab", () => {
     expect(await screen.findByText("Total Responses")).toBeTruthy();
     expect(screen.queryByText("Export CSV")).toBeNull();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Pilot Diagnostics" }));
+    await user.click(screen.getByRole("tab", { name: "Pilot Diagnostics" }));
 
     await waitFor(() => {
       expect(screen.getByText("Export CSV")).toBeTruthy();

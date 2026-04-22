@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { SettingsTab } from "./SettingsTab";
 
 const invokeMock = vi.fn();
@@ -600,6 +595,7 @@ afterEach(() => {
 
 describe("SettingsTab", () => {
   it("renders semantic-search model cards and persists the advanced local-model toggle", async () => {
+    const user = userEvent.setup();
     render(<SettingsTab />);
 
     await waitFor(() => {
@@ -618,7 +614,7 @@ describe("SettingsTab", () => {
     const toggle = screen.getByLabelText(
       "Allow unverified local models (advanced)",
     );
-    fireEvent.click(toggle);
+    await user.click(toggle);
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith(
@@ -629,6 +625,7 @@ describe("SettingsTab", () => {
   });
 
   it("covers model, embedding, and context-window interactions", async () => {
+    const user = userEvent.setup();
     listModelsMock.mockResolvedValue(["llama-3.1-8b-instruct"]);
     getLoadedModelMock.mockResolvedValue("llama-3.1-8b-instruct");
     getModelInfoMock.mockResolvedValue({
@@ -644,43 +641,45 @@ describe("SettingsTab", () => {
     render(<SettingsTab />);
 
     await screen.findByText("Currently loaded:");
-    fireEvent.click(screen.getAllByRole("button", { name: "Unload" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Unload" })[0]);
     await waitFor(() => expect(unloadModelMock).toHaveBeenCalled());
 
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Show other supported models" }),
     );
-    fireEvent.click(screen.getAllByRole("button", { name: "Load" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Load" })[0]);
     await waitFor(() =>
       expect(loadModelMock).toHaveBeenCalledWith("llama-3.1-8b-instruct"),
     );
 
-    fireEvent.change(screen.getByLabelText("Context window size"), {
-      target: { value: "8192" },
-    });
+    await user.selectOptions(
+      screen.getByLabelText("Context window size"),
+      "8192",
+    );
     await waitFor(() =>
       expect(setContextWindowMock).toHaveBeenCalledWith(8192),
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Unload" }).at(-1)!);
+    await user.click(screen.getAllByRole("button", { name: "Unload" }).at(-1)!);
     await waitFor(() => expect(unloadEmbeddingModelMock).toHaveBeenCalled());
 
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Generate Embeddings for KB" }),
     );
     await waitFor(() => expect(generateEmbeddingsMock).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole("button", { name: "Install Model" }));
+    await user.click(screen.getByRole("button", { name: "Install Model" }));
     await waitFor(() =>
       expect(installSearchApiEmbeddingModelMock).toHaveBeenCalled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Refresh Status" }));
+    await user.click(screen.getByRole("button", { name: "Refresh Status" }));
     await waitFor(() =>
       expect(refreshSearchApiEmbeddingStatusMock).toHaveBeenCalled(),
     );
   });
 
   it("handles custom model validation branches and KB selection", async () => {
+    const user = userEvent.setup();
     render(<SettingsTab />);
 
     validateGgufFileMock.mockResolvedValueOnce({
@@ -688,7 +687,7 @@ describe("SettingsTab", () => {
       file_name: "broken.gguf",
       integrity_status: "verified",
     });
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Select GGUF File..." }),
     );
     await screen.findByText(/invalid gguf file: broken\.gguf/i);
@@ -698,12 +697,12 @@ describe("SettingsTab", () => {
       file_name: "untrusted.gguf",
       integrity_status: "unverified",
     });
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Select GGUF File..." }),
     );
     await screen.findByText(/not on the verified allowlist/i);
 
-    fireEvent.click(
+    await user.click(
       screen.getByLabelText("Allow unverified local models (advanced)"),
     );
     await waitFor(() =>
@@ -718,7 +717,7 @@ describe("SettingsTab", () => {
       file_name: "untrusted.gguf",
       integrity_status: "unverified",
     });
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Select GGUF File..." }),
     );
     await waitFor(() =>
@@ -727,40 +726,34 @@ describe("SettingsTab", () => {
     expect(confirmSpy).toHaveBeenCalled();
 
     openMock.mockResolvedValueOnce("/tmp/kb");
-    fireEvent.click(screen.getByRole("button", { name: "Select Folder" }));
+    await user.click(screen.getByRole("button", { name: "Select Folder" }));
     await waitFor(() =>
       expect(setKbFolderMock).toHaveBeenCalledWith("/tmp/kb"),
     );
   });
 
   it("covers variables, Jira, backup, deployment, audit, and threshold operations", async () => {
+    const user = userEvent.setup();
     render(<SettingsTab />);
 
     await screen.findByText("Template Variables");
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Add Variable" }));
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: "1bad" },
-    });
-    fireEvent.change(screen.getByLabelText("Value"), {
-      target: { value: "value" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(screen.getByRole("button", { name: "+ Add Variable" }));
+    await user.type(screen.getByLabelText("Name"), "1bad");
+    await user.type(screen.getByLabelText("Value"), "value");
+    await user.click(screen.getByRole("button", { name: "Add" }));
     await screen.findByText(/must start with a letter or underscore/i);
 
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: "existing_var" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    await user.clear(screen.getByLabelText("Name"));
+    await user.type(screen.getByLabelText("Name"), "existing_var");
+    await user.click(screen.getByRole("button", { name: "Add" }));
     await screen.findByText(/already exists/i);
 
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: "new_var" },
-    });
-    fireEvent.change(screen.getByLabelText("Value"), {
-      target: { value: "new value" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    await user.clear(screen.getByLabelText("Name"));
+    await user.type(screen.getByLabelText("Name"), "new_var");
+    await user.clear(screen.getByLabelText("Value"));
+    await user.type(screen.getByLabelText("Value"), "new value");
+    await user.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() =>
       expect(saveVariableMock).toHaveBeenCalledWith(
         "new_var",
@@ -769,19 +762,16 @@ describe("SettingsTab", () => {
       ),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(deleteVariableMock).toHaveBeenCalledWith("1"));
 
-    fireEvent.change(screen.getByLabelText("Jira URL"), {
-      target: { value: "https://example.atlassian.net" },
-    });
-    fireEvent.change(screen.getByLabelText("Email"), {
-      target: { value: "dev@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText("API Token"), {
-      target: { value: "secret" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await user.type(
+      screen.getByLabelText("Jira URL"),
+      "https://example.atlassian.net",
+    );
+    await user.type(screen.getByLabelText("Email"), "dev@example.com");
+    await user.type(screen.getByLabelText("API Token"), "secret");
+    await user.click(screen.getByRole("button", { name: "Connect" }));
     await waitFor(() =>
       expect(configureJiraMock).toHaveBeenCalledWith(
         "https://example.atlassian.net",
@@ -798,33 +788,35 @@ describe("SettingsTab", () => {
     cleanup();
     render(<SettingsTab />);
     await screen.findByText(/connected to https:\/\/example\.atlassian\.net/i);
-    fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
     await waitFor(() => expect(disconnectJiraMock).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole("button", { name: "Export Backup" }));
-    fireEvent.click(screen.getByRole("button", { name: "Import Backup" }));
-    fireEvent.click(
+    await user.click(screen.getByRole("button", { name: "Export Backup" }));
+    await user.click(screen.getByRole("button", { name: "Import Backup" }));
+    await user.click(
       screen.getByRole("button", { name: "Run Deployment Preflight" }),
     );
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Toggle Jira Integration" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Export Audit Logs" }));
-    fireEvent.click(screen.getByRole("button", { name: "Filter Errors" }));
-    fireEvent.click(screen.getByRole("button", { name: "Search Custom" }));
-    fireEvent.click(screen.getByRole("button", { name: "Refresh Audit Logs" }));
-    fireEvent.click(
+    await user.click(screen.getByRole("button", { name: "Export Audit Logs" }));
+    await user.click(screen.getByRole("button", { name: "Filter Errors" }));
+    await user.click(screen.getByRole("button", { name: "Search Custom" }));
+    await user.click(
+      screen.getByRole("button", { name: "Refresh Audit Logs" }),
+    );
+    await user.click(
       screen.getByRole("button", { name: "Make Threshold Invalid" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Save Thresholds" }));
+    await user.click(screen.getByRole("button", { name: "Save Thresholds" }));
     await screen.findByText(/edit ratio watch threshold must be lower/i);
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Make Threshold Valid" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Reset Thresholds" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save Thresholds" }));
-    fireEvent.click(screen.getByRole("button", { name: "Switch Theme" }));
-    fireEvent.click(
+    await user.click(screen.getByRole("button", { name: "Reset Thresholds" }));
+    await user.click(screen.getByRole("button", { name: "Save Thresholds" }));
+    await user.click(screen.getByRole("button", { name: "Switch Theme" }));
+    await user.click(
       screen.getByRole("button", { name: "Refresh Memory Kernel" }),
     );
 

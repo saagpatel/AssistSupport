@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SemanticSearchSection } from "./SemanticSearchSection";
 
@@ -44,27 +45,30 @@ function renderSection(
 describe("SemanticSearchSection", () => {
   afterEach(() => cleanup());
 
-  it("prompts to download the desktop model when not downloaded", () => {
+  it("prompts to download the desktop model when not downloaded", async () => {
+    const user = userEvent.setup();
     const { props } = renderSection();
-    fireEvent.click(screen.getByRole("button", { name: "Download Model" }));
+    await user.click(screen.getByRole("button", { name: "Download Model" }));
     expect(props.onDownloadEmbeddingModel).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the Unload control when loaded and triggers onUnloadEmbeddingModel", () => {
+  it("renders the Unload control when loaded and triggers onUnloadEmbeddingModel", async () => {
+    const user = userEvent.setup();
     const { props } = renderSection({
       embeddingDownloaded: true,
       isEmbeddingLoaded: true,
       embeddingModelInfo: { name: "nomic-embed-text", embedding_dim: 768 },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Unload" }));
+    await user.click(screen.getByRole("button", { name: "Unload" }));
     expect(props.onUnloadEmbeddingModel).toHaveBeenCalledTimes(1);
   });
 
-  it("invokes search API install and refresh callbacks", () => {
+  it("invokes search API install and refresh callbacks", async () => {
+    const user = userEvent.setup();
     const { props } = renderSection();
-    fireEvent.click(screen.getByRole("button", { name: "Install Model" }));
+    await user.click(screen.getByRole("button", { name: "Install Model" }));
     expect(props.onInstallSearchApiEmbeddingModel).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Refresh Status" }));
+    await user.click(screen.getByRole("button", { name: "Refresh Status" }));
     expect(props.onRefreshSearchApiEmbeddingStatus).toHaveBeenCalledTimes(1);
   });
 });

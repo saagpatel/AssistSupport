@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import type { ComponentProps } from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { TicketWorkspaceRail } from "./TicketWorkspaceRail";
 import type {
@@ -195,7 +196,8 @@ function getRailRoot(container: HTMLElement) {
 }
 
 describe("TicketWorkspaceRail", () => {
-  it("exposes compare, kits, favorites, and guided runbook actions from the workspace rail", () => {
+  it("exposes compare, kits, favorites, and guided runbook actions from the workspace rail", async () => {
+    const user = userEvent.setup();
     const { props, container } = renderRail();
     const rail = getRailRoot(container);
 
@@ -213,17 +215,17 @@ describe("TicketWorkspaceRail", () => {
     expect(resolutionKitsSection).toBeTruthy();
     expect(guidedRunbooksSection).toBeTruthy();
 
-    fireEvent.click(
+    await user.click(
       within(similarCasesSection as HTMLElement).getByRole("button", {
         name: "Compare latest",
       }),
     );
-    fireEvent.click(
+    await user.click(
       within(resolutionKitsSection as HTMLElement).getByRole("button", {
         name: "Apply kit",
       }),
     );
-    fireEvent.click(
+    await user.click(
       within(guidedRunbooksSection as HTMLElement).getByRole("button", {
         name: "Copy into notes",
       }),
@@ -236,7 +238,8 @@ describe("TicketWorkspaceRail", () => {
     expect(screen.getByText("Guided runbooks")).toBeTruthy();
   });
 
-  it("marks the active note audience as pressed and persists personalization changes through callbacks", () => {
+  it("marks the active note audience as pressed and persists personalization changes through callbacks", async () => {
+    const user = userEvent.setup();
     const { props, container } = renderRail();
     const rail = getRailRoot(container);
 
@@ -254,11 +257,11 @@ describe("TicketWorkspaceRail", () => {
     });
     expect(internalNote.getAttribute("aria-pressed")).toBe("true");
 
-    fireEvent.change(
+    await user.selectOptions(
       within(personalizationSection as HTMLElement).getByRole("combobox", {
         name: "Default output length",
       }),
-      { target: { value: "Long" } },
+      "Long",
     );
 
     expect(props.personalization.onChange).toHaveBeenCalledWith({

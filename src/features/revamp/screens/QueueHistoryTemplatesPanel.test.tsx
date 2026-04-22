@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueueHistoryTemplatesPanel } from "./QueueHistoryTemplatesPanel";
 import type { ResponseTemplate, SavedDraft } from "../../../types/workspace";
@@ -149,6 +144,7 @@ describe("QueueHistoryTemplatesPanel", () => {
   });
 
   it("filters draft history and deletes the selected draft after confirmation", async () => {
+    const user = userEvent.setup();
     draftsState = [
       makeDraft({
         id: "draft-1",
@@ -165,31 +161,31 @@ describe("QueueHistoryTemplatesPanel", () => {
 
     render(<QueueHistoryTemplatesPanel />);
 
-    fireEvent.change(screen.getByPlaceholderText("Filter by ticket..."), {
-      target: { value: "INC-1002" },
-    });
+    await user.type(
+      screen.getByPlaceholderText("Filter by ticket..."),
+      "INC-1002",
+    );
     expect(
       await screen.findByRole("button", { name: "INC-1002" }),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "INC-1001" })).toBeNull();
 
-    fireEvent.change(screen.getByPlaceholderText("Search drafts..."), {
-      target: { value: "no-match" },
-    });
+    await user.type(
+      screen.getByPlaceholderText("Search drafts..."),
+      "no-match",
+    );
     expect(await screen.findByText(/No drafts found/)).toBeTruthy();
 
-    fireEvent.change(screen.getByPlaceholderText("Search drafts..."), {
-      target: { value: "" },
-    });
+    await user.clear(screen.getByPlaceholderText("Search drafts..."));
     expect(
       await screen.findByRole("button", { name: "INC-1002" }),
     ).toBeTruthy();
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Delete" })[0]);
     const deleteButtons = await screen.findAllByRole("button", {
       name: "Delete",
     });
-    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
+    await user.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
       expect(deleteDraftMock).toHaveBeenCalledWith("draft-2");
@@ -197,6 +193,7 @@ describe("QueueHistoryTemplatesPanel", () => {
   });
 
   it("restores an older version and opens the restored draft in the workspace callback", async () => {
+    const user = userEvent.setup();
     const onLoadDraft = vi.fn();
     const currentDraft = makeDraft({
       id: "draft-1",
@@ -216,8 +213,8 @@ describe("QueueHistoryTemplatesPanel", () => {
 
     render(<QueueHistoryTemplatesPanel onLoadDraft={onLoadDraft} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Versions" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Restore" }));
+    await user.click(screen.getByRole("button", { name: "Versions" }));
+    await user.click(await screen.findByRole("button", { name: "Restore" }));
 
     await waitFor(() => {
       expect(restoreDraftVersionMock).toHaveBeenCalledWith(
@@ -231,23 +228,22 @@ describe("QueueHistoryTemplatesPanel", () => {
   });
 
   it("inserts template variables during template creation and saves the new template content", async () => {
+    const user = userEvent.setup();
     templatesState = [makeTemplate()];
 
     render(<QueueHistoryTemplatesPanel activeSection="templates" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Template" }));
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: "Customer update" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Insert Variable" }));
-    fireEvent.click(screen.getByRole("button", { name: /{{customer_name}}/ }));
+    await user.click(screen.getByRole("button", { name: "Create Template" }));
+    await user.type(screen.getByLabelText("Name"), "Customer update");
+    await user.click(screen.getByRole("button", { name: "Insert Variable" }));
+    await user.click(screen.getByRole("button", { name: /{{customer_name}}/ }));
 
     const contentField = screen.getByLabelText(
       "Content",
     ) as HTMLTextAreaElement;
     expect(contentField.value).toContain("{{customer_name}}");
 
-    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await user.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() => {
       expect(saveTemplateMock).toHaveBeenCalledWith(

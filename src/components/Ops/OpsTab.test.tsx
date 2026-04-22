@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OpsTab } from "./OpsTab";
 
@@ -102,15 +97,15 @@ describe("OpsTab", () => {
   });
 
   it("keeps the record artifact action disabled until a sha is provided", async () => {
+    const user = userEvent.setup();
     render(<OpsTab />);
 
     const recordButton = await screen.findByRole("button", {
       name: "Record Artifact",
     });
     expect((recordButton as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(screen.getByPlaceholderText("sha256"), {
-      target: { value: "abc123" },
-    });
+    await user.click(screen.getByPlaceholderText("sha256"));
+    await user.paste("abc123");
     expect(
       (
         screen.getByRole("button", {
@@ -121,16 +116,18 @@ describe("OpsTab", () => {
   });
 
   it("shows integration controls and surfaces config errors through the toast channel", async () => {
+    const user = userEvent.setup();
     configureIntegration.mockRejectedValue(new Error("bad config"));
 
     render(<OpsTab />);
-    fireEvent.click(await screen.findByRole("tab", { name: "Integrations" }));
+    await user.click(await screen.findByRole("tab", { name: "Integrations" }));
 
     const [textarea] = await screen.findAllByPlaceholderText(
       '{"webhook_url":"https://..."}',
     );
-    fireEvent.change(textarea, { target: { value: "not-json" } });
-    fireEvent.click(screen.getAllByRole("button", { name: "Save Config" })[0]);
+    await user.click(textarea);
+    await user.paste("not-json");
+    await user.click(screen.getAllByRole("button", { name: "Save Config" })[0]);
 
     await waitFor(() => {
       expect(showError).toHaveBeenCalled();

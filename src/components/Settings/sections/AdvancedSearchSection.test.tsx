@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdvancedSearchSection } from "./AdvancedSearchSection";
 
@@ -17,7 +18,8 @@ describe("AdvancedSearchSection", () => {
     expect(toggle.checked).toBe(true);
   });
 
-  it("calls onVectorToggle when the checkbox flips", () => {
+  it("calls onVectorToggle when the checkbox flips", async () => {
+    const user = userEvent.setup();
     const onVectorToggle = vi.fn();
     render(
       <AdvancedSearchSection
@@ -26,7 +28,7 @@ describe("AdvancedSearchSection", () => {
       />,
     );
 
-    fireEvent.click(screen.getByLabelText("Enable vector embeddings"));
+    await user.click(screen.getByLabelText("Enable vector embeddings"));
     expect(onVectorToggle).toHaveBeenCalledTimes(1);
   });
 });

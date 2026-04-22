@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { KnowledgePage } from "./KnowledgePage";
 
@@ -51,14 +52,15 @@ describe("KnowledgePage", () => {
     expect(screen.queryByText("Hybrid search diagnostics")).toBeNull();
   });
 
-  it("keeps the documents workspace visible while opening library and diagnostics tools", () => {
+  it("keeps the documents workspace visible while opening library and diagnostics tools", async () => {
+    const user = userEvent.setup();
     render(<KnowledgePage />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Library" }));
+    await user.click(screen.getByRole("tab", { name: "Library" }));
     expect(screen.getByText("Sources page empty")).toBeTruthy();
     expect(screen.getByText("Knowledge browser")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Search Diagnostics" }));
+    await user.click(screen.getByRole("tab", { name: "Search Diagnostics" }));
     expect(screen.getByText("Sources page empty")).toBeTruthy();
     expect(screen.getByText("Hybrid search diagnostics")).toBeTruthy();
   });
@@ -74,10 +76,11 @@ describe("KnowledgePage", () => {
     expect(screen.getByText("Sources page vpn policy")).toBeTruthy();
   });
 
-  it("returns to the documents section when a fresh workspace search handoff arrives", () => {
+  it("returns to the documents section when a fresh workspace search handoff arrives", async () => {
+    const user = userEvent.setup();
     const { rerender } = render(<KnowledgePage />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Search Diagnostics" }));
+    await user.click(screen.getByRole("tab", { name: "Search Diagnostics" }));
     expect(screen.getByText("Hybrid search diagnostics")).toBeTruthy();
 
     rerender(<KnowledgePage initialSearchQuery="reset password" />);

@@ -1,4 +1,8 @@
 // @vitest-environment jsdom
+// Window-level keyboard-shortcut dispatches are kept on fireEvent below:
+// userEvent.keyboard() types into the currently-focused element, but these
+// tests verify a GLOBAL document listener — fireEvent is the right tool for
+// the job per Testing Library guidance on non-user-interaction tests.
 import { fireEvent, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useDraftLifecycle } from "./useDraftLifecycle";

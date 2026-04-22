@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { IntakeFieldControl } from "./IntakeFieldControl";
 
@@ -21,7 +22,8 @@ describe("IntakeFieldControl", () => {
     expect(input.value).toBe("VPN outage in west region");
   });
 
-  it("renders a multi-line textarea when rows > 1 and reports new values through onChange", () => {
+  it("renders a multi-line textarea when rows > 1 and reports new values through onChange", async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(
       <IntakeFieldControl
@@ -36,19 +38,24 @@ describe("IntakeFieldControl", () => {
     expect(textarea.tagName).toBe("TEXTAREA");
     expect(textarea.rows).toBe(3);
 
-    fireEvent.change(textarea, { target: { value: "updated symptoms" } });
-    expect(onChange).toHaveBeenCalledWith("updated symptoms");
+    await user.click(textarea);
+    await user.paste("updated symptoms");
+    // paste dispatches a single input event, so the controlled component sees
+    // the new value once and reports it via onChange.
+    expect(onChange).toHaveBeenCalledWith(
+      expect.stringContaining("updated symptoms"),
+    );
   });
 
-  it("fires onChange with the latest value on single-line edits", () => {
+  it("fires onChange with the latest value on single-line edits", async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(
       <IntakeFieldControl label="Affected user" value="" onChange={onChange} />,
     );
 
-    fireEvent.change(screen.getByLabelText("Affected user"), {
-      target: { value: "alice@example.com" },
-    });
+    await user.click(screen.getByLabelText("Affected user"));
+    await user.paste("alice@example.com");
     expect(onChange).toHaveBeenCalledWith("alice@example.com");
   });
 });

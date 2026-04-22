@@ -1,28 +1,29 @@
 // @vitest-environment jsdom
-import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { SourcesTab } from './SourcesTab';
+import React from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { SourcesTab } from "./SourcesTab";
 
 const invokeMock = vi.fn();
 const useKbMock = vi.fn();
 
-vi.mock('@tauri-apps/api/core', () => ({
+vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }));
 
-vi.mock('../../hooks/useKb', () => ({
+vi.mock("../../hooks/useKb", () => ({
   useKb: () => useKbMock(),
 }));
 
-vi.mock('../../contexts/ToastContext', () => ({
+vi.mock("../../contexts/ToastContext", () => ({
   useToastContext: () => ({
     success: vi.fn(),
     error: vi.fn(),
   }),
 }));
 
-vi.mock('../shared/Button', () => ({
+vi.mock("../shared/Button", () => ({
   Button: ({
     children,
     onClick,
@@ -38,7 +39,7 @@ vi.mock('../shared/Button', () => ({
   ),
 }));
 
-vi.mock('../shared/Skeleton', () => ({
+vi.mock("../shared/Skeleton", () => ({
   Skeleton: () => <div>loading</div>,
 }));
 
@@ -48,8 +49,8 @@ afterEach(() => {
   useKbMock.mockReset();
 });
 
-describe('SourcesTab', () => {
-  it('shows a loading state before the knowledge base folder resolves', () => {
+describe("SourcesTab", () => {
+  it("shows a loading state before the knowledge base folder resolves", () => {
     useKbMock.mockReturnValue({
       getKbFolder: () => new Promise(() => {}),
       listFiles: () => Promise.resolve([]),
@@ -62,21 +63,23 @@ describe('SourcesTab', () => {
 
     render(<SourcesTab />);
 
-    expect(screen.getByText('Loading Knowledge Base')).toBeTruthy();
-    expect(screen.queryByText('No Knowledge Base Configured')).toBeNull();
+    expect(screen.getByText("Loading Knowledge Base")).toBeTruthy();
+    expect(screen.queryByText("No Knowledge Base Configured")).toBeNull();
   });
 
-  it('opens an accessible remove confirmation dialog', async () => {
+  it("opens an accessible remove confirmation dialog", async () => {
+    const user = userEvent.setup();
     useKbMock.mockReturnValue({
-      getKbFolder: () => Promise.resolve('/mock/kb'),
-      listFiles: () => Promise.resolve([
-        {
-          file_path: '/mock/kb/policy.md',
-          title: 'Policy',
-          chunk_count: 2,
-          indexed_at: '2026-03-01T00:00:00Z',
-        },
-      ]),
+      getKbFolder: () => Promise.resolve("/mock/kb"),
+      listFiles: () =>
+        Promise.resolve([
+          {
+            file_path: "/mock/kb/policy.md",
+            title: "Policy",
+            chunk_count: 2,
+            indexed_at: "2026-03-01T00:00:00Z",
+          },
+        ]),
       rebuildIndex: vi.fn(),
       getIndexStats: () => Promise.resolve({ total_chunks: 2, total_files: 1 }),
       search: vi.fn(),
@@ -87,12 +90,12 @@ describe('SourcesTab', () => {
     render(<SourcesTab />);
 
     await waitFor(() => {
-      expect(screen.getByText('Policy')).toBeTruthy();
+      expect(screen.getByText("Policy")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    await user.click(screen.getByRole("button", { name: "Remove" }));
 
-    expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByText('Remove from Knowledge Base')).toBeTruthy();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByText("Remove from Knowledge Base")).toBeTruthy();
   });
 });

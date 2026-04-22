@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ModelSection } from "./ModelSection";
 
@@ -34,29 +35,32 @@ function renderSection(
 describe("ModelSection", () => {
   afterEach(() => cleanup());
 
-  it("shows the Download button for an undownloaded recommended model", () => {
+  it("shows the Download button for an undownloaded recommended model", async () => {
+    const user = userEvent.setup();
     const { props } = renderSection();
     const downloadButton = screen.getAllByRole("button", {
       name: "Download",
     })[0];
-    fireEvent.click(downloadButton);
+    await user.click(downloadButton);
     expect(props.onDownloadModel).toHaveBeenCalledWith("llama-3.1-8b-instruct");
   });
 
-  it("toggles the Other Supported Models list", () => {
+  it("toggles the Other Supported Models list", async () => {
+    const user = userEvent.setup();
     renderSection();
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Show other supported models" }),
     );
     expect(screen.getByText("Llama 3.2 1B Instruct")).toBeTruthy();
-    fireEvent.click(
+    await user.click(
       screen.getByRole("button", { name: "Hide other supported models" }),
     );
   });
 
-  it("triggers onAllowUnverifiedLocalModelsChange when the toggle flips", () => {
+  it("triggers onAllowUnverifiedLocalModelsChange when the toggle flips", async () => {
+    const user = userEvent.setup();
     const { props } = renderSection();
-    fireEvent.click(
+    await user.click(
       screen.getByLabelText("Allow unverified local models (advanced)"),
     );
     expect(props.onAllowUnverifiedLocalModelsChange).toHaveBeenCalledWith(true);

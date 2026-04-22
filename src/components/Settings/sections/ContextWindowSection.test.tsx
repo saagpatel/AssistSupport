@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContextWindowSection } from "./ContextWindowSection";
 
@@ -24,7 +25,8 @@ describe("ContextWindowSection", () => {
     ).toBeTruthy();
   });
 
-  it("invokes onContextWindowChange with the new value when a size is selected", () => {
+  it("invokes onContextWindowChange with the new value when a size is selected", async () => {
+    const user = userEvent.setup();
     const onContextWindowChange = vi.fn();
     render(
       <ContextWindowSection
@@ -34,9 +36,10 @@ describe("ContextWindowSection", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Context window size"), {
-      target: { value: "8192" },
-    });
+    await user.selectOptions(
+      screen.getByLabelText("Context window size"),
+      "8192",
+    );
     expect(onContextWindowChange).toHaveBeenCalledWith("8192");
   });
 });
