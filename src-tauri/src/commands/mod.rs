@@ -2880,12 +2880,17 @@ pub fn format_draft_for_clipboard(
 
 use crate::db::{ResponseTemplate, SavedDraft};
 
+// NOTE: the following 7 delegating wrappers are dead code (registry points
+// at draft_commands:: directly). Kept temporarily with .map_err bridges so
+// this PR can ship without a 1000+ LOC mod.rs cleanup in the same commit.
+// Deletion tracked as a follow-up task.
+
 /// List saved drafts (most recent first)
 pub fn list_drafts(
     state: State<'_, AppState>,
     limit: Option<usize>,
 ) -> Result<Vec<SavedDraft>, String> {
-    draft_commands::list_drafts_impl(state, limit)
+    draft_commands::list_drafts_impl(state, limit).map_err(|e| e.to_string())
 }
 
 /// Search drafts by text content
@@ -2894,22 +2899,22 @@ pub fn search_drafts(
     query: String,
     limit: Option<usize>,
 ) -> Result<Vec<SavedDraft>, String> {
-    draft_commands::search_drafts_impl(state, query, limit)
+    draft_commands::search_drafts_impl(state, query, limit).map_err(|e| e.to_string())
 }
 
 /// Get a single draft by ID
 pub fn get_draft(state: State<'_, AppState>, draft_id: String) -> Result<SavedDraft, String> {
-    draft_commands::get_draft_impl(state, draft_id)
+    draft_commands::get_draft_impl(state, draft_id).map_err(|e| e.to_string())
 }
 
 /// Save a draft (insert or update)
 pub fn save_draft(state: State<'_, AppState>, draft: SavedDraft) -> Result<String, String> {
-    draft_commands::save_draft_impl(state, draft)
+    draft_commands::save_draft_impl(state, draft).map_err(|e| e.to_string())
 }
 
 /// Delete a draft by ID
 pub fn delete_draft(state: State<'_, AppState>, draft_id: String) -> Result<(), String> {
-    draft_commands::delete_draft_impl(state, draft_id)
+    draft_commands::delete_draft_impl(state, draft_id).map_err(|e| e.to_string())
 }
 
 /// List autosave drafts (most recent first)
@@ -2917,7 +2922,7 @@ pub fn list_autosaves(
     state: State<'_, AppState>,
     limit: Option<usize>,
 ) -> Result<Vec<SavedDraft>, String> {
-    draft_commands::list_autosaves_impl(state, limit)
+    draft_commands::list_autosaves_impl(state, limit).map_err(|e| e.to_string())
 }
 
 /// Cleanup old autosaves, keeping only the most recent ones
@@ -2925,7 +2930,7 @@ pub fn cleanup_autosaves(
     state: State<'_, AppState>,
     keep_count: Option<usize>,
 ) -> Result<usize, String> {
-    draft_commands::cleanup_autosaves_impl(state, keep_count)
+    draft_commands::cleanup_autosaves_impl(state, keep_count).map_err(|e| e.to_string())
 }
 
 /// Get draft versions by input hash (autosaves with matching input_text hash)
