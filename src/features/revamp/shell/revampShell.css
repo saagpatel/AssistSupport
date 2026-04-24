@@ -307,6 +307,18 @@
   background: inherit;
 }
 
+/*
+ * Hero workspace owns its own triage rail, so the shell collapses to a
+ * single column on the Draft tab when the REVAMP_WORKSPACE_HERO flag is
+ * on. Other tabs (Queue, Knowledge, Analytics, Ops, Settings) keep the
+ * two-column layout with the diagnostics rail.
+ */
+.as-shell__content--solo {
+  grid-template-columns: 1fr;
+  padding: 0;
+  gap: 0;
+}
+
 .as-shell__workspace {
   min-width: 0;
   min-height: 0;

@@ -8,6 +8,17 @@ out/
 build/
 *.local
 
+# Portfolio screenshots under docs/screenshots/renders/ — the contact
+# sheet HTML is a build intermediate (capture.mjs uses it to render the
+# contact-sheet.png), so it stays out of the repo.
+docs/screenshots/renders/contact-sheet.html
+
+# Portfolio deck — the editable PPTX is too large for the 2MB large-files
+# guard. Rebuild via `cd docs/deck && npm run build`. The PDF preview
+# fits under the guard and is committed.
+docs/deck/AssistSupport-LinkedIn-Live.pptx
+docs/deck/thumbs/
+
 # Tauri / Rust
 src-tauri/target/
 **/target/

@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AssistSupport — One-pager</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+    <style>
+      /* =========================================================
+         Landscape letter one-pager — 11in × 8.5in
+         Rendered at 1056 × 816 CSS px (96dpi), printed to PDF.
+         Tokens mirror src/styles/revamp/tokens.css 1:1.
+         ========================================================= */
+      :root {
+        --as-font-sans: "IBM Plex Sans", ui-sans-serif, system-ui,
+          -apple-system, sans-serif;
+        --as-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+          Monaco, monospace;
+
+        --as-surface-0: #0b0d10;
+        --as-surface-1: #0f1218;
+        --as-surface-2: #141a22;
+        --as-surface-3: #1b2330;
+        --as-border-1: rgba(255, 255, 255, 0.08);
+        --as-border-2: rgba(255, 255, 255, 0.14);
+
+        --as-text-1: rgba(255, 255, 255, 0.94);
+        --as-text-2: rgba(255, 255, 255, 0.74);
+        --as-text-3: rgba(255, 255, 255, 0.56);
+
+        --as-accent-1: #4fd1c5;
+        --as-accent-2: #2aa198;
+        --as-accent-ink: #061615;
+        --as-accent-surface-1: rgba(79, 209, 197, 0.08);
+        --as-accent-border-1: rgba(79, 209, 197, 0.35);
+
+        --as-good: #2dd4bf;
+        --as-warn: #fbbf24;
+        --as-info: #60a5fa;
+
+        --as-glass-1: rgba(255, 255, 255, 0.02);
+        --as-glass-2: rgba(255, 255, 255, 0.035);
+        --as-glass-3: rgba(255, 255, 255, 0.06);
+
+        --as-glow-1: rgba(79, 209, 197, 0.18);
+        --as-glow-2: rgba(96, 165, 250, 0.1);
+      }
+
+      @page {
+        size: 11in 8.5in;
+        margin: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--as-surface-0);
+      }
+
+      .page {
+        width: 1056px;
+        height: 816px;
+        padding: 28px 40px 24px;
+        color: var(--as-text-1);
+        font-family: var(--as-font-sans);
+        letter-spacing: 0.1px;
+        background:
+          radial-gradient(
+            900px 540px at 8% -10%,
+            var(--as-glow-1),
+            transparent 55%
+          ),
+          radial-gradient(
+            700px 420px at 92% -5%,
+            var(--as-glow-2),
+            transparent 50%
+          ),
+          linear-gradient(180deg, var(--as-surface-0) 0%, var(--as-surface-1) 100%);
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+        gap: 16px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* ============== HEADER ============== */
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand__mark {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(
+          135deg,
+          var(--as-accent-1) 0%,
+          var(--as-accent-2) 100%
+        );
+        color: var(--as-accent-ink);
+        font-weight: 700;
+        font-size: 16px;
+      }
+
+      .brand__name {
+        font-size: 16.5px;
+        font-weight: 600;
+        letter-spacing: -0.1px;
+        line-height: 1.1;
+      }
+
+      .brand__sub {
+        margin-top: 1px;
+        font-family: var(--as-font-mono);
+        font-size: 10.5px;
+        color: var(--as-text-3);
+        letter-spacing: 0.4px;
+      }
+
+      .headerMeta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        color: var(--as-text-2);
+      }
+
+      .pill--accent {
+        background: var(--as-accent-surface-1);
+        border-color: var(--as-accent-border-1);
+        color: var(--as-accent-1);
+      }
+
+      .pill .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--as-good);
+        box-shadow: 0 0 6px var(--as-good);
+      }
+
+      /* ============== TOP ROW: TAGLINE + HERO ============== */
+      .top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.28fr);
+        gap: 28px;
+        align-items: center;
+        min-height: 0;
+      }
+
+      .tagline {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .tagline__label {
+        font-family: var(--as-font-mono);
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        color: var(--as-accent-1);
+      }
+
+      .tagline__h1 {
+        margin: 0;
+        font-size: 34px;
+        font-weight: 600;
+        line-height: 1.08;
+        letter-spacing: -0.6px;
+        color: var(--as-text-1);
+      }
+
+      .tagline__h1 em {
+        font-style: normal;
+        color: var(--as-accent-1);
+      }
+
+      .tagline__sub {
+        margin: 2px 0 0;
+        font-size: 12.5px;
+        line-height: 1.55;
+        color: var(--as-text-2);
+        max-width: 46ch;
+      }
+
+      .hero {
+        position: relative;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid var(--as-accent-border-1);
+        box-shadow:
+          0 0 0 1px rgba(79, 209, 197, 0.05),
+          0 24px 48px -24px rgba(0, 0, 0, 0.7);
+        background: var(--as-surface-1);
+        min-width: 0;
+      }
+
+      .hero img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .heroCaption {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        padding: 4px 9px;
+        background: rgba(11, 13, 16, 0.85);
+        border: 1px solid var(--as-border-1);
+        border-radius: 6px;
+        color: var(--as-text-2);
+        font-size: 10px;
+        font-family: var(--as-font-mono);
+        letter-spacing: 0.3px;
+      }
+
+      .heroCaption b {
+        color: var(--as-accent-1);
+        font-weight: 600;
+      }
+
+      /* ============== PILLARS (5-col horizontal row) ============== */
+      .pillarsBlock {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .pillarsHead {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-family: var(--as-font-mono);
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+      }
+
+      .pillarsHead__label {
+        color: var(--as-text-3);
+      }
+
+      .pillarsHead__note {
+        color: var(--as-text-3);
+        font-weight: 400;
+        letter-spacing: 0.2px;
+        text-transform: none;
+        font-size: 11px;
+      }
+
+      .pillars {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .pillar {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 12px 13px 11px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: 10px;
+        min-width: 0;
+      }
+
+      .pillar__num {
+        font-family: var(--as-font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--as-accent-1);
+        letter-spacing: 0.8px;
+      }
+
+      .pillar__title {
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: -0.1px;
+        color: var(--as-text-1);
+        line-height: 1.25;
+      }
+
+      .pillar__body {
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--as-text-2);
+        flex: 1;
+      }
+
+      .pillar__tag {
+        margin-top: 2px;
+        font-family: var(--as-font-mono);
+        font-size: 10px;
+        color: var(--as-text-3);
+        letter-spacing: 0.3px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .pillar__tag b {
+        color: var(--as-accent-1);
+        font-weight: 600;
+      }
+
+      /* ============== IMPACT STRIP ============== */
+      .impact {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0;
+        padding: 14px 0;
+        border-top: 1px solid var(--as-border-2);
+        border-bottom: 1px solid var(--as-border-2);
+        background: linear-gradient(
+          180deg,
+          rgba(79, 209, 197, 0.03) 0%,
+          transparent 100%
+        );
+      }
+
+      .stat {
+        padding: 2px 22px;
+        border-right: 1px solid var(--as-border-1);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .stat:first-child {
+        padding-left: 0;
+      }
+
+      .stat:last-child {
+        border-right: 0;
+        padding-right: 0;
+      }
+
+      .stat__label {
+        font-family: var(--as-font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 1.4px;
+        text-transform: uppercase;
+        color: var(--as-accent-1);
+      }
+
+      .stat__value {
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+        color: var(--as-text-1);
+      }
+
+      .stat__num {
+        font-family: var(--as-font-mono);
+        font-size: 38px;
+        font-weight: 600;
+        letter-spacing: -1px;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .stat__unit {
+        font-family: var(--as-font-mono);
+        font-size: 16px;
+        color: var(--as-text-2);
+        font-weight: 500;
+      }
+
+      .stat__caption {
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--as-text-2);
+      }
+
+      .stat__source {
+        font-family: var(--as-font-mono);
+        font-size: 9.5px;
+        color: var(--as-text-3);
+        letter-spacing: 0.3px;
+      }
+
+      /* ============== FOOTER ============== */
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: var(--as-font-mono);
+        font-size: 10px;
+        color: var(--as-text-3);
+        letter-spacing: 0.3px;
+      }
+
+      .footer__stack {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .footer__chip {
+        display: inline-flex;
+        padding: 3px 7px;
+        border: 1px solid var(--as-border-1);
+        border-radius: 5px;
+        background: var(--as-glass-2);
+        color: var(--as-text-2);
+        font-size: 10px;
+      }
+
+      .footer__right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <!-- ============== HEADER ============== -->
+      <header class="header">
+        <div class="brand">
+          <div class="brand__mark">A</div>
+          <div>
+            <div class="brand__name">AssistSupport</div>
+            <div class="brand__sub">local-first · v1.2.0 · MIT</div>
+          </div>
+        </div>
+        <div class="headerMeta">
+          <span class="pill"><span class="dot"></span>runs on your MacBook</span>
+          <span class="pill">Tauri 2 + Rust</span>
+          <span class="pill pill--accent">portfolio-grade</span>
+        </div>
+      </header>
+
+      <!-- ============== TOP ROW: TAGLINE + HERO ============== -->
+      <section class="top">
+        <div class="tagline">
+          <div class="tagline__label">Your support team's second brain</div>
+          <h1 class="tagline__h1">
+            ML-powered answers from <em>your own</em> knowledge base — in
+            under 25&#8239;ms, without sending a single query to the cloud.
+          </h1>
+          <p class="tagline__sub">
+            Local LLM inference plus a hybrid ML search pipeline that drafts
+            accurate, KB-grounded IT support responses entirely on the
+            operator's laptop. SQLCipher AES-256 at rest, a self-improving
+            feedback loop, and an ops surface for deploy, rollback, and
+            eval — all shipped as a single Tauri app.
+          </p>
+        </div>
+        <figure class="hero" style="margin: 0">
+          <img
+            src="../screenshots/renders/01-workspace.png"
+            alt="AssistSupport workspace — three-region draft flow"
+          />
+          <figcaption class="heroCaption">
+            <b>Workspace</b> · composer · KB-grounded answer · triage rail
+          </figcaption>
+        </figure>
+      </section>
+
+      <!-- ============== PILLARS ============== -->
+      <section class="pillarsBlock">
+        <div class="pillarsHead">
+          <span class="pillarsHead__label">Five feature pillars</span>
+          <span class="pillarsHead__note"
+            >— local inference · hybrid search · trust-gated · self-improving · encrypted</span
+          >
+        </div>
+        <div class="pillars">
+          <div class="pillar">
+            <div class="pillar__num">01</div>
+            <div class="pillar__title">ML intent classification</div>
+            <div class="pillar__body">
+              A calibrated logistic-regression classifier routes every
+              ticket — policy, howto, access, incident — in under 5&#8239;ms.
+            </div>
+            <div class="pillar__tag">
+              <b>0.914</b> macro-F1
+            </div>
+          </div>
+
+          <div class="pillar">
+            <div class="pillar__num">02</div>
+            <div class="pillar__title">Sub-25&#8239;ms hybrid search</div>
+            <div class="pillar__body">
+              TF-IDF retrieval plus a ms-marco-MiniLM-L-6-v2 cross-encoder
+              reranker — citations are real files, not hallucinations.
+            </div>
+            <div class="pillar__tag"><b>22&#8239;ms</b> p50 · 46&#8239;ms p95</div>
+          </div>
+
+          <div class="pillar">
+            <div class="pillar__num">03</div>
+            <div class="pillar__title">Trust-gated responses</div>
+            <div class="pillar__body">
+              Confidence modes (answer · clarify · abstain) plus inline [n]
+              citations link every sentence back to its source.
+            </div>
+            <div class="pillar__tag">
+              <b>0.93</b> grounded · <b>0.96</b> faithful
+            </div>
+          </div>
+
+          <div class="pillar">
+            <div class="pillar__num">04</div>
+            <div class="pillar__title">Self-improving feedback loop</div>
+            <div class="pillar__body">
+              Low-confidence queries get clustered into KB gaps, ranked by
+              impact, and turned into a prioritized list of articles.
+            </div>
+            <div class="pillar__tag">
+              <b>14</b> gap clusters · 87 tickets
+            </div>
+          </div>
+
+          <div class="pillar">
+            <div class="pillar__num">05</div>
+            <div class="pillar__title">Local-first &amp; encrypted</div>
+            <div class="pillar__body">
+              SQLCipher AES-256 at rest, local Ollama inference. Zero data
+              leaves the machine. Ships with deploy / rollback / eval ops.
+            </div>
+            <div class="pillar__tag">
+              <b>SQLCipher</b> · Ollama · Tauri 2
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============== IMPACT STRIP ============== -->
+      <section class="impact">
+        <div class="stat">
+          <div class="stat__label">Ticket deflection</div>
+          <div class="stat__value">
+            <span class="stat__num">25</span>
+            <span class="stat__unit">%</span>
+          </div>
+          <div class="stat__caption">
+            of tier-1 tickets never reach a human — drafts accepted and
+            pasted into Jira as-is.
+          </div>
+          <div class="stat__source">benchmark: prior Aisera deployment</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Hybrid search latency</div>
+          <div class="stat__value">
+            <span class="stat__num">&lt;25</span>
+            <span class="stat__unit">ms</span>
+          </div>
+          <div class="stat__caption">
+            p50 across TF-IDF candidate retrieval plus cross-encoder
+            reranker — instant in the composer.
+          </div>
+          <div class="stat__source">
+            measured on M3 MacBook Pro · eval run #4812
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">KB articles indexed</div>
+          <div class="stat__value">
+            <span class="stat__num">3,500</span>
+            <span class="stat__unit">+</span>
+          </div>
+          <div class="stat__caption">
+            local SQLite index of policies, runbooks, how-tos, and incident
+            retrospectives — refreshed nightly.
+          </div>
+          <div class="stat__source">nightly reindex · 46&#8239;s · see Ops surface</div>
+        </div>
+      </section>
+
+      <!-- ============== FOOTER ============== -->
+      <footer class="footer">
+        <div class="footer__stack">
+          <span class="footer__chip">Tauri 2</span>
+          <span class="footer__chip">React 19</span>
+          <span class="footer__chip">TypeScript</span>
+          <span class="footer__chip">Rust</span>
+          <span class="footer__chip">SQLCipher</span>
+          <span class="footer__chip">Ollama</span>
+          <span class="footer__chip">TF-IDF + MiniLM</span>
+        </div>
+        <div class="footer__right">
+          <span>github.com/saagpatel/AssistSupport</span>
+          <span>·</span>
+          <span>MIT · 229 commits · macOS</span>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

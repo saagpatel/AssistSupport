@@ -1,0 +1,13 @@
+{
+  "name": "assistsupport-deck",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Local builder for the LinkedIn Live deck — kept out of the root package.json to avoid polluting app deps.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "pptxgenjs": "^3.12.0"
+  }
+}

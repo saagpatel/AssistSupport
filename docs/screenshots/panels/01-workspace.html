@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en" data-accent="teal">
+  <head>
+    <meta charset="utf-8" />
+    <title>AssistSupport — Workspace</title>
+    <link rel="stylesheet" href="../shell.css" />
+    <style>
+      /* Inline the workspace-hero styles so this page is self-contained.
+         These rules match src/styles/revamp/workspaceHero.css 1:1 — if
+         the component drifts, re-sync this block. */
+      .wsx {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        flex: 1;
+        min-height: 0;
+        color: var(--as-text-1);
+        font-family: var(--as-font-sans);
+      }
+      .wsx__composer {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 28px 14px;
+        background: rgba(15, 18, 24, 0.82);
+        border-bottom: 1px solid var(--as-border-1);
+        backdrop-filter: blur(12px);
+      }
+      .wsx__ticketBar {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 16px;
+      }
+      .wsx__ticketId {
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--as-text-3);
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+      }
+      .wsx__ticketSummary {
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.1px;
+        color: var(--as-text-1);
+      }
+      .wsx__ticketMeta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11.5px;
+        color: var(--as-text-3);
+      }
+      .wsx__ticketAvatar {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--as-accent-surface-1);
+        color: var(--as-accent-1);
+        font-size: 10.5px;
+        font-weight: 600;
+        border: 1px solid var(--as-accent-border-1);
+      }
+      .wsx__ticketReporter {
+        color: var(--as-text-2);
+        font-weight: 500;
+      }
+      .wsx__query {
+        width: 100%;
+        min-height: 72px;
+        padding: 12px 14px;
+        font-family: var(--as-font-sans);
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--as-text-1);
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-1);
+      }
+      .wsx__composerFooter {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .wsx__chips {
+        display: flex;
+        gap: 6px;
+      }
+      .wsx__chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--as-text-2);
+        padding: 5px 10px;
+        border-radius: var(--as-radius-pill);
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+      }
+      .wsx__chip.is-on {
+        background: var(--as-accent-surface-1);
+        color: var(--as-accent-1);
+        border-color: var(--as-accent-border-1);
+      }
+      .wsx__chipDot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.6;
+      }
+      .wsx__seg {
+        display: inline-flex;
+        padding: 2px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: 8px;
+        gap: 2px;
+      }
+      .wsx__seg .btn {
+        padding: 5px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 6px;
+        color: var(--as-text-3);
+        background: none;
+        border: 0;
+      }
+      .wsx__seg .btn.is-on {
+        background: var(--as-glass-3);
+        color: var(--as-text-1);
+      }
+      .wsx__composerRight {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .wsx__body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 24px;
+        padding: 20px 28px 28px;
+        min-height: 0;
+      }
+      .wsx__answer {
+        min-width: 0;
+      }
+      .wsx__answerInner {
+        max-width: 780px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .wsx__answerHead {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 16px;
+        border-radius: var(--as-radius-2);
+        background: var(--as-good-surface);
+        border: 1px solid var(--as-good-border);
+      }
+      .wsx__intentLabel {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--as-text-3);
+      }
+      .wsx__intentClass {
+        font-family: var(--as-font-mono);
+        font-size: 12px;
+        color: var(--as-text-1);
+        font-weight: 500;
+        margin-left: 8px;
+      }
+      .wsx__gauge {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-left: auto;
+        min-width: 220px;
+      }
+      .wsx__gaugePill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 9px;
+        border-radius: var(--as-radius-pill);
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        background: var(--as-good-surface);
+        border: 1px solid var(--as-good-border);
+        color: var(--as-good-text);
+      }
+      .wsx__gaugeBar {
+        flex: 1;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        overflow: hidden;
+        position: relative;
+      }
+      .wsx__gaugeBar::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: 87%;
+        background: linear-gradient(90deg, var(--as-good), var(--as-accent-1));
+        border-radius: 999px;
+      }
+      .wsx__gaugeNum {
+        font-family: var(--as-font-mono);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--as-text-1);
+      }
+      .wsx__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding: 0 2px;
+        font-size: 11.5px;
+        color: var(--as-text-3);
+      }
+      .wsx__meta b {
+        color: var(--as-text-2);
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+      .wsx__prose {
+        max-width: 70ch;
+        font-size: 16px;
+        line-height: 1.65;
+        color: var(--as-text-1);
+      }
+      .wsx__prose p {
+        margin: 0 0 14px;
+      }
+      .wsx__prose h3 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 20px 0 4px;
+      }
+      .wsx__prose .cite {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 4px;
+        background: var(--as-accent-surface-1);
+        border: 1px solid var(--as-accent-border-1);
+        color: var(--as-accent-1);
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        vertical-align: middle;
+        margin: 0 2px;
+      }
+      .wsx__answerActions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding-top: 10px;
+        border-top: 1px solid var(--as-border-1);
+      }
+      .wsx__spacer {
+        flex: 1;
+      }
+      .wsx__sources {
+        margin-top: 8px;
+        padding: 14px 0 0;
+        border-top: 1px solid var(--as-border-1);
+      }
+      .wsx__sourcesHead {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .wsx__sourcesTitle {
+        font-size: 12.5px;
+        font-weight: 600;
+      }
+      .wsx__sourcesHint {
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .wsx__sources ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .wsx__source {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 10px;
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: 8px;
+      }
+      .wsx__sourceNum {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 5px;
+        border-radius: 4px;
+        background: var(--as-accent-surface-1);
+        border: 1px solid var(--as-accent-border-1);
+        color: var(--as-accent-1);
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .wsx__sourceTitle {
+        font-size: 12.5px;
+        color: var(--as-text-1);
+        font-weight: 500;
+      }
+      .wsx__sourceMeta {
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .wsx__sourceScore {
+        font-family: var(--as-font-mono);
+        font-size: 10.5px;
+        color: var(--as-text-3);
+      }
+      .wsx__rail {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .wsx__railCard {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+      }
+      .wsx__railTitle {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        color: var(--as-text-3);
+      }
+      .wsx__steps {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .wsx__step {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 7px 8px;
+        border-radius: 6px;
+        color: var(--as-text-3);
+      }
+      .wsx__step.is-active {
+        background: var(--as-accent-surface-1);
+        color: var(--as-text-1);
+      }
+      .wsx__step.is-done {
+        color: var(--as-text-2);
+      }
+      .wsx__stepNum {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--as-glass-3);
+        color: var(--as-text-2);
+        font-family: var(--as-font-mono);
+        font-size: 10.5px;
+        font-weight: 600;
+      }
+      .wsx__step.is-active .wsx__stepNum {
+        background: var(--as-accent-1);
+        color: var(--as-accent-ink);
+      }
+      .wsx__step.is-done .wsx__stepNum {
+        background: var(--as-good-surface);
+        color: var(--as-good-text);
+        border: 1px solid var(--as-good-border);
+      }
+      .wsx__stepLabel {
+        font-size: 12.5px;
+        font-weight: 500;
+      }
+      .wsx__stepHint {
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .wsx__stat {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .wsx__stat dt {
+        font-size: 12px;
+        color: var(--as-text-3);
+        margin: 0;
+      }
+      .wsx__stat dd {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .wsx__statValue {
+        font-family: var(--as-font-mono);
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--as-text-1);
+        line-height: 1;
+      }
+      .wsx__statValue.is-good {
+        color: var(--as-good-text);
+      }
+      .wsx__miniBar {
+        width: 80px;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        position: relative;
+        overflow: hidden;
+      }
+      .wsx__miniBar::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: 86%;
+        background: linear-gradient(90deg, var(--as-good), var(--as-accent-1));
+      }
+      .wsx__alt {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px;
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: 8px;
+      }
+      .wsx__altHead {
+        font-family: var(--as-font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--as-text-3);
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+      }
+      .wsx__altPreview {
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--as-text-2);
+      }
+      .wsx__thumbs {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .wsx__thumb {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        color: var(--as-text-2);
+      }
+      .wsx__thumb.is-on {
+        background: var(--as-accent-surface-1);
+        border-color: var(--as-accent-border-1);
+        color: var(--as-accent-1);
+      }
+      .wsx__thumbsHint {
+        font-size: 11px;
+        color: var(--as-text-3);
+        flex: 1;
+      }
+      .wsx__field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .wsx__field span {
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .wsx__field select {
+        width: 100%;
+        padding: 6px 9px;
+        font-size: 12.5px;
+        color: var(--as-text-1);
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: 7px;
+      }
+      .wsx__fields {
+        display: grid;
+        gap: 10px;
+      }
+      .wsx__railFooter {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 2px;
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .icon {
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        vertical-align: middle;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="nav">
+        <div class="nav__brand">
+          <div class="nav__mark">A</div>
+          <div>
+            <div class="nav__name">AssistSupport</div>
+            <div class="nav__meta">local · v1.2.0</div>
+          </div>
+        </div>
+        <div class="nav__section">
+          <div class="nav__sectionTitle">Core</div>
+          <ul class="nav__list">
+            <li class="nav__item is-active">
+              <span class="nav__icon">▣</span>Workspace
+            </li>
+            <li class="nav__item"><span class="nav__icon">≡</span>Queue</li>
+            <li class="nav__item">
+              <span class="nav__icon">◫</span>Knowledge
+            </li>
+            <li class="nav__item"><span class="nav__icon">⚙</span>Settings</li>
+          </ul>
+        </div>
+        <div class="nav__section">
+          <div class="nav__sectionTitle">Admin</div>
+          <ul class="nav__list">
+            <li class="nav__item">
+              <span class="nav__icon">✦</span>Analytics
+            </li>
+            <li class="nav__item">
+              <span class="nav__icon">▸</span>Operations
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <div class="topbar__title">
+              <span class="crumb">AssistSupport</span>
+              <span class="crumb-sep">/</span> Workspace
+            </div>
+            <div class="topbar__sub">
+              Draft a KB-grounded response — local inference, no cloud
+            </div>
+          </div>
+          <div class="cmd">
+            <span>⌘</span>
+            <span style="flex: 1">Run command or search…</span>
+            <span class="cmd__kbd">⌘K</span>
+          </div>
+          <div class="topbar__right">
+            <span class="status-dot">llama3.1-8b · 25ms p50</span>
+          </div>
+        </header>
+
+        <div class="wsx">
+          <div class="wsx__composer">
+            <div class="wsx__ticketBar">
+              <div class="wsx__ticketId">AS-4218 · REQUEST</div>
+              <div class="wsx__ticketSummary">
+                Can I use a flash drive on my work MacBook for the offsite?
+              </div>
+              <div class="wsx__ticketMeta">
+                <span class="wsx__ticketAvatar">PA</span>
+                <span class="wsx__ticketReporter">Priya Anand</span>
+                <span>·</span>
+                <span>Open</span>
+                <span>·</span>
+                <span>2h ago</span>
+                <span class="badge">Normal</span>
+                <span class="badge badge--warn">Policy</span>
+              </div>
+            </div>
+            <textarea class="wsx__query">
+Priya is flying to the offsite Thursday and wants to bring a USB stick for slide backups. Asking if IT permits it, and if so what the approved model is. She's on a company-issued MacBook Pro 14 (M3), macOS 14.5.</textarea
+            >
+            <div class="wsx__composerFooter">
+              <div class="wsx__chips">
+                <span class="wsx__chip is-on"
+                  ><span class="wsx__chipDot"></span>Policy</span
+                >
+                <span class="wsx__chip"
+                  ><span class="wsx__chipDot"></span>Howto</span
+                >
+                <span class="wsx__chip"
+                  ><span class="wsx__chipDot"></span>Access</span
+                >
+                <span class="wsx__chip"
+                  ><span class="wsx__chipDot"></span>Incident</span
+                >
+              </div>
+              <div class="wsx__composerRight">
+                <div class="wsx__seg">
+                  <button class="btn">Short</button>
+                  <button class="btn is-on">Medium</button>
+                  <button class="btn">Long</button>
+                </div>
+                <button class="btn btn--primary">
+                  ⚡ Generate <span class="kbd">⌘↵</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="wsx__body">
+            <section class="wsx__answer">
+              <div class="wsx__answerInner">
+                <header class="wsx__answerHead">
+                  <div>
+                    <span class="wsx__intentLabel">ML Intent</span>
+                    <span class="wsx__intentClass"
+                      >POLICY · removable_media</span
+                    >
+                  </div>
+                  <div class="wsx__gauge">
+                    <span class="wsx__gaugePill">● Grounded</span>
+                    <div class="wsx__gaugeBar"></div>
+                    <span class="wsx__gaugeNum">87%</span>
+                  </div>
+                </header>
+
+                <div class="wsx__meta">
+                  <span>⚡ <b>42</b> tok/s</span>
+                  <span>📘 <b>4</b> sources</span>
+                  <span>📝 <b>118</b> words</span>
+                  <span>◳ <b>31%</b> ctx</span>
+                  <span>✓ <b>6/7</b> claims supported</span>
+                  <span class="mono" style="color: var(--as-text-3)"
+                    >llama3.1-8b-instruct</span
+                  >
+                </div>
+
+                <article class="wsx__prose">
+                  <p>
+                    Removable media is permitted on company-issued Macs for
+                    short-term travel use, but it must be an
+                    <strong>IT-approved encrypted drive</strong> and the file
+                    transfer has to be logged through the macOS Endpoint
+                    Security agent. Per IT Security Policy 4.2, unencrypted
+                    flash drives are blocked at the kernel extension
+                    layer.<button class="cite">1</button>
+                  </p>
+                  <p>
+                    For the offsite this week, Priya has two approved options:
+                  </p>
+                  <p>
+                    The <strong>Kingston IronKey D500S 16GB</strong> is
+                    standard-issue and can be picked up same-day from the 3rd-floor
+                    IT desk — it ships FIPS-validated and auto-enrolls with
+                    the device-management
+                    console.<button class="cite">2</button> If she already
+                    owns an <strong>Apricorn Aegis Secure Key 3NX</strong>, IT
+                    can whitelist its serial in
+                    under ten minutes.<button class="cite">3</button>
+                  </p>
+                  <p>
+                    Either way, she should request the drive before end of day
+                    tomorrow so the endpoint policy has time to propagate to
+                    her Mac before departure. Unapproved drives inserted on
+                    travel Wi-Fi will trigger an automatic incident in PagerDuty
+                    and lock the port for 24 hours.<button class="cite">4</button>
+                  </p>
+                </article>
+
+                <div class="wsx__answerActions">
+                  <button class="btn btn--ghost btn--sm">↻ Regenerate</button>
+                  <button class="btn btn--ghost btn--sm">★ Save template</button>
+                  <div class="wsx__spacer"></div>
+                  <button class="btn btn--primary btn--sm">⎘ Copy response</button>
+                </div>
+
+                <section class="wsx__sources">
+                  <header class="wsx__sourcesHead">
+                    <span class="wsx__sourcesTitle">Cited sources</span>
+                    <span class="wsx__sourcesHint"
+                      >click to open · hybrid retrieval</span
+                    >
+                  </header>
+                  <ul>
+                    <li class="wsx__source">
+                      <span class="wsx__sourceNum">1</span>
+                      <div>
+                        <div class="wsx__sourceTitle">
+                          IT Security Policy 4.2 — Removable Media Controls
+                        </div>
+                        <div class="wsx__sourceMeta">
+                          policies/security-4.2.md · Enforcement
+                        </div>
+                      </div>
+                      <span class="wsx__sourceScore">0.94</span>
+                    </li>
+                    <li class="wsx__source">
+                      <span class="wsx__sourceNum">2</span>
+                      <div>
+                        <div class="wsx__sourceTitle">
+                          Kingston IronKey D500S — Standard Issue Procedure
+                        </div>
+                        <div class="wsx__sourceMeta">
+                          kb/hardware/ironkey-d500s.md · Request flow
+                        </div>
+                      </div>
+                      <span class="wsx__sourceScore">0.88</span>
+                    </li>
+                    <li class="wsx__source">
+                      <span class="wsx__sourceNum">3</span>
+                      <div>
+                        <div class="wsx__sourceTitle">
+                          Whitelisting Personal Encrypted Drives
+                        </div>
+                        <div class="wsx__sourceMeta">
+                          runbooks/whitelist-usb.md · Apricorn / Kingston
+                        </div>
+                      </div>
+                      <span class="wsx__sourceScore">0.81</span>
+                    </li>
+                    <li class="wsx__source">
+                      <span class="wsx__sourceNum">4</span>
+                      <div>
+                        <div class="wsx__sourceTitle">
+                          Endpoint Incident Auto-Triggers (Travel Wi-Fi)
+                        </div>
+                        <div class="wsx__sourceMeta">
+                          runbooks/pagerduty-endpoint.md · PagerDuty rule 12
+                        </div>
+                      </div>
+                      <span class="wsx__sourceScore">0.74</span>
+                    </li>
+                  </ul>
+                </section>
+              </div>
+            </section>
+
+            <aside class="wsx__rail">
+              <div class="wsx__railCard">
+                <div class="wsx__railTitle">Workflow</div>
+                <ol class="wsx__steps">
+                  <li class="wsx__step is-done">
+                    <span class="wsx__stepNum">✓</span>
+                    <span>
+                      <span class="wsx__stepLabel">Triage</span>
+                      <span class="wsx__stepHint">Ticket captured</span>
+                    </span>
+                  </li>
+                  <li class="wsx__step is-done">
+                    <span class="wsx__stepNum">✓</span>
+                    <span>
+                      <span class="wsx__stepLabel">Classify</span>
+                      <span class="wsx__stepHint">ML intent + category</span>
+                    </span>
+                  </li>
+                  <li class="wsx__step is-active">
+                    <span class="wsx__stepNum">3</span>
+                    <span>
+                      <span class="wsx__stepLabel">Draft response</span>
+                      <span class="wsx__stepHint">KB-grounded answer</span>
+                    </span>
+                  </li>
+                  <li class="wsx__step">
+                    <span class="wsx__stepNum">4</span>
+                    <span>
+                      <span class="wsx__stepLabel">Send to Jira</span>
+                      <span class="wsx__stepHint">Copy or post</span>
+                    </span>
+                  </li>
+                </ol>
+              </div>
+
+              <div class="wsx__railCard">
+                <div class="wsx__railTitle">Signals</div>
+                <dl style="display: flex; flex-direction: column; gap: 10px; margin: 0">
+                  <div class="wsx__stat">
+                    <dt>Confidence</dt>
+                    <dd>
+                      <span class="wsx__statValue is-good">87%</span>
+                    </dd>
+                  </div>
+                  <div class="wsx__stat">
+                    <dt>Grounded claims</dt>
+                    <dd>
+                      <span class="wsx__statValue">6/7</span>
+                      <div class="wsx__miniBar"></div>
+                    </dd>
+                  </div>
+                  <div class="wsx__stat">
+                    <dt>Retrieval</dt>
+                    <dd>
+                      <span
+                        class="wsx__statValue"
+                        style="font-size: 14px; color: var(--as-text-2)"
+                        >22ms</span
+                      >
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div class="wsx__railCard">
+                <div class="wsx__railTitle">Alternatives</div>
+                <div class="wsx__alt">
+                  <div class="wsx__altHead">ALT 1 · terser</div>
+                  <div class="wsx__altPreview">
+                    Yes — but you'll need an IT-approved encrypted drive. Pick
+                    up a Kingston IronKey D500S 16GB from the 3rd-floor desk
+                    before EOD tomorrow.
+                  </div>
+                </div>
+                <div class="wsx__alt">
+                  <div class="wsx__altHead">ALT 2 · empathetic</div>
+                  <div class="wsx__altPreview">
+                    Great question, and happy to make this easy for the
+                    offsite. Our policy requires an approved encrypted drive
+                    for travel use…
+                  </div>
+                </div>
+              </div>
+
+              <div class="wsx__railCard">
+                <div class="wsx__railTitle">Feedback</div>
+                <div class="wsx__thumbs">
+                  <span class="wsx__thumb is-on">✓</span>
+                  <span class="wsx__thumb">✕</span>
+                  <span class="wsx__thumbsHint"
+                    >Logged · feeds gap analyzer</span
+                  >
+                </div>
+                <button
+                  class="btn btn--ghost btn--sm"
+                  style="width: 100%; justify-content: center"
+                >
+                  ⚠ Flag as KB gap
+                </button>
+              </div>
+
+              <div class="wsx__railCard">
+                <div class="wsx__railTitle">Context</div>
+                <div class="wsx__fields">
+                  <label class="wsx__field">
+                    <span>Audience</span>
+                    <select>
+                      <option>End user (customer-safe)</option>
+                    </select>
+                  </label>
+                  <label class="wsx__field">
+                    <span>Tone</span>
+                    <select>
+                      <option>Neutral</option>
+                    </select>
+                  </label>
+                  <label class="wsx__field">
+                    <span>Urgency</span>
+                    <select>
+                      <option>Normal</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="wsx__railFooter">
+                <span>llama3.1-8b-instruct</span>
+                <span>ctx 31%</span>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

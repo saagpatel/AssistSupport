@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en" data-accent="teal">
+  <head>
+    <meta charset="utf-8" />
+    <title>AssistSupport — ML Intent</title>
+    <link rel="stylesheet" href="../shell.css" />
+    <style>
+      .intent {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+        gap: 20px;
+        min-height: 0;
+      }
+      .intent__main {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
+      .intent__side {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .qCard {
+        padding: 16px 18px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .qCard__label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--as-text-3);
+      }
+      .qCard__text {
+        font-size: 15px;
+        line-height: 1.55;
+        color: var(--as-text-1);
+        max-width: 70ch;
+      }
+      .qCard__meta {
+        display: flex;
+        gap: 14px;
+        font-size: 11.5px;
+        color: var(--as-text-3);
+        font-family: var(--as-font-mono);
+      }
+      .qCard__meta b {
+        color: var(--as-text-2);
+        font-weight: 500;
+      }
+
+      .heroClass {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 18px 20px;
+        background: var(--as-accent-surface-1);
+        border: 1px solid var(--as-accent-border-1);
+        border-radius: var(--as-radius-2);
+      }
+      .heroClass__ring {
+        width: 84px;
+        height: 84px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: conic-gradient(
+          var(--as-accent-1) 0% 86%,
+          rgba(255, 255, 255, 0.05) 86% 100%
+        );
+        position: relative;
+      }
+      .heroClass__ringInner {
+        width: 66px;
+        height: 66px;
+        border-radius: 50%;
+        background: var(--as-surface-1);
+        display: grid;
+        place-items: center;
+        font-family: var(--as-font-mono);
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--as-accent-1);
+      }
+      .heroClass__body {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+      }
+      .heroClass__label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--as-accent-1);
+      }
+      .heroClass__name {
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--as-text-1);
+        letter-spacing: -0.2px;
+      }
+      .heroClass__sub {
+        font-family: var(--as-font-mono);
+        font-size: 12.5px;
+        color: var(--as-text-3);
+      }
+      .heroClass__actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+      }
+
+      .classList {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .classRow {
+        display: grid;
+        grid-template-columns: 90px 1fr 100px;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 14px;
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+      }
+      .classRow.is-winner {
+        background: var(--as-accent-surface-1);
+        border-color: var(--as-accent-border-1);
+      }
+      .classRow__name {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--as-text-1);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .classRow__name .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--as-text-3);
+      }
+      .classRow.is-winner .classRow__name .dot {
+        background: var(--as-accent-1);
+        box-shadow: 0 0 6px var(--as-accent-1);
+      }
+      .classRow__bar {
+        position: relative;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+      }
+      .classRow__bar::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: var(--v, 20%);
+        background: linear-gradient(90deg, var(--as-accent-2), var(--as-accent-1));
+        border-radius: 999px;
+      }
+      .classRow.is-winner .classRow__bar::after {
+        background: linear-gradient(90deg, var(--as-good), var(--as-accent-1));
+      }
+      .classRow__pct {
+        font-family: var(--as-font-mono);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--as-text-1);
+        text-align: right;
+      }
+
+      .featureList {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .feature {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 80px 54px;
+        gap: 10px;
+        align-items: center;
+        padding: 6px 10px;
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: 7px;
+        font-size: 12px;
+      }
+      .feature__token {
+        font-family: var(--as-font-mono);
+        color: var(--as-text-1);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .feature__bar {
+        position: relative;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        overflow: hidden;
+      }
+      .feature__bar::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: var(--v, 50%);
+        background: var(--as-accent-1);
+      }
+      .feature__weight {
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        color: var(--as-text-2);
+        text-align: right;
+      }
+      .pipelineStrip {
+        display: grid;
+        grid-template-columns: 1fr 20px 1fr 20px 1fr 20px 1fr;
+        align-items: stretch;
+        padding: 10px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+        gap: 0;
+      }
+      .pipeStage {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 10px 12px;
+        border-radius: 8px;
+      }
+      .pipeStage.is-active {
+        background: var(--as-accent-surface-1);
+        border: 1px solid var(--as-accent-border-1);
+      }
+      .pipeStage__label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: var(--as-text-3);
+      }
+      .pipeStage.is-active .pipeStage__label {
+        color: var(--as-accent-1);
+      }
+      .pipeStage__value {
+        font-family: var(--as-font-mono);
+        font-size: 13px;
+        color: var(--as-text-1);
+        font-weight: 600;
+      }
+      .pipeStage__meta {
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .pipeArrow {
+        display: grid;
+        place-items: center;
+        color: var(--as-text-3);
+        font-family: var(--as-font-mono);
+      }
+
+      .modelMeta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .modelMeta__cell {
+        padding: 10px 12px;
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: 7px;
+      }
+      .modelMeta__label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        color: var(--as-text-3);
+      }
+      .modelMeta__value {
+        font-family: var(--as-font-mono);
+        font-size: 13px;
+        color: var(--as-text-1);
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="nav">
+        <div class="nav__brand">
+          <div class="nav__mark">A</div>
+          <div>
+            <div class="nav__name">AssistSupport</div>
+            <div class="nav__meta">local · v1.2.0</div>
+          </div>
+        </div>
+        <div class="nav__section">
+          <div class="nav__sectionTitle">Core</div>
+          <ul class="nav__list">
+            <li class="nav__item"><span class="nav__icon">▣</span>Workspace</li>
+            <li class="nav__item"><span class="nav__icon">≡</span>Queue</li>
+            <li class="nav__item"><span class="nav__icon">◫</span>Knowledge</li>
+            <li class="nav__item"><span class="nav__icon">⚙</span>Settings</li>
+          </ul>
+        </div>
+        <div class="nav__section">
+          <div class="nav__sectionTitle">Admin</div>
+          <ul class="nav__list">
+            <li class="nav__item is-active">
+              <span class="nav__icon">✦</span>Analytics
+            </li>
+            <li class="nav__item"><span class="nav__icon">▸</span>Operations</li>
+          </ul>
+        </div>
+      </aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <div class="topbar__title">
+              <span class="crumb">Analytics</span>
+              <span class="crumb-sep">/</span> ML Intent
+            </div>
+            <div class="topbar__sub">
+              Classifier output for the focused ticket — logistic regression over TF-IDF bigrams
+            </div>
+          </div>
+          <div class="cmd">
+            <span>⌘</span>
+            <span style="flex: 1">Jump to ticket, cluster, or runbook…</span>
+            <span class="cmd__kbd">⌘K</span>
+          </div>
+          <div class="topbar__right">
+            <span class="status-dot">classifier-v5.2 · 0.91 macro-F1</span>
+          </div>
+        </header>
+
+        <div class="pane">
+          <div class="intent">
+            <div class="intent__main">
+              <div class="qCard">
+                <span class="qCard__label">Ticket · AS-4218</span>
+                <div class="qCard__text">
+                  Can I use a flash drive on my work MacBook for the offsite?
+                  Priya is flying Thursday and wants to bring a USB stick for slide backups.
+                </div>
+                <div class="qCard__meta">
+                  <span><b>Priya Anand</b></span>
+                  <span>· MacBook Pro 14 (M3) · macOS 14.5</span>
+                  <span>· 2h ago</span>
+                </div>
+              </div>
+
+              <div class="heroClass">
+                <div class="heroClass__ring">
+                  <div class="heroClass__ringInner">86</div>
+                </div>
+                <div class="heroClass__body">
+                  <span class="heroClass__label">Predicted intent</span>
+                  <span class="heroClass__name">Policy · removable_media</span>
+                  <span class="heroClass__sub"
+                    >logit 3.42 · softmax 0.86 · margin +0.38 to runner-up</span
+                  >
+                </div>
+                <div class="heroClass__actions">
+                  <span class="badge badge--accent">Route → Policy lane</span>
+                  <span style="font-size: 11px; color: var(--as-text-3)"
+                    >above routing threshold (0.60)</span
+                  >
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style="
+                    font-size: 11px;
+                    font-weight: 600;
+                    letter-spacing: 0.3px;
+                    text-transform: uppercase;
+                    color: var(--as-text-3);
+                    margin-bottom: 10px;
+                  "
+                >
+                  Class probabilities
+                </div>
+                <div class="classList">
+                  <div class="classRow is-winner">
+                    <div class="classRow__name">
+                      <span class="dot"></span>
+                      Policy
+                    </div>
+                    <div class="classRow__bar" style="--v: 86%"></div>
+                    <div class="classRow__pct">0.86</div>
+                  </div>
+                  <div class="classRow">
+                    <div class="classRow__name">
+                      <span class="dot"></span>
+                      Howto
+                    </div>
+                    <div class="classRow__bar" style="--v: 48%"></div>
+                    <div class="classRow__pct">0.48</div>
+                  </div>
+                  <div class="classRow">
+                    <div class="classRow__name">
+                      <span class="dot"></span>
+                      Access
+                    </div>
+                    <div class="classRow__bar" style="--v: 21%"></div>
+                    <div class="classRow__pct">0.21</div>
+                  </div>
+                  <div class="classRow">
+                    <div class="classRow__name">
+                      <span class="dot"></span>
+                      Incident
+                    </div>
+                    <div class="classRow__bar" style="--v: 11%"></div>
+                    <div class="classRow__pct">0.11</div>
+                  </div>
+                  <div class="classRow">
+                    <div class="classRow__name">
+                      <span class="dot"></span>
+                      Runbook
+                    </div>
+                    <div class="classRow__bar" style="--v: 6%"></div>
+                    <div class="classRow__pct">0.06</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pipelineStrip">
+                <div class="pipeStage">
+                  <span class="pipeStage__label">Intent</span>
+                  <span class="pipeStage__value">Policy · 0.86</span>
+                  <span class="pipeStage__meta">logreg · 3ms</span>
+                </div>
+                <div class="pipeArrow">→</div>
+                <div class="pipeStage is-active">
+                  <span class="pipeStage__label">Retrieval</span>
+                  <span class="pipeStage__value">14 candidates</span>
+                  <span class="pipeStage__meta">TF-IDF · 22ms</span>
+                </div>
+                <div class="pipeArrow">→</div>
+                <div class="pipeStage">
+                  <span class="pipeStage__label">Rerank</span>
+                  <span class="pipeStage__value">top 4</span>
+                  <span class="pipeStage__meta">MiniLM-L6 · 48ms</span>
+                </div>
+                <div class="pipeArrow">→</div>
+                <div class="pipeStage">
+                  <span class="pipeStage__label">Draft</span>
+                  <span class="pipeStage__value">queued</span>
+                  <span class="pipeStage__meta">llama3.1-8b</span>
+                </div>
+              </div>
+            </div>
+
+            <aside class="intent__side">
+              <div class="card">
+                <div class="card__title">Top contributing tokens</div>
+                <div class="featureList">
+                  <div class="feature">
+                    <span class="feature__token">"flash drive"</span>
+                    <div class="feature__bar" style="--v: 95%"></div>
+                    <span class="feature__weight">+2.41</span>
+                  </div>
+                  <div class="feature">
+                    <span class="feature__token">"removable media"</span>
+                    <div class="feature__bar" style="--v: 80%"></div>
+                    <span class="feature__weight">+1.96</span>
+                  </div>
+                  <div class="feature">
+                    <span class="feature__token">"usb stick"</span>
+                    <div class="feature__bar" style="--v: 66%"></div>
+                    <span class="feature__weight">+1.58</span>
+                  </div>
+                  <div class="feature">
+                    <span class="feature__token">"allowed"</span>
+                    <div class="feature__bar" style="--v: 54%"></div>
+                    <span class="feature__weight">+1.24</span>
+                  </div>
+                  <div class="feature">
+                    <span class="feature__token">"company mac"</span>
+                    <div class="feature__bar" style="--v: 36%"></div>
+                    <span class="feature__weight">+0.78</span>
+                  </div>
+                  <div class="feature">
+                    <span class="feature__token">"offsite"</span>
+                    <div class="feature__bar" style="--v: 22%"></div>
+                    <span class="feature__weight">+0.41</span>
+                  </div>
+                </div>
+                <div
+                  style="
+                    margin-top: 10px;
+                    font-size: 11px;
+                    color: var(--as-text-3);
+                  "
+                >
+                  Weights shown relative to Policy class.
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card__title">Calibration</div>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    font-size: 12px;
+                    color: var(--as-text-2);
+                  "
+                >
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                    "
+                  >
+                    <span>Confidence</span>
+                    <span class="mono">0.86</span>
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                    "
+                  >
+                    <span>Calibrated (Platt)</span>
+                    <span class="mono" style="color: var(--as-good-text)">0.83</span>
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                    "
+                  >
+                    <span>Entropy</span>
+                    <span class="mono">0.71 nat</span>
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                    "
+                  >
+                    <span>Empirical hit rate @0.80</span>
+                    <span class="mono">0.88</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card__title">Model</div>
+                <div class="modelMeta">
+                  <div class="modelMeta__cell">
+                    <div class="modelMeta__label">Version</div>
+                    <div class="modelMeta__value">classifier-v5.2</div>
+                  </div>
+                  <div class="modelMeta__cell">
+                    <div class="modelMeta__label">Macro F1</div>
+                    <div class="modelMeta__value">0.914</div>
+                  </div>
+                  <div class="modelMeta__cell">
+                    <div class="modelMeta__label">Trained</div>
+                    <div class="modelMeta__value">2026-04-14</div>
+                  </div>
+                  <div class="modelMeta__cell">
+                    <div class="modelMeta__label">Samples</div>
+                    <div class="modelMeta__value">8,412</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card__title">Nearest labeled examples</div>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    font-size: 12px;
+                    color: var(--as-text-2);
+                  "
+                >
+                  <div>
+                    <div style="color: var(--as-text-1); font-weight: 500">
+                      "Is a USB-C SSD allowed for travel?"
+                    </div>
+                    <div class="mono" style="color: var(--as-text-3); font-size: 11px">
+                      Policy · removable_media · cosine 0.91
+                    </div>
+                  </div>
+                  <div>
+                    <div style="color: var(--as-text-1); font-weight: 500">
+                      "Can I plug an SD card into my work Mac?"
+                    </div>
+                    <div class="mono" style="color: var(--as-text-3); font-size: 11px">
+                      Policy · removable_media · cosine 0.88
+                    </div>
+                  </div>
+                  <div>
+                    <div style="color: var(--as-text-1); font-weight: 500">
+                      "Encrypted drive whitelist process"
+                    </div>
+                    <div class="mono" style="color: var(--as-text-3); font-size: 11px">
+                      Policy · removable_media · cosine 0.84
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

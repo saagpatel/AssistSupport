@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en" data-accent="teal">
+  <head>
+    <meta charset="utf-8" />
+    <title>AssistSupport — Operations</title>
+    <link rel="stylesheet" href="../shell.css" />
+    <style>
+      .ops {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+        gap: 20px;
+        min-height: 0;
+      }
+      .ops__main {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
+      .releaseHeader {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 18px;
+        align-items: center;
+        padding: 18px 20px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+      }
+      .release__mark {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--as-radius-2);
+        display: grid;
+        place-items: center;
+        background: linear-gradient(
+          135deg,
+          var(--as-accent-1) 0%,
+          var(--as-accent-2) 100%
+        );
+        color: var(--as-accent-ink);
+        font-weight: 700;
+        font-family: var(--as-font-mono);
+        font-size: 16px;
+      }
+      .release__body {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .release__label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--as-text-3);
+      }
+      .release__name {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--as-text-1);
+        letter-spacing: -0.2px;
+      }
+      .release__sub {
+        font-family: var(--as-font-mono);
+        font-size: 12px;
+        color: var(--as-text-3);
+      }
+      .release__actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-end;
+      }
+      .timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 16px 18px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+      }
+      .timeline__title {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        color: var(--as-text-3);
+        margin-bottom: 12px;
+      }
+      .event {
+        display: grid;
+        grid-template-columns: 72px 20px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px dashed var(--as-border-1);
+      }
+      .event:last-child {
+        border-bottom: 0;
+      }
+      .event__time {
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        color: var(--as-text-3);
+        text-align: right;
+      }
+      .event__bullet {
+        position: relative;
+        display: grid;
+        place-items: center;
+      }
+      .event__bullet::before {
+        content: "";
+        position: absolute;
+        top: -14px;
+        bottom: -14px;
+        width: 1px;
+        background: var(--as-border-1);
+      }
+      .event:first-child .event__bullet::before {
+        top: 8px;
+      }
+      .event:last-child .event__bullet::before {
+        bottom: 8px;
+      }
+      .event__dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--as-text-3);
+        border: 2px solid var(--as-surface-1);
+        z-index: 1;
+      }
+      .event.is-good .event__dot {
+        background: var(--as-good);
+        box-shadow: 0 0 8px var(--as-good);
+      }
+      .event.is-warn .event__dot {
+        background: var(--as-warn);
+      }
+      .event.is-active .event__dot {
+        background: var(--as-accent-1);
+        box-shadow: 0 0 8px var(--as-accent-1);
+      }
+      .event__body {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .event__title {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--as-text-1);
+      }
+      .event__meta {
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+
+      .healthGrid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+      .health {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: 8px;
+      }
+      .health.is-ok {
+        border-color: rgba(45, 212, 191, 0.25);
+      }
+      .health__icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--as-good-surface);
+        color: var(--as-good-text);
+        font-size: 11px;
+      }
+      .health.is-warn .health__icon {
+        background: var(--as-warn-surface);
+        color: var(--as-warn-text);
+      }
+      .health__label {
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--as-text-1);
+      }
+      .health__meta {
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .health__value {
+        font-family: var(--as-font-mono);
+        font-size: 13px;
+        color: var(--as-text-1);
+        font-weight: 600;
+      }
+
+      .ops__side {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .rollback {
+        padding: 14px 16px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .rollback__row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: 8px;
+      }
+      .rollback__row.is-current {
+        border-color: var(--as-accent-border-1);
+        background: var(--as-accent-surface-1);
+      }
+      .rollback__mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        background: var(--as-glass-3);
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        color: var(--as-text-2);
+      }
+      .rollback__row.is-current .rollback__mark {
+        background: var(--as-accent-1);
+        color: var(--as-accent-ink);
+      }
+      .rollback__name {
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--as-text-1);
+      }
+      .rollback__sub {
+        font-family: var(--as-font-mono);
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .rollback__actions {
+        display: flex;
+        gap: 6px;
+      }
+      .runbookList {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .runbookList__row {
+        display: grid;
+        grid-template-columns: 16px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 10px;
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: 7px;
+        font-size: 12.5px;
+        color: var(--as-text-2);
+      }
+      .runbookList__row .check {
+        display: grid;
+        place-items: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        background: var(--as-good-surface);
+        color: var(--as-good-text);
+        font-size: 10px;
+      }
+      .runbookList__row.is-pending .check {
+        background: var(--as-glass-2);
+        color: var(--as-text-3);
+      }
+      .runbookList__row.is-failed .check {
+        background: var(--as-bad-surface);
+        color: var(--as-bad-text);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="nav">
+        <div class="nav__brand">
+          <div class="nav__mark">A</div>
+          <div>
+            <div class="nav__name">AssistSupport</div>
+            <div class="nav__meta">local · v1.2.0</div>
+          </div>
+        </div>
+        <div class="nav__section">
+          <div class="nav__sectionTitle">Core</div>
+          <ul class="nav__list">
+            <li class="nav__item"><span class="nav__icon">▣</span>Workspace</li>
+            <li class="nav__item"><span class="nav__icon">≡</span>Queue</li>
+            <li class="nav__item"><span class="nav__icon">◫</span>Knowledge</li>
+            <li class="nav__item"><span class="nav__icon">⚙</span>Settings</li>
+          </ul>
+        </div>
+        <div class="nav__section">
+          <div class="nav__sectionTitle">Admin</div>
+          <ul class="nav__list">
+            <li class="nav__item"><span class="nav__icon">✦</span>Analytics</li>
+            <li class="nav__item is-active">
+              <span class="nav__icon">▸</span>Operations
+            </li>
+          </ul>
+        </div>
+      </aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <div class="topbar__title">
+              <span class="crumb">Operations</span>
+              <span class="crumb-sep">/</span> Deploy &amp; rollback
+            </div>
+            <div class="topbar__sub">
+              Release orchestration, health checks, and single-click rollback
+            </div>
+          </div>
+          <div class="cmd">
+            <span>⌘</span>
+            <span style="flex: 1">Start deploy, view runbook, or check logs…</span>
+            <span class="cmd__kbd">⌘K</span>
+          </div>
+          <div class="topbar__right">
+            <span class="status-dot">release healthy · 2m 14s</span>
+          </div>
+        </header>
+
+        <div class="pane">
+          <div class="ops">
+            <div class="ops__main">
+              <div class="releaseHeader">
+                <div class="release__mark">1.2</div>
+                <div class="release__body">
+                  <span class="release__label">Current release</span>
+                  <span class="release__name">v1.2.0 — classifier-v5.2 + hero workspace</span>
+                  <span class="release__sub">
+                    deployed 2026-04-24 12:18 UTC · sha 6b410e4 · by saagar@box
+                  </span>
+                </div>
+                <div class="release__actions">
+                  <button class="btn btn--primary">▸ Deploy next</button>
+                  <button class="btn btn--ghost btn--sm">⟲ Rollback to 1.1.4</button>
+                </div>
+              </div>
+
+              <div class="timeline">
+                <div class="timeline__title">Release timeline · last 24h</div>
+                <div class="event is-good">
+                  <span class="event__time">12:18</span>
+                  <span class="event__bullet"><span class="event__dot"></span></span>
+                  <div class="event__body">
+                    <span class="event__title">v1.2.0 promoted to current</span>
+                    <span class="event__meta"
+                      >health checks 8/8 pass · p50 latency 22ms · build 6b410e4</span
+                    >
+                  </div>
+                  <span class="badge badge--good">Healthy</span>
+                </div>
+                <div class="event is-active">
+                  <span class="event__time">12:14</span>
+                  <span class="event__bullet"><span class="event__dot"></span></span>
+                  <div class="event__body">
+                    <span class="event__title">Canary → 100% traffic</span>
+                    <span class="event__meta"
+                      >error rate 0.00% · 12 min on 10% · promoted automatically</span
+                    >
+                  </div>
+                  <span class="badge badge--accent">Promoted</span>
+                </div>
+                <div class="event">
+                  <span class="event__time">12:02</span>
+                  <span class="event__bullet"><span class="event__dot"></span></span>
+                  <div class="event__body">
+                    <span class="event__title">Canary @ 10% traffic</span>
+                    <span class="event__meta"
+                      >guardrails: p95 latency &lt;80ms, error &lt;0.1%, conf ≥0.7</span
+                    >
+                  </div>
+                  <span class="badge">Gated</span>
+                </div>
+                <div class="event">
+                  <span class="event__time">11:57</span>
+                  <span class="event__bullet"><span class="event__dot"></span></span>
+                  <div class="event__body">
+                    <span class="event__title">Build 6b410e4 signed + notarized</span>
+                    <span class="event__meta"
+                      >macOS notarization accepted · sha-256 a1f…9c</span
+                    >
+                  </div>
+                  <span class="badge badge--good">Signed</span>
+                </div>
+                <div class="event is-warn">
+                  <span class="event__time">09:41</span>
+                  <span class="event__bullet"><span class="event__dot"></span></span>
+                  <div class="event__body">
+                    <span class="event__title">v1.1.5-rc canary paused</span>
+                    <span class="event__meta"
+                      >retrieval p95 exceeded 80ms · auto-paused · root cause: index rebuild</span
+                    >
+                  </div>
+                  <span class="badge badge--warn">Paused</span>
+                </div>
+                <div class="event is-good">
+                  <span class="event__time">07:12</span>
+                  <span class="event__bullet"><span class="event__dot"></span></span>
+                  <div class="event__body">
+                    <span class="event__title">Nightly KB reindex complete</span>
+                    <span class="event__meta"
+                      >3,542 docs indexed · 28 added · 4 removed · 46s</span
+                    >
+                  </div>
+                  <span class="badge badge--good">OK</span>
+                </div>
+              </div>
+
+              <div
+                style="
+                  font-size: 11px;
+                  font-weight: 600;
+                  letter-spacing: 0.3px;
+                  text-transform: uppercase;
+                  color: var(--as-text-3);
+                  padding: 0 4px;
+                "
+              >
+                Post-deploy health
+              </div>
+              <div class="healthGrid">
+                <div class="health is-ok">
+                  <span class="health__icon">✓</span>
+                  <div>
+                    <div class="health__label">Classifier smoke</div>
+                    <div class="health__meta">20 fixtures · macro-F1 0.91</div>
+                  </div>
+                  <span class="health__value">PASS</span>
+                </div>
+                <div class="health is-ok">
+                  <span class="health__icon">✓</span>
+                  <div>
+                    <div class="health__label">Hybrid retrieval p50</div>
+                    <div class="health__meta">target &lt;25ms · observed 22ms</span>
+                    </div>
+                  </div>
+                  <span class="health__value">22ms</span>
+                </div>
+                <div class="health is-ok">
+                  <span class="health__icon">✓</span>
+                  <div>
+                    <div class="health__label">SQLCipher unlock</div>
+                    <div class="health__meta">roundtrip &lt;40ms · observed 28ms</div>
+                  </div>
+                  <span class="health__value">28ms</span>
+                </div>
+                <div class="health is-ok">
+                  <span class="health__icon">✓</span>
+                  <div>
+                    <div class="health__label">LLM warmup</div>
+                    <div class="health__meta">first token &lt;500ms · 280ms</div>
+                  </div>
+                  <span class="health__value">280ms</span>
+                </div>
+                <div class="health is-warn">
+                  <span class="health__icon">!</span>
+                  <div>
+                    <div class="health__label">Ollama memory headroom</div>
+                    <div class="health__meta">62% of 14GB used · 24h trend ▲</div>
+                  </div>
+                  <span class="health__value">WARN</span>
+                </div>
+                <div class="health is-ok">
+                  <span class="health__icon">✓</span>
+                  <div>
+                    <div class="health__label">Eval harness baseline</div>
+                    <div class="health__meta">grounding 0.93 · faithfulness 0.96</div>
+                  </div>
+                  <span class="health__value">PASS</span>
+                </div>
+              </div>
+            </div>
+
+            <aside class="ops__side">
+              <div class="rollback">
+                <div class="card__title" style="margin-bottom: 2px">
+                  Release lane
+                </div>
+                <div class="rollback__row is-current">
+                  <div class="rollback__mark">1.2</div>
+                  <div>
+                    <div class="rollback__name">v1.2.0 — current</div>
+                    <div class="rollback__sub">deployed 2m ago · 6b410e4</div>
+                  </div>
+                  <span class="badge badge--accent">Live</span>
+                </div>
+                <div class="rollback__row">
+                  <div class="rollback__mark">1.1</div>
+                  <div>
+                    <div class="rollback__name">v1.1.4 — last good</div>
+                    <div class="rollback__sub">18h ago · 4e38f2a</div>
+                  </div>
+                  <div class="rollback__actions">
+                    <button class="btn btn--ghost btn--sm">⟲ Rollback</button>
+                  </div>
+                </div>
+                <div class="rollback__row">
+                  <div class="rollback__mark">1.1</div>
+                  <div>
+                    <div class="rollback__name">v1.1.5-rc — paused</div>
+                    <div class="rollback__sub">canary tripped guardrails</div>
+                  </div>
+                  <span class="badge badge--warn">Paused</span>
+                </div>
+                <div class="rollback__row">
+                  <div class="rollback__mark">1.1</div>
+                  <div>
+                    <div class="rollback__name">v1.1.3</div>
+                    <div class="rollback__sub">3d ago · a1d7bc6</div>
+                  </div>
+                  <div class="rollback__actions">
+                    <button class="btn btn--ghost btn--sm">⟲ Rollback</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card__title">Pre-flight runbook</div>
+                <div class="runbookList">
+                  <div class="runbookList__row">
+                    <span class="check">✓</span>
+                    <span>Typecheck + lint gate</span>
+                    <span class="mono" style="color: var(--as-text-3); font-size: 11px"
+                      >4.2s</span
+                    >
+                  </div>
+                  <div class="runbookList__row">
+                    <span class="check">✓</span>
+                    <span>Vitest · UI gate</span>
+                    <span class="mono" style="color: var(--as-text-3); font-size: 11px"
+                      >18.4s</span
+                    >
+                  </div>
+                  <div class="runbookList__row">
+                    <span class="check">✓</span>
+                    <span>Cargo test · backend</span>
+                    <span class="mono" style="color: var(--as-text-3); font-size: 11px"
+                      >42.1s</span
+                    >
+                  </div>
+                  <div class="runbookList__row">
+                    <span class="check">✓</span>
+                    <span>Playwright · smoke + visual + a11y</span>
+                    <span class="mono" style="color: var(--as-text-3); font-size: 11px"
+                      >2m 06s</span
+                    >
+                  </div>
+                  <div class="runbookList__row">
+                    <span class="check">✓</span>
+                    <span>Bundle + asset budget</span>
+                    <span class="mono" style="color: var(--as-text-3); font-size: 11px"
+                      >under budget</span
+                    >
+                  </div>
+                  <div class="runbookList__row">
+                    <span class="check">✓</span>
+                    <span>Notarize + sign .app</span>
+                    <span class="mono" style="color: var(--as-text-3); font-size: 11px"
+                      >44s</span
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card__title">On-call</div>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    font-size: 12px;
+                    color: var(--as-text-2);
+                  "
+                >
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                    "
+                  >
+                    <span>Primary</span>
+                    <span style="color: var(--as-text-1); font-weight: 500"
+                      >Saagar Patel</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                    "
+                  >
+                    <span>Shadow</span>
+                    <span style="color: var(--as-text-1); font-weight: 500"
+                      >IT Platform Eng</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      justify-content: space-between;
+                    "
+                  >
+                    <span>Rollback SLO</span>
+                    <span class="mono" style="color: var(--as-good-text)"
+                      >&lt; 90s</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
