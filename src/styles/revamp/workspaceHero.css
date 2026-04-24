@@ -49,7 +49,6 @@
   background: color-mix(in oklab, var(--as-surface-1) 82%, transparent);
   border-bottom: 1px solid var(--as-border-1);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .wsx__ticketBar {
