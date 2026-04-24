@@ -49,6 +49,7 @@ import { useAppStatus } from "../../contexts/AppStatusContext";
 import { AiReadinessBanner } from "./AiReadinessBanner";
 import { resolveRevampFlags } from "../../features/revamp";
 import { ClaudeDesignWorkspace } from "../../features/workspace/ClaudeDesignWorkspace";
+import { WorkspaceHeroLayout } from "../../features/workspace/WorkspaceHeroLayout";
 import { useWorkspaceCatalog } from "../../features/workspace/useWorkspaceCatalog";
 import { useWorkspaceDerivedArtifacts } from "../../features/workspace/useWorkspaceDerivedArtifacts";
 import { useWorkspaceCommandBridge } from "../../features/workspace/useWorkspaceCommandBridge";
@@ -792,43 +793,52 @@ export const DraftTab = forwardRef<DraftTabHandle, DraftTabProps>(
       />
     );
 
-    const claudeDesignWorkspacePanel = (
-      <ClaudeDesignWorkspace
-        ticket={currentTicket}
-        ticketId={currentTicketId}
-        input={input}
-        onInputChange={setInput}
-        responseLength={responseLength}
-        onResponseLengthChange={handleResponseLengthChange}
-        hasInput={Boolean(input.trim())}
-        hasDiagnosis={Boolean(
-          diagnosticNotes.trim() || treeResult || caseIntake.likely_category,
-        )}
-        hasResponseReady={Boolean(response?.trim())}
-        handoffTouched={handoffTouched}
-        response={response}
-        streamingText={streamingText}
-        isStreaming={isStreaming}
-        sources={sources}
-        metrics={metrics}
-        confidence={confidence}
-        grounding={grounding}
-        alternatives={alternatives}
-        generating={generating}
-        modelLoaded={modelLoaded}
-        loadedModelName={loadedModelName}
-        caseIntake={caseIntake}
-        onIntakeFieldChange={(field, value) => {
-          handleIntakeFieldChange(field, value ?? "");
-        }}
-        onGenerate={handleGenerate}
-        onCancel={handleCancel}
-        onCopyResponse={handleCopyResponse}
-        onSaveAsTemplate={() => handleSaveAsTemplate(0)}
-        onUseAlternative={(alt) => handleUseAlternative(alt.alternative_text)}
-        onNavigateToSource={onNavigateToSource}
-      />
-    );
+    const workspacePanelProps = {
+      ticket: currentTicket,
+      ticketId: currentTicketId,
+      input,
+      onInputChange: setInput,
+      responseLength,
+      onResponseLengthChange: handleResponseLengthChange,
+      hasInput: Boolean(input.trim()),
+      hasDiagnosis: Boolean(
+        diagnosticNotes.trim() || treeResult || caseIntake.likely_category,
+      ),
+      hasResponseReady: Boolean(response?.trim()),
+      handoffTouched,
+      response,
+      streamingText,
+      isStreaming,
+      sources,
+      metrics,
+      confidence,
+      grounding,
+      alternatives,
+      generating,
+      modelLoaded,
+      loadedModelName,
+      caseIntake,
+      onIntakeFieldChange: (
+        field: "note_audience" | "likely_category" | "urgency" | "environment",
+        value: string | null,
+      ) => {
+        handleIntakeFieldChange(field, value ?? "");
+      },
+      onGenerate: handleGenerate,
+      onCancel: handleCancel,
+      onCopyResponse: handleCopyResponse,
+      onSaveAsTemplate: () => handleSaveAsTemplate(0),
+      onUseAlternative: (alt: { alternative_text: string }) =>
+        handleUseAlternative(alt.alternative_text),
+      onNavigateToSource,
+    };
+
+    const claudeDesignWorkspacePanel =
+      workspaceFlags.ASSISTSUPPORT_REVAMP_WORKSPACE_HERO ? (
+        <WorkspaceHeroLayout {...workspacePanelProps} />
+      ) : (
+        <ClaudeDesignWorkspace {...workspacePanelProps} />
+      );
 
     const dialogs = (
       <WorkspaceDialogs
