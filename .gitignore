@@ -8,6 +8,18 @@ out/
 build/
 *.local
 
+# Portfolio screenshots — keep under docs/screenshots/out/ even though
+# the generic `out/` rule above would otherwise ignore them.
+!docs/screenshots/out/
+!docs/screenshots/out/**
+docs/screenshots/out/contact-sheet.html
+
+# Portfolio deck — the editable PPTX is too large for the 2MB large-files
+# guard. Rebuild via `cd docs/deck && npm run build`. The PDF preview
+# fits under the guard and is committed.
+docs/deck/AssistSupport-LinkedIn-Live.pptx
+docs/deck/thumbs/
+
 # Tauri / Rust
 src-tauri/target/
 **/target/
