@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en" data-accent="teal">
+  <head>
+    <meta charset="utf-8" />
+    <title>AssistSupport — KB Gap Analysis</title>
+    <link rel="stylesheet" href="../shell.css" />
+    <style>
+      .kpiRow {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+      .kpi {
+        padding: 14px 16px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .kpi__label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        color: var(--as-text-3);
+      }
+      .kpi__value {
+        font-family: var(--as-font-mono);
+        font-size: 26px;
+        font-weight: 600;
+        color: var(--as-text-1);
+        line-height: 1;
+      }
+      .kpi__delta {
+        font-size: 11.5px;
+      }
+      .kpi__delta.is-good {
+        color: var(--as-good-text);
+      }
+      .kpi__delta.is-warn {
+        color: var(--as-warn-text);
+      }
+      .kpi__delta.is-bad {
+        color: var(--as-bad-text);
+      }
+      .gapBody {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 20px;
+        min-height: 0;
+      }
+      .clusters {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .clusterHead {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 0 4px;
+      }
+      .clusterHead__title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--as-text-1);
+      }
+      .clusterHead__sub {
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .cluster {
+        padding: 14px 16px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 14px;
+        align-items: start;
+      }
+      .cluster.is-hot {
+        border-color: rgba(251, 113, 133, 0.3);
+        background: linear-gradient(
+          180deg,
+          rgba(251, 113, 133, 0.04),
+          var(--as-glass-2)
+        );
+      }
+      .cluster__rank {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--as-glass-3);
+        color: var(--as-text-2);
+        font-family: var(--as-font-mono);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .cluster.is-hot .cluster__rank {
+        background: var(--as-bad-surface);
+        color: var(--as-bad-text);
+        border: 1px solid var(--as-bad-border);
+      }
+      .cluster__body {
+        min-width: 0;
+      }
+      .cluster__title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--as-text-1);
+        letter-spacing: -0.1px;
+      }
+      .cluster__queries {
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .queryChip {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: var(--as-radius-pill);
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        color: var(--as-text-2);
+        font-size: 11px;
+      }
+      .cluster__stats {
+        display: flex;
+        gap: 14px;
+        margin-top: 10px;
+        font-size: 11.5px;
+        color: var(--as-text-3);
+      }
+      .cluster__stats b {
+        color: var(--as-text-1);
+        font-family: var(--as-font-mono);
+        font-weight: 600;
+      }
+      .cluster__right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+      }
+      .cluster__conf {
+        font-family: var(--as-font-mono);
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--as-text-1);
+      }
+      .cluster.is-hot .cluster__conf {
+        color: var(--as-bad-text);
+      }
+      .cluster__spark {
+        width: 96px;
+        height: 28px;
+      }
+
+      .gapAside {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .trend {
+        padding: 14px 16px;
+        background: var(--as-glass-2);
+        border: 1px solid var(--as-border-1);
+        border-radius: var(--as-radius-2);
+      }
+      .trend__title {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        color: var(--as-text-3);
+        margin-bottom: 10px;
+      }
+      .trend__chart {
+        width: 100%;
+        height: 120px;
+      }
+      .trend__legend {
+        display: flex;
+        gap: 14px;
+        margin-top: 8px;
+        font-size: 11px;
+        color: var(--as-text-3);
+      }
+      .trend__dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+      .rec {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .recItem {
+        padding: 10px 12px;
+        background: var(--as-glass-1);
+        border: 1px solid var(--as-border-1);
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+      }
+      .recItem__title {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--as-text-1);
+      }
+      .recItem__meta {
+        font-size: 11px;
+        color: var(--as-text-3);
+        margin-top: 2px;
+        font-family: var(--as-font-mono);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="nav">
+        <div class="nav__brand">
+          <div class="nav__mark">A</div>
+          <div>
+            <div class="nav__name">AssistSupport</div>
+            <div class="nav__meta">local · v1.2.0</div>
+          </div>
+        </div>
+        <div class="nav__section">
+          <div class="nav__sectionTitle">Core</div>
+          <ul class="nav__list">
+            <li class="nav__item"><span class="nav__icon">▣</span>Workspace</li>
+            <li class="nav__item"><span class="nav__icon">≡</span>Queue</li>
+            <li class="nav__item"><span class="nav__icon">◫</span>Knowledge</li>
+            <li class="nav__item"><span class="nav__icon">⚙</span>Settings</li>
+          </ul>
+        </div>
+        <div class="nav__section">
+          <div class="nav__sectionTitle">Admin</div>
+          <ul class="nav__list">
+            <li class="nav__item is-active">
+              <span class="nav__icon">✦</span>Analytics
+            </li>
+            <li class="nav__item"><span class="nav__icon">▸</span>Operations</li>
+          </ul>
+        </div>
+      </aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <div class="topbar__title">
+              <span class="crumb">Analytics</span>
+              <span class="crumb-sep">/</span> KB Gap Analysis
+            </div>
+            <div class="topbar__sub">
+              Low-confidence clusters the KB doesn't yet cover — last 14 days
+            </div>
+          </div>
+          <div class="cmd">
+            <span>⌘</span>
+            <span style="flex: 1">Search clusters, queries, or suggested articles…</span>
+            <span class="cmd__kbd">⌘K</span>
+          </div>
+          <div class="topbar__right">
+            <span class="status-dot">gap analyzer · 8m ago</span>
+          </div>
+        </header>
+
+        <div class="pane">
+          <div class="kpiRow">
+            <div class="kpi">
+              <span class="kpi__label">Open gaps</span>
+              <span class="kpi__value">14</span>
+              <span class="kpi__delta is-warn">▲ 2 this week</span>
+            </div>
+            <div class="kpi">
+              <span class="kpi__label">Affected tickets</span>
+              <span class="kpi__value">87</span>
+              <span class="kpi__delta is-warn">▲ 12 this week</span>
+            </div>
+            <div class="kpi">
+              <span class="kpi__label">Unresolved @ &lt;60% conf</span>
+              <span class="kpi__value">11.3%</span>
+              <span class="kpi__delta is-bad">▲ 1.4pt vs last wk</span>
+            </div>
+            <div class="kpi">
+              <span class="kpi__label">KB articles indexed</span>
+              <span class="kpi__value">3,542</span>
+              <span class="kpi__delta is-good">▲ 18 this week</span>
+            </div>
+          </div>
+
+          <div class="gapBody">
+            <div class="clusters">
+              <div class="clusterHead">
+                <span class="clusterHead__title">Clusters by impact</span>
+                <span class="clusterHead__sub"
+                  >sorted by affected tickets × retrieval miss rate</span
+                >
+              </div>
+
+              <div class="cluster is-hot">
+                <div class="cluster__rank">1</div>
+                <div class="cluster__body">
+                  <div class="cluster__title">
+                    VPN fails on office Wi-Fi only
+                  </div>
+                  <div class="cluster__queries">
+                    <span class="queryChip">"vpn won't connect at HQ"</span>
+                    <span class="queryChip">"tunnel drops when I plug into ethernet"</span>
+                    <span class="queryChip">"works on hotspot, fails on office Wi-Fi"</span>
+                    <span class="queryChip">+6 more</span>
+                  </div>
+                  <div class="cluster__stats">
+                    <span><b>14</b> tickets</span>
+                    <span><b>0</b> KB matches ≥0.60</span>
+                    <span><b>6.8</b> avg handle (min)</span>
+                    <span><b>3</b> escalated</span>
+                  </div>
+                </div>
+                <div class="cluster__right">
+                  <span class="cluster__conf">42%</span>
+                  <svg class="cluster__spark" viewBox="0 0 96 28" preserveAspectRatio="none">
+                    <path
+                      d="M0,18 L16,16 L32,20 L48,14 L64,12 L80,8 L96,6"
+                      stroke="#fb7185"
+                      stroke-width="1.5"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="cluster">
+                <div class="cluster__rank">2</div>
+                <div class="cluster__body">
+                  <div class="cluster__title">
+                    Outlook crash on M3 Macs after macOS 14.5
+                  </div>
+                  <div class="cluster__queries">
+                    <span class="queryChip">"outlook keeps crashing"</span>
+                    <span class="queryChip">"classic outlook won't open macOS 14.5"</span>
+                    <span class="queryChip">"outlook quits on send"</span>
+                    <span class="queryChip">+4 more</span>
+                  </div>
+                  <div class="cluster__stats">
+                    <span><b>9</b> tickets</span>
+                    <span><b>1</b> KB match (stale)</span>
+                    <span><b>4.1</b> avg handle (min)</span>
+                    <span><b>1</b> escalated</span>
+                  </div>
+                </div>
+                <div class="cluster__right">
+                  <span class="cluster__conf">58%</span>
+                  <svg class="cluster__spark" viewBox="0 0 96 28" preserveAspectRatio="none">
+                    <path
+                      d="M0,20 L16,22 L32,18 L48,16 L64,14 L80,12 L96,14"
+                      stroke="#fbbf24"
+                      stroke-width="1.5"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="cluster">
+                <div class="cluster__rank">3</div>
+                <div class="cluster__body">
+                  <div class="cluster__title">
+                    macOS 14 permissions drift after reboot
+                  </div>
+                  <div class="cluster__queries">
+                    <span class="queryChip">"screen recording permission keeps resetting"</span>
+                    <span class="queryChip">"zoom can't see my screen anymore"</span>
+                    <span class="queryChip">"tccd keeps forgetting my choice"</span>
+                  </div>
+                  <div class="cluster__stats">
+                    <span><b>7</b> tickets</span>
+                    <span><b>2</b> KB matches (partial)</span>
+                    <span><b>3.4</b> avg handle (min)</span>
+                    <span><b>0</b> escalated</span>
+                  </div>
+                </div>
+                <div class="cluster__right">
+                  <span class="cluster__conf">61%</span>
+                  <svg class="cluster__spark" viewBox="0 0 96 28" preserveAspectRatio="none">
+                    <path
+                      d="M0,14 L16,16 L32,14 L48,18 L64,14 L80,10 L96,8"
+                      stroke="#fbbf24"
+                      stroke-width="1.5"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="cluster">
+                <div class="cluster__rank">4</div>
+                <div class="cluster__body">
+                  <div class="cluster__title">
+                    Slack workspace export for compliance audit
+                  </div>
+                  <div class="cluster__queries">
+                    <span class="queryChip">"export slack for soc2 audit"</span>
+                    <span class="queryChip">"data export legal hold"</span>
+                    <span class="queryChip">"compliance slack archive"</span>
+                  </div>
+                  <div class="cluster__stats">
+                    <span><b>5</b> tickets</span>
+                    <span><b>1</b> KB match (out of date)</span>
+                    <span><b>12.6</b> avg handle (min)</span>
+                    <span><b>2</b> escalated</span>
+                  </div>
+                </div>
+                <div class="cluster__right">
+                  <span class="cluster__conf">64%</span>
+                  <svg class="cluster__spark" viewBox="0 0 96 28" preserveAspectRatio="none">
+                    <path
+                      d="M0,22 L16,18 L32,20 L48,14 L64,12 L80,10 L96,10"
+                      stroke="#4fd1c5"
+                      stroke-width="1.5"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="cluster">
+                <div class="cluster__rank">5</div>
+                <div class="cluster__body">
+                  <div class="cluster__title">
+                    Touch ID for sudo provisioning across dev fleet
+                  </div>
+                  <div class="cluster__queries">
+                    <span class="queryChip">"touchid sudo dev mac"</span>
+                    <span class="queryChip">"pam_tid.so not persisting"</span>
+                    <span class="queryChip">"fingerprint sudo broken after update"</span>
+                  </div>
+                  <div class="cluster__stats">
+                    <span><b>4</b> tickets</span>
+                    <span><b>0</b> KB matches</span>
+                    <span><b>5.2</b> avg handle (min)</span>
+                    <span><b>0</b> escalated</span>
+                  </div>
+                </div>
+                <div class="cluster__right">
+                  <span class="cluster__conf">67%</span>
+                  <svg class="cluster__spark" viewBox="0 0 96 28" preserveAspectRatio="none">
+                    <path
+                      d="M0,12 L16,14 L32,12 L48,10 L64,10 L80,8 L96,6"
+                      stroke="#4fd1c5"
+                      stroke-width="1.5"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <aside class="gapAside">
+              <div class="trend">
+                <div class="trend__title">Confidence distribution · 14 days</div>
+                <svg class="trend__chart" viewBox="0 0 320 120" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="gHi" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.45" />
+                      <stop offset="100%" stop-color="#2dd4bf" stop-opacity="0" />
+                    </linearGradient>
+                    <linearGradient id="gLo" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stop-color="#fb7185" stop-opacity="0.35" />
+                      <stop offset="100%" stop-color="#fb7185" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <!-- high-confidence area -->
+                  <path
+                    d="M0,26 L24,28 L48,22 L72,30 L96,24 L120,20 L144,22 L168,18 L192,14 L216,18 L240,12 L264,16 L288,12 L320,8 L320,120 L0,120 Z"
+                    fill="url(#gHi)"
+                  />
+                  <path
+                    d="M0,26 L24,28 L48,22 L72,30 L96,24 L120,20 L144,22 L168,18 L192,14 L216,18 L240,12 L264,16 L288,12 L320,8"
+                    stroke="#2dd4bf"
+                    stroke-width="1.5"
+                    fill="none"
+                  />
+                  <!-- low-confidence area -->
+                  <path
+                    d="M0,94 L24,92 L48,96 L72,88 L96,94 L120,90 L144,92 L168,84 L192,90 L216,84 L240,88 L264,82 L288,86 L320,80 L320,120 L0,120 Z"
+                    fill="url(#gLo)"
+                  />
+                  <path
+                    d="M0,94 L24,92 L48,96 L72,88 L96,94 L120,90 L144,92 L168,84 L192,90 L216,84 L240,88 L264,82 L288,86 L320,80"
+                    stroke="#fb7185"
+                    stroke-width="1.5"
+                    fill="none"
+                  />
+                </svg>
+                <div class="trend__legend">
+                  <span>
+                    <span class="trend__dot" style="background: #2dd4bf"></span
+                    >Grounded ≥ 0.80
+                  </span>
+                  <span>
+                    <span class="trend__dot" style="background: #fb7185"></span
+                    >Abstained / clarify
+                  </span>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card__title">Suggested articles to write</div>
+                <div class="rec">
+                  <div class="recItem">
+                    <div>
+                      <div class="recItem__title">
+                        HQ Wi-Fi DNS quirk blocks VPN tunnel
+                      </div>
+                      <div class="recItem__meta">
+                        cluster #1 · 14 tickets · 6.8 min avg handle
+                      </div>
+                    </div>
+                    <span class="badge badge--bad">Priority</span>
+                  </div>
+                  <div class="recItem">
+                    <div>
+                      <div class="recItem__title">
+                        Classic Outlook vs New Outlook on macOS 14.5
+                      </div>
+                      <div class="recItem__meta">
+                        cluster #2 · 9 tickets · 4.1 min avg handle
+                      </div>
+                    </div>
+                    <span class="badge badge--warn">Soon</span>
+                  </div>
+                  <div class="recItem">
+                    <div>
+                      <div class="recItem__title">
+                        Re-granting screen recording after macOS updates
+                      </div>
+                      <div class="recItem__meta">
+                        cluster #3 · 7 tickets · partial KB match
+                      </div>
+                    </div>
+                    <span class="badge">Backlog</span>
+                  </div>
+                  <div class="recItem">
+                    <div>
+                      <div class="recItem__title">
+                        Slack export runbook (SOC 2 / legal hold)
+                      </div>
+                      <div class="recItem__meta">
+                        cluster #4 · 5 tickets · long-running
+                      </div>
+                    </div>
+                    <span class="badge">Backlog</span>
+                  </div>
+                  <div class="recItem">
+                    <div>
+                      <div class="recItem__title">
+                        Touch ID sudo persistence after update
+                      </div>
+                      <div class="recItem__meta">
+                        cluster #5 · 4 tickets · dev fleet
+                      </div>
+                    </div>
+                    <span class="badge">Backlog</span>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

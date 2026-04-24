@@ -8,11 +8,10 @@ out/
 build/
 *.local
 
-# Portfolio screenshots — keep under docs/screenshots/out/ even though
-# the generic `out/` rule above would otherwise ignore them.
-!docs/screenshots/out/
-!docs/screenshots/out/**
-docs/screenshots/out/contact-sheet.html
+# Portfolio screenshots under docs/screenshots/renders/ — the contact
+# sheet HTML is a build intermediate (capture.mjs uses it to render the
+# contact-sheet.png), so it stays out of the repo.
+docs/screenshots/renders/contact-sheet.html
 
 # Portfolio deck — the editable PPTX is too large for the 2MB large-files
 # guard. Rebuild via `cd docs/deck && npm run build`. The PDF preview
