@@ -1,55 +1,79 @@
 # Portfolio Screenshot Set
 
 Session 2 of the AssistSupport portfolio pass. Six 2× panels that
-document the product at a portfolio level — each rendered from a
-self-contained HTML mockup, using the same token set
-([tokens.css](../../src/styles/revamp/tokens.css)) as the live app, so
-the captures stay visually consistent with the redesigned Workspace.
+document the product at a portfolio level. Each panel has **two
+rendering paths** — a real-app live capture and a token-faithful HTML
+mockup — and the PNG that currently ships under `renders/` is whichever
+reads better for portfolio purposes. Both paths share the same
+[`--as-*` tokens](../../src/styles/revamp/tokens.css) so the visual
+language stays consistent across the set.
 
 ## Panels
 
-| #   | Source                                               | PNG                                              | Caption file                      |
-| --- | ---------------------------------------------------- | ------------------------------------------------ | --------------------------------- |
-| 1   | [panels/01-workspace.html](panels/01-workspace.html) | [out/01-workspace.png](renders/01-workspace.png) | see [CAPTIONS.md](CAPTIONS.md) §1 |
-| 2   | [panels/02-queue.html](panels/02-queue.html)         | [out/02-queue.png](renders/02-queue.png)         | [CAPTIONS.md](CAPTIONS.md) §2     |
-| 3   | [panels/03-intent.html](panels/03-intent.html)       | [out/03-intent.png](renders/03-intent.png)       | [CAPTIONS.md](CAPTIONS.md) §3     |
-| 4   | [panels/04-kb-gap.html](panels/04-kb-gap.html)       | [out/04-kb-gap.png](renders/04-kb-gap.png)       | [CAPTIONS.md](CAPTIONS.md) §4     |
-| 5   | [panels/05-ops.html](panels/05-ops.html)             | [out/05-ops.png](renders/05-ops.png)             | [CAPTIONS.md](CAPTIONS.md) §5     |
-| 6   | [panels/06-eval.html](panels/06-eval.html)           | [out/06-eval.png](renders/06-eval.png)           | [CAPTIONS.md](CAPTIONS.md) §6     |
+| #   | PNG under `renders/`                         | Source                                         | Rendered from                 |
+| --- | -------------------------------------------- | ---------------------------------------------- | ----------------------------- |
+| 1   | [01-workspace.png](renders/01-workspace.png) | [live-capture.mjs](live-capture.mjs)           | **Live app** (hero flag on)   |
+| 2   | [02-queue.png](renders/02-queue.png)         | [live-capture.mjs](live-capture.mjs)           | **Live app** (Queue tab)      |
+| 3   | [03-intent.png](renders/03-intent.png)       | [panels/03-intent.html](panels/03-intent.html) | Mockup — no dedicated UI yet  |
+| 4   | [04-kb-gap.png](renders/04-kb-gap.png)       | [live-capture.mjs](live-capture.mjs)           | **Live app** (Analytics tab)  |
+| 5   | [05-ops.png](renders/05-ops.png)             | [live-capture.mjs](live-capture.mjs)           | **Live app** (Operations tab) |
+| 6   | [06-eval.png](renders/06-eval.png)           | [panels/06-eval.html](panels/06-eval.html)     | Mockup — no eval UI in wave   |
 
-Plus a combined 2×3 contact sheet:
-[out/contact-sheet.png](renders/contact-sheet.png) (2880×2700).
+Plus a combined 2×3 contact sheet: [contact-sheet.png](renders/contact-sheet.png).
 
-## How they're rendered
+**Why the split?** Panels 1, 2, 4, 5 map 1:1 to real tabs in the app
+(`Workspace`, `Queue`, `Analytics`, `Operations`) and are captured
+from the running dev server with the workspace-hero flag flipped on.
+Panels 3 (ML intent confidence view) and 6 (Eval harness results)
+are aspirational surfaces — [OpsTab.tsx](../../src/components/Ops/OpsTab.tsx)
+explicitly notes that eval, triage, and runbook tooling stays out of
+the active UI in this wave, and the ML-intent drilldown doesn't have
+a dedicated page. For those two, the HTML mockup is the canonical
+portfolio asset until the feature ships.
 
-Each panel is a single HTML file that:
+## Rendering paths
 
-- Loads [`shell.css`](shell.css) — a direct subset of the live app's
-  revamp token set and shell chrome. No build step, no bundler.
-- Uses IBM Plex Sans + JetBrains Mono from Google Fonts (the same two
-  families the live app loads via `@fontsource-variable`).
-- Seeds realistic IT-support data (Jira-style ticket IDs, intent
-  classes, retrieval latencies, eval scores) so the screenshots read
-  as the product rather than a mockup.
+### Live capture ([live-capture.mjs](live-capture.mjs))
 
-The capture script ([`capture.mjs`](capture.mjs)) launches headless
-Chromium via `@playwright/test` (already in devDependencies), renders
-each HTML at 1440×900 CSS / 2× DPR, and writes a 2880×1800 PNG per
-panel plus the contact sheet.
+Starts `pnpm dev` on port 1422 with `VITE_E2E_MOCK_TAURI=1` so the
+frontend runs browser-standalone against the IPC mocks in
+[`src/test/e2eTauriMock.ts`](../../src/test/e2eTauriMock.ts). Primes
+`localStorage` with the workspace-hero flag and the admin-tabs
+override, drives the composer on the Workspace tab so a grounded
+draft actually renders, then navigates through Queue / Analytics /
+Operations and screenshots each at 1440×900 CSS / 2× DPR.
 
-## Re-running the capture
+```bash
+# from repo root
+node docs/screenshots/live-capture.mjs
+```
+
+### HTML mockup ([capture.mjs](capture.mjs))
+
+Six self-contained HTML files under [`panels/`](panels/) that reuse
+the live app's token set via [`shell.css`](shell.css). Playwright
+renders each to a 2880×1800 PNG. Use this when the portfolio needs an
+idealized or populated view of a feature that the live dev server
+doesn't seed with rich enough data.
 
 ```bash
 # from repo root
 node docs/screenshots/capture.mjs
 ```
 
-No additional install step needed — Playwright + the Chromium binary
-are already cached via the devDependency.
+### Rebuild the contact sheet only
+
+When you've mixed live captures and mockups and want to re-stitch the
+2×3 sheet without rerendering panels:
+
+```bash
+node docs/screenshots/rebuild-contact-sheet.mjs
+```
 
 ## Design system reuse
 
-Every panel uses only the `--as-*` tokens from the live app:
+Every panel — live or mockup — uses only the `--as-*` tokens from
+[`src/styles/revamp/tokens.css`](../../src/styles/revamp/tokens.css):
 
 - Surfaces: `--as-surface-0/1/2/3`, `--as-glass-1/2/3`
 - Text: `--as-text-1/2/3`
@@ -58,11 +82,14 @@ Every panel uses only the `--as-*` tokens from the live app:
 - Type: `--as-font-sans`, `--as-font-mono`
 - Shell glow: `--as-glow-1/2`
 
-No new tokens are introduced. If the tokens in the live app change,
-`shell.css` is the single place to re-sync.
+No new tokens are introduced. If the tokens in the live app change:
+
+- `live-capture.mjs` picks them up automatically (it renders the real app)
+- `shell.css` is the single place to re-sync the HTML mockups
 
 ## What's next
 
-Session 3 turns the hero screenshot ([01-workspace.png](renders/01-workspace.png))
+Session 3 turns the hero screenshot
+([01-workspace.png](renders/01-workspace.png), now a real app capture)
 and the contact sheet into a landscape-letter one-pager PDF with the
 tagline, five feature pillars, and the impact-stats strip.
