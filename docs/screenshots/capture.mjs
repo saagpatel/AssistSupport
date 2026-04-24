@@ -74,7 +74,7 @@ const tileH = (FRAME_H * tileW) / FRAME_W;
 const tiles = captured
   .map(
     (c) =>
-      `<div class="tile"><img src="${c.outPath.replace(/^.+\/out\//, "./")}"/></div>`,
+      `<div class="tile"><img src="${c.outPath.replace(/^.+\/renders\//, "./")}"/></div>`,
   )
   .join("\n");
 writeFileSync(
