@@ -42,15 +42,36 @@ function mockSearchResults() {
 }
 
 export function setupE2eTauriMock(): void {
+  // Portfolio-grade seed data: realistic IT-support scenarios, release
+  // lifecycle, and KB gap clusters so live dev captures + day-to-day
+  // dev work against the mock IPC show populated screens.
   const deploymentArtifacts = [
     {
       id: "artifact-1",
       artifact_type: "app_bundle",
-      version: "1.0.0",
+      version: "1.2.0",
       channel: "stable",
-      sha256: "abc123",
+      sha256: "a1f4c9e28b07d73f0c6d5e93b4fa812c9d01ae557832b8e7c0f2b4e6d8a19c",
       is_signed: true,
-      created_at: "2026-02-03T10:00:00Z",
+      created_at: "2026-04-24T11:57:00Z",
+    },
+    {
+      id: "artifact-2",
+      artifact_type: "app_bundle",
+      version: "1.1.4",
+      channel: "stable",
+      sha256: "4e38f2a6d91c8b0e5a27c9d482f3b61c8a7e40b19f25d7c8e6a0a329b4d7c2",
+      is_signed: true,
+      created_at: "2026-04-23T18:04:00Z",
+    },
+    {
+      id: "artifact-3",
+      artifact_type: "app_bundle",
+      version: "1.1.5-rc",
+      channel: "canary",
+      sha256: "7b12c4e0a9f3d851062e74a8c6b0d4e91a5c82d4f9e71c6a3b0e58c7d91f3a",
+      is_signed: true,
+      created_at: "2026-04-24T09:37:00Z",
     },
   ];
 
@@ -60,37 +81,235 @@ export function setupE2eTauriMock(): void {
       target_channel: "stable",
       status: "succeeded",
       preflight_json: JSON.stringify([
-        "Database integrity: pass",
-        "Model status: loaded",
+        "Typecheck + lint gate: pass",
+        "Vitest + UI gate: pass",
+        "Cargo test + backend: pass",
+        "Playwright smoke + visual + a11y: pass",
+        "Bundle + asset budget: under budget",
+        "Notarize + sign .app: accepted",
       ]),
       rollback_available: true,
-      created_at: "2026-02-03T10:00:00Z",
-      completed_at: "2026-02-03T10:01:00Z",
+      created_at: "2026-04-24T12:14:00Z",
+      completed_at: "2026-04-24T12:18:00Z",
+    },
+    {
+      id: "run-2",
+      target_channel: "canary",
+      status: "paused",
+      preflight_json: JSON.stringify([
+        "Retrieval p95 exceeded 80ms budget",
+        "Auto-paused · root cause: index rebuild",
+      ]),
+      rollback_available: true,
+      created_at: "2026-04-24T09:41:00Z",
+      completed_at: null,
+    },
+    {
+      id: "run-3",
+      target_channel: "stable",
+      status: "succeeded",
+      preflight_json: JSON.stringify(["All gates green"]),
+      rollback_available: true,
+      created_at: "2026-04-23T17:58:00Z",
+      completed_at: "2026-04-23T18:04:00Z",
+    },
+    {
+      id: "run-4",
+      target_channel: "stable",
+      status: "rolled_back",
+      preflight_json: JSON.stringify([
+        "Confidence regression (v1.1.3-rc): 0.89 vs baseline 0.92",
+        "Auto-rolled back to v1.1.2",
+      ]),
+      rollback_available: false,
+      created_at: "2026-04-21T14:22:00Z",
+      completed_at: "2026-04-21T14:29:00Z",
     },
   ];
 
   const evalRuns = [
     {
-      id: "eval-1",
-      suite_name: "ops-regression-suite",
-      total_cases: 2,
-      passed_cases: 2,
-      avg_confidence: 0.76,
+      id: "eval-4812",
+      suite_name: "grounding-faithfulness-intent",
+      total_cases: 250,
+      passed_cases: 247,
+      avg_confidence: 0.93,
+      details_json: JSON.stringify({
+        grounding: 0.93,
+        faithfulness: 0.96,
+        intent_f1: 0.914,
+        retrieval_ndcg5: 0.882,
+        latency_p95_ms: 1800,
+        safety_refusals: "25/25",
+      }),
+      created_at: "2026-04-24T12:04:00Z",
+    },
+    {
+      id: "eval-4811",
+      suite_name: "grounding-faithfulness-intent",
+      total_cases: 250,
+      passed_cases: 244,
+      avg_confidence: 0.92,
       details_json: "[]",
-      created_at: "2026-02-03T11:00:00Z",
+      created_at: "2026-04-23T17:52:00Z",
+    },
+    {
+      id: "eval-4810",
+      suite_name: "grounding-faithfulness-intent",
+      total_cases: 250,
+      passed_cases: 241,
+      avg_confidence: 0.9,
+      details_json: "[]",
+      created_at: "2026-04-22T16:10:00Z",
     },
   ];
 
   const triageClusters = [
     {
       id: "cluster-1",
-      cluster_key: "vpn",
-      summary: "2 tickets about vpn",
-      ticket_count: 2,
+      cluster_key: "vpn-office-wifi",
+      summary: "VPN fails on office Wi-Fi only — 14 tickets",
+      ticket_count: 14,
       tickets_json: JSON.stringify([
-        { id: "INC-1001", summary: "VPN timeout" },
+        { id: "AS-4213", summary: "VPN fails only on office Wi-Fi" },
+        { id: "AS-4199", summary: "Tunnel drops when I plug into ethernet" },
       ]),
-      created_at: "2026-02-03T11:05:00Z",
+      created_at: "2026-04-24T11:05:00Z",
+    },
+    {
+      id: "cluster-2",
+      cluster_key: "outlook-macos-14-5",
+      summary: "Outlook crash on M3 Macs after macOS 14.5 — 9 tickets",
+      ticket_count: 9,
+      tickets_json: JSON.stringify([
+        { id: "AS-4215", summary: "Outlook keeps crashing on M3 after 14.5" },
+        { id: "AS-4204", summary: "Classic Outlook won't open macOS 14.5" },
+      ]),
+      created_at: "2026-04-23T16:00:00Z",
+    },
+    {
+      id: "cluster-3",
+      cluster_key: "macos_permissions_drift",
+      summary: "macOS 14 permissions drift after reboot — 7 tickets",
+      ticket_count: 7,
+      tickets_json: JSON.stringify([
+        {
+          id: "AS-4191",
+          summary: "Screen recording permission keeps resetting",
+        },
+        { id: "AS-4188", summary: "tccd keeps forgetting my choice" },
+      ]),
+      created_at: "2026-04-22T09:20:00Z",
+    },
+    {
+      id: "cluster-4",
+      cluster_key: "slack-compliance-export",
+      summary: "Slack workspace export for compliance audit — 5 tickets",
+      ticket_count: 5,
+      tickets_json: JSON.stringify([
+        { id: "AS-4212", summary: "Export Slack workspace archive for audit" },
+      ]),
+      created_at: "2026-04-21T11:15:00Z",
+    },
+    {
+      id: "cluster-5",
+      cluster_key: "touchid-sudo-persistence",
+      summary: "Touch ID sudo not persisting after update — 4 tickets",
+      ticket_count: 4,
+      tickets_json: JSON.stringify([
+        { id: "AS-4210", summary: "Touch ID for sudo on dev-provisioned Mac" },
+      ]),
+      created_at: "2026-04-20T14:42:00Z",
+    },
+  ];
+
+  // Knowledge-base gap candidates — surfaced in the Analytics tab's
+  // "Knowledge Gaps" panel. Shape matches src/types/insights.ts
+  // KbGapCandidate exactly.
+  interface MockKbGap {
+    id: string;
+    query_signature: string;
+    sample_query: string;
+    occurrences: number;
+    low_confidence_count: number;
+    low_rating_count: number;
+    unsupported_claim_events: number;
+    suggested_category: string | null;
+    status: string;
+    resolution_note: string | null;
+    first_seen_at: string;
+    last_seen_at: string;
+  }
+  const kbGapCandidates: MockKbGap[] = [
+    {
+      id: "gap-1",
+      query_signature: "vpn_office_wifi_fails",
+      sample_query: "VPN won't connect at HQ but works on hotspot",
+      occurrences: 14,
+      low_confidence_count: 11,
+      low_rating_count: 3,
+      unsupported_claim_events: 6,
+      suggested_category: "incident",
+      status: "open",
+      resolution_note: null,
+      first_seen_at: "2026-04-10T09:14:00Z",
+      last_seen_at: "2026-04-24T10:28:00Z",
+    },
+    {
+      id: "gap-2",
+      query_signature: "outlook_crash_macos_145",
+      sample_query: "Outlook keeps crashing on macOS 14.5",
+      occurrences: 9,
+      low_confidence_count: 7,
+      low_rating_count: 2,
+      unsupported_claim_events: 4,
+      suggested_category: "incident",
+      status: "open",
+      resolution_note: null,
+      first_seen_at: "2026-04-12T11:02:00Z",
+      last_seen_at: "2026-04-24T08:15:00Z",
+    },
+    {
+      id: "gap-3",
+      query_signature: "macos_permissions_drift",
+      sample_query: "Screen recording permission keeps resetting after reboot",
+      occurrences: 7,
+      low_confidence_count: 5,
+      low_rating_count: 2,
+      unsupported_claim_events: 3,
+      suggested_category: "howto",
+      status: "open",
+      resolution_note: null,
+      first_seen_at: "2026-04-14T13:30:00Z",
+      last_seen_at: "2026-04-23T17:08:00Z",
+    },
+    {
+      id: "gap-4",
+      query_signature: "slack_export_compliance",
+      sample_query: "Export Slack workspace archive for SOC 2 compliance audit",
+      occurrences: 5,
+      low_confidence_count: 4,
+      low_rating_count: 1,
+      unsupported_claim_events: 2,
+      suggested_category: "policy",
+      status: "open",
+      resolution_note: null,
+      first_seen_at: "2026-04-16T10:44:00Z",
+      last_seen_at: "2026-04-22T15:20:00Z",
+    },
+    {
+      id: "gap-5",
+      query_signature: "touchid_sudo_persistence",
+      sample_query: "Touch ID for sudo broken after macOS update",
+      occurrences: 4,
+      low_confidence_count: 3,
+      low_rating_count: 1,
+      unsupported_claim_events: 1,
+      suggested_category: "howto",
+      status: "open",
+      resolution_note: null,
+      first_seen_at: "2026-04-18T14:02:00Z",
+      last_seen_at: "2026-04-23T09:55:00Z",
     },
   ];
 
@@ -643,6 +862,36 @@ export function setupE2eTauriMock(): void {
         }
         case "list_recent_triage_clusters":
           return triageClusters.slice().reverse();
+        case "get_kb_gap_candidates": {
+          const body = (payload ?? {}) as {
+            limit?: number;
+            status?: string | null;
+          };
+          const status = body.status ?? null;
+          const filtered =
+            status != null
+              ? kbGapCandidates.filter((g) => g.status === status)
+              : kbGapCandidates.slice();
+          const limit =
+            typeof body.limit === "number" ? body.limit : filtered.length;
+          return filtered.slice(0, limit);
+        }
+        case "update_kb_gap_status": {
+          const body = (payload ?? {}) as {
+            gapId?: string;
+            status?: string;
+            note?: string | null;
+          };
+          const idx = kbGapCandidates.findIndex((g) => g.id === body.gapId);
+          if (idx >= 0 && body.status) {
+            kbGapCandidates[idx] = {
+              ...kbGapCandidates[idx]!,
+              status: body.status,
+              resolution_note: body.note ?? null,
+            };
+          }
+          return null;
+        }
         case "cluster_tickets_for_triage": {
           const body = payload as {
             tickets?: Array<{ id?: string; summary?: string }>;
