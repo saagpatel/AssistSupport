@@ -101,6 +101,16 @@ export function RevampShell({
   const memoryKernelDegraded =
     appStatus.memoryKernelFeatureEnabled && !appStatus.memoryKernelReady;
 
+  // When the workspace hero layout owns the Draft tab, it renders its
+  // own self-contained triage rail (workflow, signals, alternatives,
+  // feedback, context, model footer). The shell's draft-specific rail
+  // (Live queue context + Response playbook + AI status) would compete
+  // for right-column real estate, so collapse the shell rail to a
+  // single column for the hero workspace. Other tabs keep the rail.
+  const heroWorkspaceActive =
+    activeTab === "draft" &&
+    Boolean(revampFlags.ASSISTSUPPORT_REVAMP_WORKSPACE_HERO);
+
   useEffect(() => {
     if (!statusOpen) return;
 
@@ -359,116 +369,128 @@ export function RevampShell({
           ))}
         </nav>
 
-        <div className="as-shell__content">
+        <div
+          className={[
+            "as-shell__content",
+            heroWorkspaceActive ? "as-shell__content--solo" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           <main className="as-shell__workspace" aria-label="Workspace">
             <div className="as-shell__workspaceInner">{children}</div>
           </main>
-          <aside
-            className="as-shell__rail"
-            aria-label="Diagnostics and guidance"
-          >
-            {activeTab === "draft" && (
-              <>
-                <WorkspaceQueueContext
-                  onNavigateToQueue={onNavigateToQueue}
-                  revampUi
-                />
-                <Panel
-                  title="Response playbook"
-                  subtitle="Keep responses consistent across the team"
-                >
-                  <ol className="as-shell__railBullets">
-                    <li>Capture the issue in plain language.</li>
-                    <li>Validate policy and approval requirements.</li>
-                    <li>Generate and edit response with cited context.</li>
-                    <li>Save to follow-ups for handoff continuity.</li>
-                  </ol>
-                </Panel>
-              </>
-            )}
-            <Panel
-              title="AI Status & Guarantees"
-              subtitle="Predictable local AI; never blocking"
+          {!heroWorkspaceActive && (
+            <aside
+              className="as-shell__rail"
+              aria-label="Diagnostics and guidance"
             >
-              <ul className="as-shell__railList">
-                <li>
-                  <span className="as-shell__railKey">Model</span>
-                  <span className="as-shell__railVal">
-                    {appStatus.llmLoaded
-                      ? appStatus.llmModelName || "Loaded"
-                      : "Not loaded"}
-                  </span>
-                </li>
-                <li>
-                  <span className="as-shell__railKey">Citations</span>
-                  <span className="as-shell__railVal">
-                    Required for copy (override audited)
-                  </span>
-                </li>
-                <li>
-                  <span className="as-shell__railKey">MemoryKernel</span>
-                  <span className="as-shell__railVal">
-                    {appStatus.memoryKernelFeatureEnabled
-                      ? "Optional enrichment"
-                      : "Disabled"}
-                  </span>
-                </li>
-              </ul>
-            </Panel>
+              {activeTab === "draft" && (
+                <>
+                  <WorkspaceQueueContext
+                    onNavigateToQueue={onNavigateToQueue}
+                    revampUi
+                  />
+                  <Panel
+                    title="Response playbook"
+                    subtitle="Keep responses consistent across the team"
+                  >
+                    <ol className="as-shell__railBullets">
+                      <li>Capture the issue in plain language.</li>
+                      <li>Validate policy and approval requirements.</li>
+                      <li>Generate and edit response with cited context.</li>
+                      <li>Save to follow-ups for handoff continuity.</li>
+                    </ol>
+                  </Panel>
+                </>
+              )}
+              <Panel
+                title="AI Status & Guarantees"
+                subtitle="Predictable local AI; never blocking"
+              >
+                <ul className="as-shell__railList">
+                  <li>
+                    <span className="as-shell__railKey">Model</span>
+                    <span className="as-shell__railVal">
+                      {appStatus.llmLoaded
+                        ? appStatus.llmModelName || "Loaded"
+                        : "Not loaded"}
+                    </span>
+                  </li>
+                  <li>
+                    <span className="as-shell__railKey">Citations</span>
+                    <span className="as-shell__railVal">
+                      Required for copy (override audited)
+                    </span>
+                  </li>
+                  <li>
+                    <span className="as-shell__railKey">MemoryKernel</span>
+                    <span className="as-shell__railVal">
+                      {appStatus.memoryKernelFeatureEnabled
+                        ? "Optional enrichment"
+                        : "Disabled"}
+                    </span>
+                  </li>
+                </ul>
+              </Panel>
 
-            <Panel
-              title="Next Best Actions"
-              subtitle="Always have a deterministic next step"
-            >
-              <ul className="as-shell__railBullets">
-                {needsModel && (
-                  <li>
-                    Load a local model in Settings.
-                    <div style={{ marginTop: "var(--as-space-2)" }}>
-                      <AsButton
-                        size="small"
-                        tone="primary"
-                        onClick={() => onTabChange("settings")}
-                      >
-                        Open Settings
-                      </AsButton>
-                    </div>
-                  </li>
-                )}
-                {needsKb && (
-                  <li>
-                    Point Knowledge Base to your local docs folder, then rebuild
-                    the index.
-                    <div style={{ marginTop: "var(--as-space-2)" }}>
-                      <AsButton
-                        size="small"
-                        tone="primary"
-                        onClick={() => onTabChange("knowledge")}
-                      >
-                        Open Knowledge
-                      </AsButton>
-                    </div>
-                  </li>
-                )}
-                {memoryKernelDegraded && (
-                  <li>
-                    MemoryKernel is degraded. Draft generation will continue
-                    with deterministic fallback.
-                    <div style={{ marginTop: "var(--as-space-2)" }}>
-                      <AsButton size="small" onClick={() => onTabChange("ops")}>
-                        Open Ops
-                      </AsButton>
-                    </div>
-                  </li>
-                )}
-                {!needsModel && !needsKb && !memoryKernelDegraded && (
-                  <li>
-                    Use Cmd+K to jump between Queue, Draft, Sources, and Ops.
-                  </li>
-                )}
-              </ul>
-            </Panel>
-          </aside>
+              <Panel
+                title="Next Best Actions"
+                subtitle="Always have a deterministic next step"
+              >
+                <ul className="as-shell__railBullets">
+                  {needsModel && (
+                    <li>
+                      Load a local model in Settings.
+                      <div style={{ marginTop: "var(--as-space-2)" }}>
+                        <AsButton
+                          size="small"
+                          tone="primary"
+                          onClick={() => onTabChange("settings")}
+                        >
+                          Open Settings
+                        </AsButton>
+                      </div>
+                    </li>
+                  )}
+                  {needsKb && (
+                    <li>
+                      Point Knowledge Base to your local docs folder, then
+                      rebuild the index.
+                      <div style={{ marginTop: "var(--as-space-2)" }}>
+                        <AsButton
+                          size="small"
+                          tone="primary"
+                          onClick={() => onTabChange("knowledge")}
+                        >
+                          Open Knowledge
+                        </AsButton>
+                      </div>
+                    </li>
+                  )}
+                  {memoryKernelDegraded && (
+                    <li>
+                      MemoryKernel is degraded. Draft generation will continue
+                      with deterministic fallback.
+                      <div style={{ marginTop: "var(--as-space-2)" }}>
+                        <AsButton
+                          size="small"
+                          onClick={() => onTabChange("ops")}
+                        >
+                          Open Ops
+                        </AsButton>
+                      </div>
+                    </li>
+                  )}
+                  {!needsModel && !needsKb && !memoryKernelDegraded && (
+                    <li>
+                      Use Cmd+K to jump between Queue, Draft, Sources, and Ops.
+                    </li>
+                  )}
+                </ul>
+              </Panel>
+            </aside>
+          )}
         </div>
       </div>
     </div>
