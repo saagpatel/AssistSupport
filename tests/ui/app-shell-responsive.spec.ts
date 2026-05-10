@@ -77,7 +77,9 @@ test("@smoke @responsive desktop shell keeps navigation and content in sync", as
 
   const desktopNav = await navigateToTab(page, "Knowledge");
   expect(desktopNav).not.toBeNull();
-  await expect(page.locator(".as-shell__pageTitle")).toHaveText("Knowledge");
+  await expect(page.locator(".as-shell__pageTitle")).toHaveText(
+    "AssistSupport/Knowledge",
+  );
   await expect(page.getByRole("tab", { name: "Documents" })).toBeVisible();
 
   await navigateToTab(page, "Settings");
@@ -100,7 +102,9 @@ test("@smoke @responsive mobile shell keeps tab-bar navigation usable across tab
   await expect(page.getByText("Application Error")).toHaveCount(0);
   const mobileNav = await navigateToTab(page, "Knowledge");
   expect(mobileNav).not.toBeNull();
-  await expect(page.locator(".as-shell__pageTitle")).toHaveText("Knowledge");
+  await expect(page.locator(".as-shell__pageTitle")).toHaveText(
+    "AssistSupport/Knowledge",
+  );
   await expect(page.getByRole("tab", { name: "Documents" })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
