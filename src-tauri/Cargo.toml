@@ -73,7 +73,7 @@ regex-lite = "0.1"
 url = "2"
 
 # DNS resolution for SSRF protection
-hickory-resolver = "0.24"
+hickory-resolver = "0.26.1"
 
 # Unicode normalization for filter sanitization
 unicode-normalization = "0.1"
