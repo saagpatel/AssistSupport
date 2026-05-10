@@ -1232,8 +1232,11 @@ mod tests {
 
     #[test]
     fn property_wrong_key_cannot_decrypt_random_payloads() {
-        let key_a = MasterKey::from_bytes([0x11u8; KEY_LEN]);
-        let key_b = MasterKey::from_bytes([0x22u8; KEY_LEN]);
+        let key_a = MasterKey::generate();
+        let mut key_b = MasterKey::generate();
+        while key_a.as_bytes() == key_b.as_bytes() {
+            key_b = MasterKey::generate();
+        }
         let mut rng = rand::thread_rng();
 
         for _ in 0..64 {

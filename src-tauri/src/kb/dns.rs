@@ -76,7 +76,7 @@ impl PinnedDnsResolver {
         )
         .with_options(ResolverOpts::default())
         .build()
-        .map_err(|e| DnsError::ResolverError(e.to_string()))?;
+        .map_err(|error| DnsError::ResolverError(error.to_string()))?;
 
         Ok(Self {
             pinned: Arc::new(RwLock::new(HashMap::new())),
