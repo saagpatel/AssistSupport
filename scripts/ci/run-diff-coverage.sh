@@ -18,6 +18,12 @@ else
   compare_branch="${compare_branch:-origin/master}"
 fi
 
+current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+if [[ -z "$base_ref" && "$current_branch" == "${compare_branch#origin/}" ]]; then
+  echo "Default branch coverage run detected; skipping diff coverage."
+  exit 0
+fi
+
 coverage_file="coverage/frontend/lcov.info"
 if [[ ! -f "$coverage_file" ]]; then
   echo "missing coverage file: $coverage_file" >&2
