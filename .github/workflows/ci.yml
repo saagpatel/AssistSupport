@@ -5,6 +5,7 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -288,6 +289,7 @@ jobs:
 
   build:
     name: Build (macOS)
+    if: github.event_name != 'pull_request'
     needs:
       - frontend-tests
       - ui-regression
