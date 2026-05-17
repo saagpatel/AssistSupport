@@ -19,7 +19,9 @@ else
 fi
 
 current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-if [[ -z "$base_ref" && "$current_branch" == "${compare_branch#origin/}" ]]; then
+github_ref_name="${GITHUB_REF_NAME:-}"
+compare_ref="${compare_branch#origin/}"
+if [[ -z "$base_ref" && ( "$current_branch" == "$compare_ref" || "$github_ref_name" == "$compare_ref" ) ]]; then
   echo "Default branch coverage run detected; skipping diff coverage."
   exit 0
 fi
