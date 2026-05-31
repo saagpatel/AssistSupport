@@ -20,7 +20,17 @@ const discoveredScopes = candidateRoots
   );
 
 const scopes = [
-  ...new Set(["repo", "deps", "ci", "release", "perf", "ui", "db", "docs", ...discoveredScopes]),
+  ...new Set([
+    "repo",
+    "deps",
+    "ci",
+    "release",
+    "perf",
+    "ui",
+    "db",
+    "docs",
+    ...discoveredScopes,
+  ]),
 ];
 
 export default {
@@ -29,10 +39,22 @@ export default {
     "type-enum": [
       2,
       "always",
-      ["feat", "fix", "refactor", "perf", "docs", "test", "build", "ci", "chore", "revert"],
+      [
+        "feat",
+        "fix",
+        "refactor",
+        "perf",
+        "docs",
+        "test",
+        "build",
+        "ci",
+        "chore",
+        "revert",
+      ],
     ],
     "scope-enum": [2, "always", scopes],
     "header-max-length": [2, "always", 72],
+    "body-max-line-length": [2, "always", 160],
     "subject-empty": [2, "never"],
     "subject-full-stop": [2, "never", "."],
   },
