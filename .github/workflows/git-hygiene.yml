@@ -35,6 +35,11 @@ jobs:
           script: |
             const branch = context.payload.pull_request?.head?.ref || "";
             const pattern = /^codex\/(feat|fix|chore|refactor|docs|test|perf|ci|spike|hotfix)\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
+            const releasePleasePattern = /^release-please--branches--.+--components--[a-z0-9]+(?:-[a-z0-9]+)*$/;
+            if (releasePleasePattern.test(branch)) {
+              core.info(`Release Please automation branch detected: ${branch}`);
+              return;
+            }
             if (!pattern.test(branch)) {
               core.setFailed(`Invalid branch name: ${branch}`);
             }

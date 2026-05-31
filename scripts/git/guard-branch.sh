@@ -18,6 +18,11 @@ if [[ "$branch" == "main" || "$branch" == "master" ]]; then
   exit 1
 fi
 
+if [[ "$branch" == release-please--branches--* ]]; then
+  echo "Release Please automation branch detected; skipping branch-name guard."
+  exit 0
+fi
+
 if ! [[ "$branch" =~ $pattern ]]; then
   echo "Invalid branch name: $branch"
   echo "Expected: codex/<type>/<slug>"
