@@ -10,8 +10,8 @@ cd "$repo_root/src-tauri"
 # Owner: Platform Engineering
 # Review date: 2026-03-09
 # Last remediation update: hickory-resolver upgraded to 0.26.1 to clear
-# RUSTSEC-2026-0119, and lz4_flex upgraded to 0.12.1 to clear
-# RUSTSEC-2026-0041.
+# RUSTSEC-2026-0119, and locked lz4_flex versions kept outside the
+# RUSTSEC-2026-0041 vulnerable ranges.
 # Umbrella tracking issue: https://github.com/saagar210/AssistSupport/issues/11
 #
 # GTK3/Tauri Linux runtime chain (issue #12):
