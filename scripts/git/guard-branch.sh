@@ -23,6 +23,11 @@ if [[ "$branch" == release-please--branches--* ]]; then
   exit 0
 fi
 
+if [[ "$branch" == dependabot/* ]]; then
+  echo "Dependabot automation branch detected; skipping branch-name guard."
+  exit 0
+fi
+
 if ! [[ "$branch" =~ $pattern ]]; then
   echo "Invalid branch name: $branch"
   echo "Expected: codex/<type>/<slug>"
