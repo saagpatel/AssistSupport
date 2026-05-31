@@ -22,7 +22,8 @@ jobs:
           script: |
             const body = context.payload.pull_request.body || "";
             const author = context.payload.pull_request.user?.login || "";
-            if (author === "dependabot[bot]" && /updated-dependencies:/i.test(body)) {
+            const dependabotAuthors = new Set(["app/dependabot", "dependabot[bot]"]);
+            if (dependabotAuthors.has(author) && /updated-dependencies:/i.test(body)) {
               core.info("Dependabot metadata accepted as lockfile rationale.");
               return;
             }
