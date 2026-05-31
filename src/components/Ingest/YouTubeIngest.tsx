@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useIngest } from '../../hooks/useIngest';
-import { Button } from '../shared/Button';
+import { useState } from "react";
+import { useIngest } from "../../hooks/useIngest";
+import { Button } from "../shared/Button";
 
 interface YouTubeIngestProps {
   namespaceId: string;
@@ -9,23 +9,45 @@ interface YouTubeIngestProps {
   onError: (message: string) => void;
 }
 
-export function YouTubeIngest({ namespaceId, ytdlpAvailable, onSuccess, onError }: YouTubeIngestProps) {
+export function isAllowedYouTubeUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase();
+
+    return (
+      (parsed.protocol === "https:" || parsed.protocol === "http:") &&
+      (host === "youtu.be" ||
+        host === "youtube.com" ||
+        host.endsWith(".youtube.com"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function YouTubeIngest({
+  namespaceId,
+  ytdlpAvailable,
+  onSuccess,
+  onError,
+}: YouTubeIngestProps) {
   const { ingestYoutube, ingesting } = useIngest();
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState("");
 
   const handleIngest = async () => {
     if (!url.trim()) return;
 
-    // Basic YouTube URL validation
-    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
-      onError('Please enter a valid YouTube URL');
+    if (!isAllowedYouTubeUrl(url.trim())) {
+      onError("Please enter a valid YouTube URL");
       return;
     }
 
     try {
       const result = await ingestYoutube(url.trim(), namespaceId);
-      onSuccess(`Ingested "${result.title}" (${result.chunk_count} chunks, ${result.word_count} words)`);
-      setUrl('');
+      onSuccess(
+        `Ingested "${result.title}" (${result.chunk_count} chunks, ${result.word_count} words)`,
+      );
+      setUrl("");
     } catch (e) {
       onError(`Failed to ingest YouTube video: ${e}`);
     }
@@ -41,7 +63,10 @@ export function YouTubeIngest({ namespaceId, ytdlpAvailable, onSuccess, onError 
 
         <div className="ingest-warning">
           <strong>yt-dlp Not Installed</strong>
-          <p>YouTube ingestion requires yt-dlp to be installed. Install it using Homebrew:</p>
+          <p>
+            YouTube ingestion requires yt-dlp to be installed. Install it using
+            Homebrew:
+          </p>
           <code>brew install yt-dlp</code>
           <p>After installing, restart AssistSupport.</p>
         </div>
@@ -53,7 +78,10 @@ export function YouTubeIngest({ namespaceId, ytdlpAvailable, onSuccess, onError 
     <div className="ingest-form">
       <div className="ingest-form-header">
         <h3>YouTube</h3>
-        <p>Ingest transcripts/captions from YouTube videos. The transcript will be extracted and stored in your knowledge base.</p>
+        <p>
+          Ingest transcripts/captions from YouTube videos. The transcript will
+          be extracted and stored in your knowledge base.
+        </p>
       </div>
 
       <div className="ingest-form-field">
@@ -64,7 +92,7 @@ export function YouTubeIngest({ namespaceId, ytdlpAvailable, onSuccess, onError 
           placeholder="https://www.youtube.com/watch?v=..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !ingesting && handleIngest()}
+          onKeyDown={(e) => e.key === "Enter" && !ingesting && handleIngest()}
           disabled={ingesting}
         />
       </div>
@@ -72,7 +100,9 @@ export function YouTubeIngest({ namespaceId, ytdlpAvailable, onSuccess, onError 
       <div className="ingest-form-info">
         <ul>
           <li>Videos must have captions/subtitles available</li>
-          <li>Auto-generated captions will be used if no manual captions exist</li>
+          <li>
+            Auto-generated captions will be used if no manual captions exist
+          </li>
           <li>Private or age-restricted videos cannot be ingested</li>
         </ul>
       </div>
@@ -83,7 +113,7 @@ export function YouTubeIngest({ namespaceId, ytdlpAvailable, onSuccess, onError 
           onClick={handleIngest}
           disabled={!url.trim() || ingesting || ytdlpAvailable !== true}
         >
-          {ingesting ? 'Ingesting...' : 'Ingest Transcript'}
+          {ingesting ? "Ingesting..." : "Ingest Transcript"}
         </Button>
       </div>
     </div>

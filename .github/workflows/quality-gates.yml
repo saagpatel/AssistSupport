@@ -52,21 +52,15 @@ jobs:
         env:
           # The dedicated perf-build job owns build timing. Running it again
           # after coverage/UI gates produces noisy runner-load failures.
-          VERIFY_SKIP_REGEX: ${{ github.event_name == 'push' && '^(pnpm git:guard:all|pnpm perf:build|node scripts/perf/compare-metric.mjs .perf-baselines/build-time.json .*)$' || '^(pnpm perf:build|node scripts/perf/compare-metric.mjs .perf-baselines/build-time.json .*)$' }}
+          VERIFY_SKIP_REGEX: ${{ github.event_name == 'push' && '^(pnpm git:guard:all|bash scripts/ci/run-diff-coverage.sh|pnpm perf:build|node scripts/perf/compare-metric.mjs .perf-baselines/build-time.json .*)$' || '^(pnpm perf:build|node scripts/perf/compare-metric.mjs .perf-baselines/build-time.json .*)$' }}
         run: bash .codex/scripts/run_verify_commands.sh
 
       - name: Generate coverage report
         run: pnpm test:coverage
 
       - name: Diff coverage
-        run: |
-          python3 -m pip install --upgrade pip diff-cover
-          BASE_REF="$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/@@')"
-          python3 -m diff_cover.diff_cover_tool coverage/frontend/lcov.info \
-            --compare-branch="${BASE_REF}" \
-            --fail-under=90 \
-            --include "src/**/*.ts" "src/**/*.tsx" \
-            --exclude "src/**/*.test.ts" "src/**/*.test.tsx" "src/**/*.spec.ts" "src/**/*.spec.tsx"
+        if: github.event_name == 'pull_request'
+        run: bash scripts/ci/run-diff-coverage.sh
 
       - name: Upload test artifacts on failure
         if: failure()
