@@ -14,7 +14,7 @@ use aes_gcm::{
 };
 use argon2::{Argon2, Params, Version};
 use base64::{engine::general_purpose, Engine as _};
-use rand::RngCore;
+use rand::{Rng, RngCore};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -968,8 +968,7 @@ impl Crypto {
         let cipher =
             Aes256Gcm::new_from_slice(key).map_err(|e| SecurityError::Encryption(e.to_string()))?;
 
-        let mut nonce_bytes = [0u8; NONCE_LEN];
-        OsRng.fill_bytes(&mut nonce_bytes);
+        let nonce_bytes: [u8; NONCE_LEN] = OsRng.gen();
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         let ciphertext = cipher
@@ -1012,19 +1011,18 @@ impl Crypto {
 
         let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
 
-        let mut key = [0u8; KEY_LEN];
+        let mut key = vec![0; KEY_LEN];
         argon2
             .hash_password_into(passphrase.as_bytes(), salt, &mut key)
             .map_err(|e| SecurityError::KeyDerivation(e.to_string()))?;
 
-        Ok(key)
+        key.try_into()
+            .map_err(|_| SecurityError::KeyDerivation("invalid derived key length".into()))
     }
 
     /// Generate random salt
     pub fn generate_salt() -> [u8; SALT_LEN] {
-        let mut salt = [0u8; SALT_LEN];
-        OsRng.fill_bytes(&mut salt);
-        salt
+        OsRng.gen()
     }
 
     /// Wrap master key with passphrase-derived key
@@ -1066,8 +1064,10 @@ impl Crypto {
             return Err(SecurityError::InvalidKeyFormat);
         }
 
-        let mut key = [0u8; KEY_LEN];
-        key.copy_from_slice(&key_bytes);
+        let key = key_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| SecurityError::InvalidKeyFormat)?;
 
         // Zeroize the intermediate buffer
         key_bytes.zeroize();
@@ -1155,6 +1155,10 @@ pub fn secure_delete_file(path: &Path) -> std::io::Result<()> {
 mod tests {
     use super::*;
 
+    fn test_passphrase(label: &str) -> String {
+        format!("{label}-{}", rand::random::<u64>())
+    }
+
     #[test]
     fn test_master_key_generation() {
         let key1 = MasterKey::generate();
@@ -1176,10 +1180,10 @@ mod tests {
     #[test]
     fn test_key_wrapping() {
         let master_key = MasterKey::generate();
-        let passphrase = "test-passphrase-123";
+        let passphrase = test_passphrase("key-wrapping");
 
-        let wrapped = Crypto::wrap_key(&master_key, passphrase).unwrap();
-        let unwrapped = Crypto::unwrap_key(&wrapped, passphrase).unwrap();
+        let wrapped = Crypto::wrap_key(&master_key, &passphrase).unwrap();
+        let unwrapped = Crypto::unwrap_key(&wrapped, &passphrase).unwrap();
 
         assert_eq!(master_key.as_bytes(), unwrapped.as_bytes());
     }
@@ -1187,19 +1191,22 @@ mod tests {
     #[test]
     fn test_wrong_passphrase_fails() {
         let master_key = MasterKey::generate();
-        let wrapped = Crypto::wrap_key(&master_key, "correct-passphrase").unwrap();
+        let correct_passphrase = test_passphrase("correct");
+        let wrong_passphrase = test_passphrase("wrong");
+        let wrapped = Crypto::wrap_key(&master_key, &correct_passphrase).unwrap();
 
-        let result = Crypto::unwrap_key(&wrapped, "wrong-passphrase");
+        let result = Crypto::unwrap_key(&wrapped, &wrong_passphrase);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_export_crypto() {
         let data = b"Export test data";
-        let password = "export-password";
+        let password = test_passphrase("export");
 
-        let (ciphertext, salt, nonce) = ExportCrypto::encrypt_for_export(data, password).unwrap();
-        let decrypted = ExportCrypto::decrypt_export(&ciphertext, &salt, &nonce, password).unwrap();
+        let (ciphertext, salt, nonce) = ExportCrypto::encrypt_for_export(data, &password).unwrap();
+        let decrypted =
+            ExportCrypto::decrypt_export(&ciphertext, &salt, &nonce, &password).unwrap();
 
         assert_eq!(data.as_slice(), decrypted.as_slice());
     }

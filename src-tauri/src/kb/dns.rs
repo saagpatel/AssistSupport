@@ -12,7 +12,8 @@
 //! with the proper Host header. This completely eliminates DNS re-resolution.
 
 use hickory_resolver::config::{ResolverConfig, ResolverOpts};
-use hickory_resolver::TokioAsyncResolver;
+use hickory_resolver::net::runtime::TokioRuntimeProvider;
+use hickory_resolver::TokioResolver;
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, RwLock};
@@ -61,7 +62,7 @@ pub struct PinnedDnsResolver {
     /// Map from hostname to validated IPs
     pinned: Arc<RwLock<HashMap<String, Vec<IpAddr>>>>,
     /// Async DNS resolver for initial lookups
-    resolver: TokioAsyncResolver,
+    resolver: TokioResolver,
     /// SSRF protection config
     ssrf_config: SsrfConfig,
 }
@@ -69,9 +70,13 @@ pub struct PinnedDnsResolver {
 impl PinnedDnsResolver {
     /// Create a new pinned DNS resolver
     pub async fn new(ssrf_config: SsrfConfig) -> Result<Self, DnsError> {
-        // trust-dns-resolver 0.23's TokioAsyncResolver::tokio() returns the resolver directly
-        let resolver =
-            TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
+        let resolver = TokioResolver::builder_with_config(
+            ResolverConfig::default(),
+            TokioRuntimeProvider::default(),
+        )
+        .with_options(ResolverOpts::default())
+        .build()
+        .map_err(|e| DnsError::ResolverError(e.to_string()))?;
 
         Ok(Self {
             pinned: Arc::new(RwLock::new(HashMap::new())),

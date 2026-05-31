@@ -10,8 +10,22 @@ if [[ "$branch" == "HEAD" && "${CI:-}" == "true" ]]; then
 fi
 
 if [[ "$branch" == "main" || "$branch" == "master" ]]; then
+  if [[ "${CI:-}" == "true" && "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    echo "Default branch CI checkout detected; skipping branch-name guard."
+    exit 0
+  fi
   echo "Direct work on $branch is blocked."
   exit 1
+fi
+
+if [[ "$branch" == release-please--branches--* ]]; then
+  echo "Release Please automation branch detected; skipping branch-name guard."
+  exit 0
+fi
+
+if [[ "$branch" == dependabot/* ]]; then
+  echo "Dependabot automation branch detected; skipping branch-name guard."
+  exit 0
 fi
 
 if ! [[ "$branch" =~ $pattern ]]; then

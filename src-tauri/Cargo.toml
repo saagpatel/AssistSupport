@@ -1,6 +1,6 @@
 [package]
 name = "assistsupport"
-version = "1.2.0"
+version = "1.3.0"
 description = "Intelligent IT support with semantic search"
 authors = ["you"]
 edition = "2021"
@@ -15,11 +15,11 @@ name = "assistsupport-cli"
 path = "src/bin/assistsupport-cli.rs"
 
 [build-dependencies]
-tauri-build = { version = "=2.5.3", features = [] }
+tauri-build = { version = "=2.6.1", features = [] }
 
 [dependencies]
-tauri = { version = "=2.9.5", default-features = false, features = ["wry", "compression", "common-controls-v6", "dynamic-acl"] }
-tauri-plugin-dialog = { version = "2.6.0", default-features = false, features = ["xdg-portal"] }
+tauri = { version = "=2.11.1", default-features = false, features = ["wry", "compression", "common-controls-v6", "dynamic-acl"] }
+tauri-plugin-dialog = { version = "2.7.1", default-features = false, features = ["xdg-portal"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
@@ -73,7 +73,7 @@ regex-lite = "0.1"
 url = "2"
 
 # DNS resolution for SSRF protection
-hickory-resolver = "0.24"
+hickory-resolver = "0.26.1"
 
 # Unicode normalization for filter sanitization
 unicode-normalization = "0.1"

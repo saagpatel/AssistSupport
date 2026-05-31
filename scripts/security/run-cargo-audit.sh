@@ -9,8 +9,9 @@ cd "$repo_root/src-tauri"
 #
 # Owner: Platform Engineering
 # Review date: 2026-03-09
-# Last remediation update: quinn-proto upgraded to 0.11.14 to clear
-# RUSTSEC-2026-0037.
+# Last remediation update: hickory-resolver upgraded to 0.26.1 to clear
+# RUSTSEC-2026-0119, and locked lz4_flex versions kept outside the
+# RUSTSEC-2026-0041 vulnerable ranges.
 # Umbrella tracking issue: https://github.com/saagar210/AssistSupport/issues/11
 #
 # GTK3/Tauri Linux runtime chain (issue #12):
@@ -38,6 +39,10 @@ cd "$repo_root/src-tauri"
 #
 # Tantivy/Lance chain (issue #15):
 # - RUSTSEC-2026-0002 lru
+#
+# Image/Ravif and Rand transitives (issue #16):
+# - RUSTSEC-2026-0105 core2
+# - RUSTSEC-2026-0097 rand
 # Deny unsound/unmaintained advisories but do not hard-fail on yanked crate warnings,
 # which can fluctuate transitively outside this repo's direct control.
 cargo audit --deny unsound --deny unmaintained \
@@ -58,4 +63,6 @@ cargo audit --deny unsound --deny unmaintained \
   --ignore RUSTSEC-2025-0081 \
   --ignore RUSTSEC-2025-0098 \
   --ignore RUSTSEC-2025-0100 \
-  --ignore RUSTSEC-2026-0002
+  --ignore RUSTSEC-2026-0002 \
+  --ignore RUSTSEC-2026-0097 \
+  --ignore RUSTSEC-2026-0105

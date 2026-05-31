@@ -12,6 +12,10 @@ use assistsupport_lib::security::{
 use std::fs;
 use tempfile::TempDir;
 
+fn test_passphrase(label: &str) -> String {
+    format!("{label}-{}", rand::random::<u64>())
+}
+
 // ============================================================================
 // Master Key Tests
 // ============================================================================
@@ -236,10 +240,10 @@ fn test_encryption_large_data() {
 #[test]
 fn test_key_wrapping_with_passphrase() {
     let master_key = MasterKey::generate();
-    let passphrase = "my-secure-passphrase-123";
+    let passphrase = test_passphrase("key-wrap");
 
-    let wrapped = Crypto::wrap_key(&master_key, passphrase).expect("Wrapping failed");
-    let unwrapped = Crypto::unwrap_key(&wrapped, passphrase).expect("Unwrapping failed");
+    let wrapped = Crypto::wrap_key(&master_key, &passphrase).expect("Wrapping failed");
+    let unwrapped = Crypto::unwrap_key(&wrapped, &passphrase).expect("Unwrapping failed");
 
     assert_eq!(
         master_key.as_bytes(),
@@ -251,9 +255,11 @@ fn test_key_wrapping_with_passphrase() {
 #[test]
 fn test_key_wrapping_wrong_passphrase_fails() {
     let master_key = MasterKey::generate();
-    let wrapped = Crypto::wrap_key(&master_key, "correct-passphrase").expect("Wrapping failed");
+    let correct_passphrase = test_passphrase("correct");
+    let wrong_passphrase = test_passphrase("wrong");
+    let wrapped = Crypto::wrap_key(&master_key, &correct_passphrase).expect("Wrapping failed");
 
-    let result = Crypto::unwrap_key(&wrapped, "wrong-passphrase");
+    let result = Crypto::unwrap_key(&wrapped, &wrong_passphrase);
     assert!(
         result.is_err(),
         "Unwrapping with wrong passphrase should fail"
@@ -263,11 +269,11 @@ fn test_key_wrapping_wrong_passphrase_fails() {
 #[test]
 fn test_key_wrapping_produces_different_output() {
     let master_key = MasterKey::generate();
-    let passphrase = "test-passphrase";
+    let passphrase = test_passphrase("different-output");
 
     // Wrap the same key twice
-    let wrapped1 = Crypto::wrap_key(&master_key, passphrase).expect("Wrapping failed");
-    let wrapped2 = Crypto::wrap_key(&master_key, passphrase).expect("Wrapping failed");
+    let wrapped1 = Crypto::wrap_key(&master_key, &passphrase).expect("Wrapping failed");
+    let wrapped2 = Crypto::wrap_key(&master_key, &passphrase).expect("Wrapping failed");
 
     // Salts should be different
     assert_ne!(
@@ -276,8 +282,8 @@ fn test_key_wrapping_produces_different_output() {
     );
 
     // Both should unwrap correctly
-    let unwrapped1 = Crypto::unwrap_key(&wrapped1, passphrase).expect("Unwrapping failed");
-    let unwrapped2 = Crypto::unwrap_key(&wrapped2, passphrase).expect("Unwrapping failed");
+    let unwrapped1 = Crypto::unwrap_key(&wrapped1, &passphrase).expect("Unwrapping failed");
+    let unwrapped2 = Crypto::unwrap_key(&wrapped2, &passphrase).expect("Unwrapping failed");
 
     assert_eq!(unwrapped1.as_bytes(), master_key.as_bytes());
     assert_eq!(unwrapped2.as_bytes(), master_key.as_bytes());
@@ -290,12 +296,12 @@ fn test_key_wrapping_produces_different_output() {
 #[test]
 fn test_export_crypto_roundtrip() {
     let data = b"Export test data with various content: 123!@#";
-    let password = "export-password-456";
+    let password = test_passphrase("export");
 
     let (ciphertext, salt, nonce) =
-        ExportCrypto::encrypt_for_export(data, password).expect("Export encryption failed");
+        ExportCrypto::encrypt_for_export(data, &password).expect("Export encryption failed");
 
-    let decrypted = ExportCrypto::decrypt_export(&ciphertext, &salt, &nonce, password)
+    let decrypted = ExportCrypto::decrypt_export(&ciphertext, &salt, &nonce, &password)
         .expect("Decryption failed");
 
     assert_eq!(
@@ -308,10 +314,12 @@ fn test_export_crypto_roundtrip() {
 #[test]
 fn test_export_crypto_wrong_password_fails() {
     let data = b"Secret export data";
-    let (ciphertext, salt, nonce) = ExportCrypto::encrypt_for_export(data, "correct-password")
+    let correct_password = test_passphrase("correct-export");
+    let wrong_password = test_passphrase("wrong-export");
+    let (ciphertext, salt, nonce) = ExportCrypto::encrypt_for_export(data, &correct_password)
         .expect("Export encryption failed");
 
-    let result = ExportCrypto::decrypt_export(&ciphertext, &salt, &nonce, "wrong-password");
+    let result = ExportCrypto::decrypt_export(&ciphertext, &salt, &nonce, &wrong_password);
     assert!(
         result.is_err(),
         "Export decryption with wrong password should fail"
