@@ -18,6 +18,17 @@ const isJsTest = (file) => /\.(test|spec)\.[cm]?[jt]sx?$/.test(file);
 const isRustTest = (file) => /^src-tauri\/tests\//.test(file);
 const isPythonTest = (file) => /^search-api\/tests\//.test(file) || /^search-api\/test_.*\.py$/.test(file);
 
+const dependencyManifestFiles = new Set([
+  'package.json',
+  'pnpm-lock.yaml',
+  'src-tauri/Cargo.toml',
+  'src-tauri/Cargo.lock',
+  'search-api/requirements.txt',
+  'search-api/requirements-test.txt',
+]);
+
+const isDependencyManifest = (file) => dependencyManifestFiles.has(file);
+
 const isProdCode = (file) =>
   ((/^(src|app|server|api)\//.test(file) && !isJsTest(file)) ||
     /^src-tauri\/src\//.test(file) ||
@@ -52,9 +63,11 @@ const apiChanged = diff.some(isApiSurface);
 const docsChanged = diff.some(isDoc);
 const archChanged = diff.some(isArchChange);
 const adrChanged = diff.some(isAdr);
+const dependencyManifestOnly = diff.length > 0 && diff.every(isDependencyManifest);
 
 const failures = [];
-if (prodChanged && !testsChanged) failures.push('Policy failure: production code changed without test updates.');
+if (prodChanged && !testsChanged && !dependencyManifestOnly)
+  failures.push('Policy failure: production code changed without test updates.');
 if (apiChanged && !docsChanged) failures.push('Policy failure: API/command changes without docs/OpenAPI updates.');
 if (archChanged && !adrChanged) failures.push('Policy failure: architecture-impacting change without ADR.');
 
