@@ -21,6 +21,15 @@ jobs:
         with:
           script: |
             const body = context.payload.pull_request.body || "";
+            const author = context.payload.pull_request.user?.login || "";
+            const title = context.payload.pull_request.title || "";
+            const dependabotAuthors = new Set(["app/dependabot", "dependabot[bot]", "dependabot"]);
+            const isDependabotBump =
+              dependabotAuthors.has(author) && /^build\(deps\): bump /i.test(title);
+            if (isDependabotBump || (dependabotAuthors.has(author) && /updated-dependencies:/i.test(body))) {
+              core.info("Dependabot dependency bump accepted as lockfile rationale.");
+              return;
+            }
             if (!/## Lockfile rationale/i.test(body)) {
               core.setFailed("Lockfile changed but PR body lacks 'Lockfile rationale' section.");
             }
