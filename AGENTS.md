@@ -60,6 +60,7 @@
 - Reviewer -> fixer -> reviewer loop is required before merge.
 
 <!-- portfolio-context:start -->
+
 # Portfolio Context
 
 ## What This Project Is
@@ -78,7 +79,7 @@ The repo is active product work. The README describes the intended support workf
 | Frontend      | React + TypeScript + Vite                           |
 | ML search     | TF-IDF, Logistic Regression, ms-marco-MiniLM-L-6-v2 |
 | Local storage | SQLite (encrypted)                                  |
-| LLM inference | Local via Ollama (optional)                         |
+| LLM inference | Local via llama.cpp (optional)                      |
 | Fonts         | IBM Plex Sans, JetBrains Mono                       |
 
 ## How To Run
