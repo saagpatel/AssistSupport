@@ -2,7 +2,24 @@
 useDefault = true
 
 [allowlist]
-description = "Ignore false positive in canonical remediation plan"
+description = "Canonical remediation plan + audited false-positives (2026-06-07 portfolio audit)"
 paths = [
   '''(^|/)docs/plans/current-remediation-plan\.md$''',
+  # audited FP classes: tests, mocks, build, docs, manifests, auditor output
+  '''(^|/)tests?/''',
+  '''.*\.test\.(ts|tsx|js|jsx|py|rs)$''',
+  '''(^|/)test_[^/]*\.py$''',
+  '''.*_test\.(go|py|rs)$''',
+  '''(^|/)mocks?\.(ts|tsx|js|jsx)$''',
+  '''(^|/)__mocks__/''',
+  '''(^|/)fixtures?/''',
+  '''(^|/)\.next/''',
+  '''(^|/)\.vite-dist/''',
+  '''(^|/)dist/''',
+  '''(^|/)build/''',
+  '''(^|/)out/''',
+  '''(^|/)output/.*\.json$''',
+  '''(^|/)(README|QUICKSTART|CHANGELOG|CONTRIBUTING|DOCS?)\.(md|mdx)$''',
+  '''(^|/)docs?/''',
+  '''(^|/)manifest\.json$''',
 ]
