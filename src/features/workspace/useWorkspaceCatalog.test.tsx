@@ -66,6 +66,34 @@ const defaultTemplates = [
 ];
 
 describe("useWorkspaceCatalog", () => {
+  it("keeps refresh stable when callers pass a new ops wrapper with the same methods", () => {
+    const ops = makeOps();
+    const makeProps = () => ({
+      workspaceRailEnabled: true,
+      guidedRunbooksEnabled: true,
+      workspaceRunbookScopeKey: "workspace:test",
+      defaultRunbookTemplates: defaultTemplates,
+      ops: {
+        listResolutionKits: ops.listResolutionKits,
+        listWorkspaceFavorites: ops.listWorkspaceFavorites,
+        listRunbookTemplates: ops.listRunbookTemplates,
+        saveRunbookTemplate: ops.saveRunbookTemplate,
+        listRunbookSessions: ops.listRunbookSessions,
+        listRunbookStepEvidence: ops.listRunbookStepEvidence,
+      },
+    });
+    const { result, rerender } = renderHook(
+      (props: Parameters<typeof useWorkspaceCatalog>[0]) =>
+        useWorkspaceCatalog(props),
+      { initialProps: makeProps() },
+    );
+
+    const firstRefresh = result.current.refreshWorkspaceCatalog;
+    rerender(makeProps());
+
+    expect(result.current.refreshWorkspaceCatalog).toBe(firstRefresh);
+  });
+
   it("keeps empty catalogs stable when workspace rail is disabled", async () => {
     const ops = makeOps();
     const { result } = renderHook(() =>
@@ -176,5 +204,82 @@ describe("useWorkspaceCatalog", () => {
     });
     expect(result.current.runbookSessionSourceScopeKey).toBe("legacy:unscoped");
     expect(result.current.guidedRunbookSession?.evidence).toHaveLength(1);
+  });
+
+  it("falls back to empty catalog data when catalog and evidence reads fail", async () => {
+    const listResolutionKits = vi.fn(async () => {
+      throw new Error("kits unavailable");
+    });
+    const listWorkspaceFavorites = vi.fn(async () => {
+      throw new Error("favorites unavailable");
+    });
+    const listRunbookTemplates = vi.fn(async () => {
+      throw new Error("templates unavailable");
+    });
+    const listRunbookSessions = vi.fn(async () => [
+      {
+        id: "session-1",
+        scenario: "security-incident",
+        scope_key: "workspace:test",
+        status: "active",
+        steps_json: '["Acknowledge incident"]',
+        current_step: 0,
+        created_at: "2026-03-24T12:00:00.000Z",
+        updated_at: "2026-03-24T12:00:00.000Z",
+      } satisfies RunbookSessionRecord,
+    ]);
+    const listRunbookStepEvidence = vi.fn(async () => {
+      throw new Error("evidence unavailable");
+    });
+    const ops = makeOps({
+      listResolutionKits,
+      listWorkspaceFavorites,
+      listRunbookTemplates,
+      listRunbookSessions,
+      listRunbookStepEvidence,
+    });
+    const { result } = renderHook(() =>
+      useWorkspaceCatalog({
+        workspaceRailEnabled: true,
+        guidedRunbooksEnabled: false,
+        workspaceRunbookScopeKey: "workspace:test",
+        defaultRunbookTemplates: defaultTemplates,
+        ops,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.refreshWorkspaceCatalog();
+    });
+
+    expect(result.current.resolutionKits).toEqual([]);
+    expect(result.current.workspaceFavorites).toEqual([]);
+    expect(result.current.runbookTemplates).toEqual([]);
+    expect(result.current.guidedRunbookSession?.id).toBe("session-1");
+    expect(result.current.guidedRunbookSession?.evidence).toEqual([]);
+  });
+
+  it("keeps runbook session empty when scoped and legacy session reads fail", async () => {
+    const listRunbookSessions = vi.fn(async () => {
+      throw new Error("sessions unavailable");
+    });
+    const ops = makeOps({ listRunbookSessions });
+    const { result } = renderHook(() =>
+      useWorkspaceCatalog({
+        workspaceRailEnabled: true,
+        guidedRunbooksEnabled: false,
+        workspaceRunbookScopeKey: "workspace:test",
+        defaultRunbookTemplates: defaultTemplates,
+        ops,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.refreshWorkspaceCatalog();
+    });
+
+    expect(listRunbookSessions).toHaveBeenCalledTimes(2);
+    expect(result.current.guidedRunbookSession).toBeNull();
+    expect(result.current.runbookSessionSourceScopeKey).toBeNull();
   });
 });
