@@ -732,7 +732,7 @@ describe("SettingsTab", () => {
     );
   });
 
-  it("covers variables, Jira, backup, deployment, audit, and threshold operations", async () => {
+  it("covers variables and Jira operations", async () => {
     const user = userEvent.setup();
     render(<SettingsTab />);
 
@@ -790,6 +790,13 @@ describe("SettingsTab", () => {
     await screen.findByText(/connected to https:\/\/example\.atlassian\.net/i);
     await user.click(screen.getByRole("button", { name: "Disconnect" }));
     await waitFor(() => expect(disconnectJiraMock).toHaveBeenCalled());
+  });
+
+  it("covers backup, deployment, audit, and threshold operations", async () => {
+    const user = userEvent.setup();
+    render(<SettingsTab />);
+
+    await screen.findByText("Template Variables");
 
     await user.click(screen.getByRole("button", { name: "Export Backup" }));
     await user.click(screen.getByRole("button", { name: "Import Backup" }));
