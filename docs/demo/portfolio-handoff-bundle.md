@@ -80,6 +80,9 @@ Deck PDF regeneration command used on this workstation:
 
 ## Share Package
 
+Outbound-ready copy lives in
+[outbound-share-package.md](./outbound-share-package.md).
+
 Use this order when sending or posting the public portfolio package:
 
 | Order | Item                | Use                               | Attach or link                                                     |
