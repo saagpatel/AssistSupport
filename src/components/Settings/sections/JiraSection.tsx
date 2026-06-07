@@ -77,7 +77,7 @@ export function JiraSection({
             <input
               id="jira-email"
               type="email"
-              placeholder="your.email@company.com"
+              placeholder="operator@northstar.example"
               value={jiraForm.email}
               onChange={(e) =>
                 setJiraForm((f) => ({ ...f, email: e.target.value }))

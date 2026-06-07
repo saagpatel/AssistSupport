@@ -2,7 +2,7 @@
 
 ## Self-Service Password Reset
 
-1. Go to https://passwordreset.company.com
+1. Go to https://passwordreset.northstar.example
 2. Enter your company email address
 3. Verify your identity via MFA (push notification or SMS)
 4. Create a new password meeting requirements:

@@ -22,7 +22,7 @@ deck plus a rendered PDF for preview / distribution.
 | 04  | The pipeline — five stages, all local.                                    | Architecture: intent → retrieve → rerank → draft → learn, with latency per stage. |
 | 05  | The workspace — composer, answer, triage.                                 | Demo pause — hero screenshot + 3 annotated callouts.                              |
 | 06  | Why logreg + TF-IDF beat embeddings here.                                 | ML intent classifier: F1, latency, inspectability.                                |
-| 07  | Sub-25 ms retrieval over 3,500+ articles.                                 | Hybrid search: TF-IDF + MiniLM-L-6 cross-encoder, latency budget diagram.         |
+| 07  | Sub-25 ms retrieval over the local KB.                                    | Hybrid search: TF-IDF + MiniLM-L-6 cross-encoder, latency budget diagram.         |
 | 08  | The model is allowed to say "I don't know."                               | Trust gating: answer / clarify / abstain modes.                                   |
 | 09  | Low-confidence queries become the KB backlog.                             | Self-improving feedback loop with KB gap dashboard.                               |
 | 10  | Yes, a desktop app needs a deploy story.                                  | Ops surface + eval harness side-by-side.                                          |

@@ -78,7 +78,7 @@ column. Camera slowly zooms in on the confidence gauge as it fills to
 > citations are generated directly into the prompt — the model
 > can't cite a document it didn't actually see."_
 
-**Caption:** `Hybrid retrieval · 22ms p50 · 46ms p95 · 3,500+ articles`
+**Caption:** `Hybrid retrieval · 22ms p50 · 46ms p95 · sanitized local KB`
 
 ---
 

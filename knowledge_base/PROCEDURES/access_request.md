@@ -2,7 +2,7 @@
 
 ## How to Request Access to a System or Application
 
-1. **Go to the IT Access Portal** at https://it.company.com/access
+1. **Go to the IT Access Portal** at https://it.northstar.example/access
 2. **Search for the application or system** you need access to
 3. **Select the access level** (Read, Write, Admin)
 4. **Provide business justification**
@@ -23,6 +23,7 @@
 ## Revoking Access
 
 Access is automatically revoked when:
+
 - Employee leaves the company
 - Contract expires
 - Manager requests revocation

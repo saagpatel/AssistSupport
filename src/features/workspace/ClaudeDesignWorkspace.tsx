@@ -113,7 +113,7 @@ const TONE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
 ];
 
 /**
- * Derive initials for the ticket avatar — "Priya Anand" -> "PA".
+ * Derive initials for the ticket avatar — "Jordan Lee" -> "JL".
  */
 function initialsFor(name: string | null | undefined): string {
   if (!name) return "?";

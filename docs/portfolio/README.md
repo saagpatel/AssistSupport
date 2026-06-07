@@ -83,12 +83,13 @@ Engineering-professional across all artifacts:
 
 - No emojis
 - No marketing superlatives
-- Specific numbers: `22 ms p50`, `0.914 macro-F1`, `3,500+ articles`,
-  `25% deflection`, `90-second rollback SLO`
+- Specific numbers are allowed only when they are current and traceable.
+  For sanitized demo collateral, prefer labels such as `demo KB`,
+  `sanitized local index`, and `illustrative benchmark`.
 - Pronouns first-person singular only in the deck + case study
   (sessions 1–3 are product-voice)
-- Citations are real — every number traces back to either the README,
-  the eval harness, or a prior production benchmark
+- Citations are real — every number must trace back to current repo
+  evidence, the eval harness, or be labeled as illustrative.
 
 ## Regeneration commands
 

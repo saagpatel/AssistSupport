@@ -4,10 +4,15 @@ set -euo pipefail
 # Ensure diff-cover is available before we invoke it. The quality-gates
 # workflow historically installed it in a later step, which caused the
 # verify-commands stage (where this script runs) to fail with
-# ModuleNotFoundError on every PR. Make the script self-sufficient so it
-# works whether called from CI, local dev, or a fresh container.
-if ! python3 -c "import diff_cover" >/dev/null 2>&1; then
-  python3 -m pip install --quiet --disable-pip-version-check diff-cover
+# ModuleNotFoundError on every PR. Keep the script self-sufficient without
+# mutating externally managed Python installs such as Homebrew's.
+diff_cover_python="${DIFF_COVER_PYTHON:-python3}"
+if ! "$diff_cover_python" -c "import diff_cover" >/dev/null 2>&1; then
+  cache_root="${XDG_CACHE_HOME:-${HOME:-$PWD}/.cache}"
+  venv_dir="${DIFF_COVER_VENV:-$cache_root/assistsupport/diff-cover-venv}"
+  python3 -m venv "$venv_dir"
+  "$venv_dir/bin/python" -m pip install --quiet --disable-pip-version-check diff-cover
+  diff_cover_python="$venv_dir/bin/python"
 fi
 
 base_ref="${GITHUB_BASE_REF:-}"
@@ -42,8 +47,8 @@ if [[ ! -f "$coverage_file" ]]; then
   exit 1
 fi
 
-python3 -m diff_cover.diff_cover_tool "$coverage_file" \
+"$diff_cover_python" -m diff_cover.diff_cover_tool "$coverage_file" \
   --compare-branch="$compare_branch" \
   --fail-under=90 \
   --include "src/**/*.ts" "src/**/*.tsx" \
-  --exclude "src/**/*.test.ts" "src/**/*.test.tsx" "src/**/*.spec.ts" "src/**/*.spec.tsx"
+  --exclude "*.test.ts" "*.test.tsx" "*.spec.ts" "*.spec.tsx" "*/src/test/*"

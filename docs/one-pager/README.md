@@ -32,8 +32,8 @@ print-ready portfolio leave-behind.
 │ [01 ML intent] [02 Hybrid] [03 Trust] [04 Feedback] [05 Local]    │
 │                                                                   │
 │ ──────────────────────────────────────────────────────────────── │
-│   25%              │   <25ms              │   3,500+              │
-│   ticket deflection│   hybrid search p50  │   KB articles indexed │
+│   25%              │   <25ms              │   demo KB             │
+│   ticket deflection│   hybrid search p50  │   sanitized index     │
 │ ──────────────────────────────────────────────────────────────── │
 │ Tauri · React · TS · Rust · SQLCipher · Ollama   github.com/…     │
 └──────────────────────────────────────────────────────────────────┘
@@ -66,9 +66,9 @@ from session 2 — if that screenshot changes, re-run
   a small mono stat tag (e.g. `0.914 macro-F1`, `22ms p50`,
   `0.93 grounded · 0.96 faithful`).
 - **Impact strip (3 columns):**
-  - **25%** ticket deflection — benchmark from prior Aisera deployment
-  - **<25ms** hybrid search p50 — measured on M3 MBP, eval run #4812
-  - **3,500+** KB articles indexed — nightly reindex, 46s
+  - **25%** ticket deflection — illustrative support-automation benchmark
+  - **<25ms** hybrid search p50 — demo latency target for the local path
+  - **Demo KB** articles indexed — sanitized local index for capture
 - **Footer:** tech stack chips (Tauri 2 · React 19 · TypeScript · Rust
   · SQLCipher · Ollama · TF-IDF + MiniLM) plus repo URL.
 

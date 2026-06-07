@@ -52,15 +52,15 @@ and keeps the operator in the loop."**
 Slowest slide. Walk left-to-right through the 5 stages. At DRAFT
 (highlighted), pause — that's where the LLM lives. Call out the
 runtime line verbatim so audience absorbs the dependency list. End on
-the stat row: **1.8s p95 · 22ms p50 · ~5GB · 0 B exfil**. The last stat
-(0 B) is the applause line — wait a beat.
+the stat row: **1.8s p95 · 22ms p50 · ~5GB local runtime · no cloud demo path**.
+The last stat is the privacy line — wait a beat.
 
 ### 05 · Demo (5 min, interactive)
 
 Switch to screenshare / running app. Suggested script:
 
 1. Click into the composer, paste the real prompt from the deck
-   ("Can I use a flash drive...").
+   ("Can I use a flash drive for the offsite?").
 2. Click a single intent chip so the ML trace lights up.
 3. Press **⌘↵**. Narrate the sub-25ms retrieval while it runs.
 4. When the draft streams in, hover a `[1]` citation — show the
@@ -141,7 +141,7 @@ seconds after the first hand.
 
 ## Closing line options
 
-1. _"Everything you just saw is MIT-licensed and 229 commits. Fork it, ship your own."_
+1. _"Everything you just saw is MIT-licensed in the current repo. Fork it, ship your own."_
 2. _"If there's one thing to take away: local-first is a UX decision, not just a security one. Your operators will trust the tool more."_
 3. _"Support will always be repetitive. The question is whether repetition is suffered by humans or compiled down into a pipeline. Thanks for watching."_
 
