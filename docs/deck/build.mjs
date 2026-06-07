@@ -51,7 +51,7 @@ const MONO = "JetBrains Mono";
 const pptx = new PptxGenJS();
 pptx.layout = "LAYOUT_WIDE"; // 13.333 × 7.5 in
 pptx.title = "Running a local-first support agent on a Mac";
-pptx.author = "Saagar Patel";
+pptx.author = "Demo Operator";
 pptx.company = "AssistSupport";
 pptx.subject = "LinkedIn Live — portfolio-grade IT support assistant";
 
@@ -344,7 +344,7 @@ function notes(slide, text) {
   });
   s.addText(
     [
-      { text: "Saagar Patel", options: { color: C.text1, bold: true } },
+      { text: "Demo Operator", options: { color: C.text1, bold: true } },
       { text: "  ·  IT Platform Eng · Local-first demo", options: { color: C.text3 } },
     ],
     {

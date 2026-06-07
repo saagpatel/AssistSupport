@@ -171,8 +171,8 @@ export function setupE2eTauriMock(): void {
       summary: "VPN fails on office Wi-Fi only — 14 tickets",
       ticket_count: 14,
       tickets_json: JSON.stringify([
-        { id: "AS-4213", summary: "VPN fails only on office Wi-Fi" },
-        { id: "AS-4199", summary: "Tunnel drops when I plug into ethernet" },
+        { id: "NSD-4213", summary: "VPN fails only on office Wi-Fi" },
+        { id: "NSD-4199", summary: "Tunnel drops when I plug into ethernet" },
       ]),
       created_at: "2026-04-24T11:05:00Z",
     },
@@ -182,8 +182,8 @@ export function setupE2eTauriMock(): void {
       summary: "Outlook crash on M3 Macs after macOS 14.5 — 9 tickets",
       ticket_count: 9,
       tickets_json: JSON.stringify([
-        { id: "AS-4215", summary: "Outlook keeps crashing on M3 after 14.5" },
-        { id: "AS-4204", summary: "Classic Outlook won't open macOS 14.5" },
+        { id: "NSD-4215", summary: "Outlook keeps crashing on M3 after 14.5" },
+        { id: "NSD-4204", summary: "Classic Outlook won't open macOS 14.5" },
       ]),
       created_at: "2026-04-23T16:00:00Z",
     },
@@ -194,10 +194,10 @@ export function setupE2eTauriMock(): void {
       ticket_count: 7,
       tickets_json: JSON.stringify([
         {
-          id: "AS-4191",
+          id: "NSD-4191",
           summary: "Screen recording permission keeps resetting",
         },
-        { id: "AS-4188", summary: "tccd keeps forgetting my choice" },
+        { id: "NSD-4188", summary: "tccd keeps forgetting my choice" },
       ]),
       created_at: "2026-04-22T09:20:00Z",
     },
@@ -207,7 +207,7 @@ export function setupE2eTauriMock(): void {
       summary: "Slack workspace export for compliance audit — 5 tickets",
       ticket_count: 5,
       tickets_json: JSON.stringify([
-        { id: "AS-4212", summary: "Export Slack workspace archive for audit" },
+        { id: "NSD-4212", summary: "Export Slack workspace archive for audit" },
       ]),
       created_at: "2026-04-21T11:15:00Z",
     },
@@ -217,7 +217,7 @@ export function setupE2eTauriMock(): void {
       summary: "Touch ID sudo not persisting after update — 4 tickets",
       ticket_count: 4,
       tickets_json: JSON.stringify([
-        { id: "AS-4210", summary: "Touch ID for sudo on dev-provisioned Mac" },
+        { id: "NSD-4210", summary: "Touch ID for sudo on dev-provisioned Mac" },
       ]),
       created_at: "2026-04-20T14:42:00Z",
     },
