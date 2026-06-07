@@ -217,7 +217,7 @@ sum _is_ magic.
 
 - **Repo:** [github.com/saagpatel/AssistSupport](https://github.com/saagpatel/AssistSupport) (MIT)
 - **One-pager:** [docs/one-pager/AssistSupport-one-pager.pdf](one-pager/AssistSupport-one-pager.pdf)
-- **Deck:** [docs/deck/AssistSupport-LinkedIn-Live.pptx](deck/AssistSupport-LinkedIn-Live.pptx)
+- **Deck:** [docs/deck/AssistSupport-LinkedIn-Live.pdf](deck/AssistSupport-LinkedIn-Live.pdf)
 - **Screenshot set:** [docs/screenshots/](screenshots/)
 - **Redesign handoff:** [docs/redesign/](redesign/)
 

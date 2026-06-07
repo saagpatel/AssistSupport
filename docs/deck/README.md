@@ -5,12 +5,12 @@ deck plus a rendered PDF for preview / distribution.
 
 ## Output
 
-| File                                                                 | Purpose                                              |
-| -------------------------------------------------------------------- | ---------------------------------------------------- |
-| [AssistSupport-LinkedIn-Live.pptx](AssistSupport-LinkedIn-Live.pptx) | Editable deck for PowerPoint / Keynote / Slides.     |
-| [AssistSupport-LinkedIn-Live.pdf](AssistSupport-LinkedIn-Live.pdf)   | 12-page PDF render (via LibreOffice) for preview.    |
-| [build.mjs](build.mjs)                                               | pptxgenjs composer — re-run to regenerate the deck.  |
-| [package.json](package.json)                                         | Local deps (`pptxgenjs`) isolated from the app root. |
+| File                                                               | Purpose                                                     |
+| ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `AssistSupport-LinkedIn-Live.pptx`                                 | Local editable deck rebuilt by `npm run build`; gitignored. |
+| [AssistSupport-LinkedIn-Live.pdf](AssistSupport-LinkedIn-Live.pdf) | 12-page PDF render (via LibreOffice) for preview.           |
+| [build.mjs](build.mjs)                                             | pptxgenjs composer — re-run to regenerate the deck.         |
+| [package.json](package.json)                                       | Local deps (`pptxgenjs`) isolated from the app root.        |
 
 ## Slide outline
 
@@ -74,8 +74,9 @@ wording tweaks, and painting slides onto images would block that.
 ```bash
 cd docs/deck
 npm run build
+cd ../..
 # optional: render a PDF preview
-soffice --headless --convert-to pdf AssistSupport-LinkedIn-Live.pptx
+soffice --headless --convert-to pdf --outdir docs/deck docs/deck/AssistSupport-LinkedIn-Live.pptx
 ```
 
 If `soffice` is not on `PATH` in Codex, use the bundled runtime binary from the

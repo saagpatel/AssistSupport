@@ -7,12 +7,12 @@ session folders and are linked below.
 
 ## The four primary artifacts
 
-| #   | Artifact                                        | Session folder                                  | Primary output                                                                                 |
-| --- | ----------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| 1   | Workspace redesign — Claude Code handoff bundle | [`docs/redesign/`](../redesign/README.md)       | [`WorkspaceHeroLayout.tsx`](../../src/features/workspace/WorkspaceHeroLayout.tsx) + CSS + spec |
-| 2   | 6-panel 2× portfolio screenshot set             | [`docs/screenshots/`](../screenshots/README.md) | Six 2880×1800 PNGs + 2×3 contact sheet + captions                                              |
-| 3   | Landscape-letter one-pager PDF                  | [`docs/one-pager/`](../one-pager/README.md)     | [`AssistSupport-one-pager.pdf`](../one-pager/AssistSupport-one-pager.pdf) (11in × 8.5in)       |
-| 4   | 12-slide LinkedIn Live deck                     | [`docs/deck/`](../deck/README.md)               | [`AssistSupport-LinkedIn-Live.pptx`](../deck/AssistSupport-LinkedIn-Live.pptx) + PDF preview   |
+| #   | Artifact                                        | Session folder                                  | Primary output                                                                                          |
+| --- | ----------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 1   | Workspace redesign — Claude Code handoff bundle | [`docs/redesign/`](../redesign/README.md)       | [`WorkspaceHeroLayout.tsx`](../../src/features/workspace/WorkspaceHeroLayout.tsx) + CSS + spec          |
+| 2   | 6-panel 2× portfolio screenshot set             | [`docs/screenshots/`](../screenshots/README.md) | Six 2880×1800 PNGs + 2×3 contact sheet + captions                                                       |
+| 3   | Landscape-letter one-pager PDF                  | [`docs/one-pager/`](../one-pager/README.md)     | [`AssistSupport-one-pager.pdf`](../one-pager/AssistSupport-one-pager.pdf) (11in × 8.5in)                |
+| 4   | 12-slide LinkedIn Live deck                     | [`docs/deck/`](../deck/README.md)               | [`AssistSupport-LinkedIn-Live.pdf`](../deck/AssistSupport-LinkedIn-Live.pdf) preview + rebuildable PPTX |
 
 ## Supporting artifacts
 
@@ -111,7 +111,15 @@ node docs/one-pager/generate.mjs
 
 # Session 4 — rebuild the PPTX (optional PDF via LibreOffice)
 cd docs/deck && npm run build
-soffice --headless --convert-to pdf AssistSupport-LinkedIn-Live.pptx
+cd ../..
+soffice --headless --convert-to pdf --outdir docs/deck docs/deck/AssistSupport-LinkedIn-Live.pptx
+
+# If soffice is not on PATH in Codex, use the bundled runtime binary
+/Users/d/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/soffice \
+  --headless \
+  --convert-to pdf \
+  --outdir docs/deck \
+  docs/deck/AssistSupport-LinkedIn-Live.pptx
 ```
 
 ## Inventory
@@ -145,8 +153,8 @@ docs/
     ├── README.md · build.mjs · package.json
     ├── REHEARSAL.md                      ← timing + Q&A prep
     ├── DEMO-VIDEO.md                     ← 90s storyboard + narration
-    ├── AssistSupport-LinkedIn-Live.pptx  (editable, 12 slides · gitignored, rebuild via npm run build)
-    └── AssistSupport-LinkedIn-Live.pdf   (PDF preview)
+    ├── AssistSupport-LinkedIn-Live.pptx  (local editable rebuild output · gitignored)
+    └── AssistSupport-LinkedIn-Live.pdf   (committed PDF preview)
 
 src/
 ├── features/workspace/
