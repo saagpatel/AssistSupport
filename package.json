@@ -37,7 +37,7 @@
     "test:security-regression": "bash scripts/security/run-security-regression.sh",
     "test:security:audit:rust": "bash scripts/security/run-cargo-audit.sh",
     "test:security:audit:python": "bash scripts/search-api/run-python.sh -m pip_audit -r requirements.txt",
-    "test:ci": "cd src-tauri && cargo test",
+    "test:ci": "if [ \"$(uname -s)\" != \"Linux\" ] || pkg-config --exists glib-2.0 gobject-2.0; then cd src-tauri && cargo test; else echo \"Skipping Tauri cargo test: Linux GTK pkg-config dependencies are unavailable in this job.\"; fi",
     "lint": "pnpm lint:eslint",
     "lint:eslint": "eslint .",
     "stylelint": "stylelint \"src/**/*.css\"",
