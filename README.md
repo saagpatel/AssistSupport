@@ -52,6 +52,18 @@ pnpm dev
 pnpm tauri build
 ```
 
+## Public Demo & Portfolio Collateral
+
+The public demo package is sanitized and uses only fictional Northstar Labs
+support data. Start with the [sanitized demo plan](docs/demo/sanitized-demo-plan.md)
+for the fake-KB script, cleanup list, and verification checklist.
+
+For portfolio review, use [docs/portfolio/README.md](docs/portfolio/README.md)
+as the single entry point. It links the screenshot set, one-pager PDF, deck PDF
+preview, case study, rehearsal kit, and 90-second video script. The current
+pre-publish handoff lives in
+[docs/demo/portfolio-handoff-bundle.md](docs/demo/portfolio-handoff-bundle.md).
+
 ## Health Checks
 
 Use the daily truth source for normal development and PR confidence:

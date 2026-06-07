@@ -1,6 +1,8 @@
 # LinkedIn Live Rehearsal Kit
 
-Companion to [AssistSupport-LinkedIn-Live.pptx](AssistSupport-LinkedIn-Live.pptx).
+Companion to the
+[AssistSupport-LinkedIn-Live.pdf](AssistSupport-LinkedIn-Live.pdf)
+preview. The editable PPTX is rebuilt locally from `build.mjs`.
 Walks you through a **~30-minute talk** structure plus **10-minute
 Q&A**. Timing, pivots per audience, and anticipated questions per
 slide. Rehearse twice — once with video off reading through cues, once
