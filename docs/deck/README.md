@@ -78,6 +78,17 @@ npm run build
 soffice --headless --convert-to pdf AssistSupport-LinkedIn-Live.pptx
 ```
 
+If `soffice` is not on `PATH` in Codex, use the bundled runtime binary from the
+repo root:
+
+```bash
+/Users/d/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/soffice \
+  --headless \
+  --convert-to pdf \
+  --outdir docs/deck \
+  docs/deck/AssistSupport-LinkedIn-Live.pptx
+```
+
 `pptxgenjs` is installed locally under `docs/deck/node_modules/` so it
 never pollutes the app's root `package.json`. The LibreOffice PDF step
 is optional — PowerPoint itself can export to PDF if preferred.

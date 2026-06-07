@@ -4,9 +4,9 @@ Last packaged: June 7, 2026
 
 Latest visual sync: June 7, 2026. The live screenshot capture pipeline was
 rerun, the contact sheet was rebuilt, the one-pager PDF/PNG were regenerated
-from the current hero workspace screenshot, and the editable deck PPTX was
-rebuilt. The deck PDF preview was not regenerated because `soffice` was not
-available on this workstation.
+from the current hero workspace screenshot, the editable deck PPTX was rebuilt,
+and the deck PDF preview was regenerated with the bundled Codex runtime
+`soffice` binary.
 
 ## Scope
 
@@ -54,6 +54,29 @@ Use committed portfolio images for durable collateral:
 
 Do not mix temporary `/tmp` screenshots into committed collateral without a
 separate screenshot-regeneration pass.
+
+## Current Artifact Inventory
+
+| Artifact          | Path                                         | Current state                                          |
+| ----------------- | -------------------------------------------- | ------------------------------------------------------ |
+| Screenshot sheet  | `docs/screenshots/renders/contact-sheet.png` | 2880 x 2700 PNG, rebuilt from current panel PNGs.      |
+| One-pager preview | `docs/one-pager/AssistSupport-one-pager.png` | 2112 x 1632 PNG, regenerated from current source.      |
+| One-pager PDF     | `docs/one-pager/AssistSupport-one-pager.pdf` | Regenerated from current source.                       |
+| Editable deck     | `docs/deck/AssistSupport-LinkedIn-Live.pptx` | Rebuilt from `docs/deck/build.mjs`; no tracked diff.   |
+| Deck PDF preview  | `docs/deck/AssistSupport-LinkedIn-Live.pdf`  | 12 pages, regenerated from the editable deck.          |
+| Video script      | `docs/deck/DEMO-VIDEO.md`                    | Synced to the Jordan/Northstar fake-KB story.          |
+| Rehearsal kit     | `docs/deck/REHEARSAL.md`                     | Synced to the Jordan/Northstar fake-KB story.          |
+| Case study        | `docs/case-study.md`                         | Links to the current one-pager, deck, and screenshots. |
+
+Deck PDF regeneration command used on this workstation:
+
+```bash
+/Users/d/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/soffice \
+  --headless \
+  --convert-to pdf \
+  --outdir docs/deck \
+  docs/deck/AssistSupport-LinkedIn-Live.pptx
+```
 
 ## One-Pager Alignment
 
