@@ -82,6 +82,8 @@ Deck PDF regeneration command used on this workstation:
 
 Outbound-ready copy lives in
 [outbound-share-package.md](./outbound-share-package.md).
+Record published URLs or sent-channel notes in
+[publication-log.md](./publication-log.md).
 
 Use this order when sending or posting the public portfolio package:
 
