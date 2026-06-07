@@ -5,6 +5,9 @@ Last prepared: June 7, 2026
 Use this as the copy/paste-ready outbound package for the sanitized
 AssistSupport portfolio demo. It uses only fictional Northstar Labs demo data.
 
+After posting or sending, record the public URL or sent-channel note in
+[publication-log.md](./publication-log.md).
+
 ## Attachments
 
 Attach these three files for email, hiring packets, or direct portfolio review:
