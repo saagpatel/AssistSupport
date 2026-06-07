@@ -27,6 +27,32 @@ async function expectDocumentScrollIsContained(page: Page) {
   expect(metrics.settingsTabCanScroll).toBe(true);
 }
 
+async function expectAiReadinessCardsAreContained(page: Page) {
+  const metrics = await page.evaluate(() => {
+    const tolerance = 1;
+    const checks = Array.from(
+      document.querySelectorAll<HTMLElement>(".ai-readiness-check"),
+    );
+    return checks.map((check) => {
+      const rect = check.getBoundingClientRect();
+      return {
+        width: rect.width,
+        scrollWidth: check.scrollWidth,
+        clientWidth: check.clientWidth,
+        overflows: check.scrollWidth > check.clientWidth + tolerance,
+        clippedRight: rect.right > window.innerWidth + tolerance,
+      };
+    });
+  });
+
+  expect(metrics).toHaveLength(3);
+  for (const metric of metrics) {
+    expect(metric.width).toBeGreaterThan(280);
+    expect(metric.overflows).toBe(false);
+    expect(metric.clippedRight).toBe(false);
+  }
+}
+
 async function navigateToTab(page: Page, label: "Knowledge" | "Settings") {
   const mobileRevampNav = page.locator(
     '.as-shell__mobileNav[aria-label="Compact navigation"]',
@@ -100,6 +126,9 @@ test("@smoke @responsive mobile shell keeps tab-bar navigation usable across tab
 
   await expect(page.locator(".app")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Application Error")).toHaveCount(0);
+  await expectAiReadinessCardsAreContained(page);
+  await expectNoHorizontalOverflow(page);
+
   const mobileNav = await navigateToTab(page, "Knowledge");
   expect(mobileNav).not.toBeNull();
   await expect(page.locator(".as-shell__pageTitle")).toHaveText(
