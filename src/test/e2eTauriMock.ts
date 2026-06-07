@@ -9,15 +9,15 @@ const kbStats = {
 const kbDocuments = [
   {
     id: "doc-1",
-    file_path: "/mock/kb/remote-work-policy.md",
-    title: "Remote Work Policy",
+    file_path: "/mock/kb/removable-media-policy.md",
+    title: "Removable Media Policy",
     indexed_at: "2026-02-03T10:00:00Z",
     chunk_count: 4,
   },
   {
     id: "doc-2",
-    file_path: "/mock/kb/security-baseline.md",
-    title: "Security Baseline",
+    file_path: "/mock/kb/file-sharing-guide.md",
+    title: "File Sharing Guide",
     indexed_at: "2026-02-03T10:05:00Z",
     chunk_count: 4,
   },
@@ -28,12 +28,29 @@ function mockSearchResults() {
     {
       chunk_id: "chunk-1",
       document_id: "doc-1",
-      file_path: "/mock/kb/remote-work-policy.md",
-      title: "Remote Work Policy",
-      heading_path: "Policy > VPN",
-      content: "Use approved VPN and MFA when working remotely.",
-      snippet: "Use approved VPN and MFA when working remotely.",
+      file_path: "/mock/kb/removable-media-policy.md",
+      title: "Removable Media Policy",
+      heading_path: "Policy > Removable media",
+      content:
+        "USB drives and removable media are not allowed for company data on Northstar-managed devices.",
+      snippet:
+        "USB drives and removable media are not allowed for company data on Northstar-managed devices.",
       score: 0.95,
+      source: "Hybrid",
+      namespace_id: "default",
+      source_type: "file",
+    },
+    {
+      chunk_id: "chunk-2",
+      document_id: "doc-2",
+      file_path: "/mock/kb/file-sharing-guide.md",
+      title: "File Sharing Guide",
+      heading_path: "Approved methods",
+      content:
+        "Use SharePoint, OneDrive, ShareFile, encrypted email for small files, or VPN-connected file shares for approved transfers.",
+      snippet:
+        "Use SharePoint, OneDrive, ShareFile, encrypted email for small files, or VPN-connected file shares for approved transfers.",
+      score: 0.91,
       source: "Hybrid",
       namespace_id: "default",
       source_type: "file",
@@ -580,7 +597,7 @@ export function setupE2eTauriMock(): void {
         case "search_kb_with_options":
           return mockSearchResults();
         case "get_search_context":
-          return "Source: Remote Work Policy";
+          return "Source: Removable Media Policy";
         case "list_templates":
         case "list_saved_response_templates":
         case "find_similar_saved_responses":
@@ -719,29 +736,38 @@ export function setupE2eTauriMock(): void {
           }
 
           return {
-            text: "Per Remote Work Policy, use the approved VPN and complete MFA before accessing internal systems.",
+            text: [
+              "Removable media is not allowed for Northstar company data, including short-term travel use from a managed Mac.[1]",
+              "For Jordan's board-review slides, use SharePoint, OneDrive, ShareFile, encrypted email for small files, or a VPN-connected file share so the transfer remains encrypted, audited, and access-controlled.[2]",
+            ].join("\n\n"),
             tokens_generated: 48,
             duration_ms: 900,
-            source_chunk_ids: ["chunk-1"],
+            source_chunk_ids: ["chunk-1", "chunk-2"],
             sources: mockSearchResults(),
             metrics: {
               tokens_per_second: 53.3,
-              sources_used: 1,
-              word_count: 16,
+              sources_used: 2,
+              word_count: 44,
               length_target_met: true,
-              context_utilization: 0.22,
+              context_utilization: 0.31,
             },
             prompt_template_version: "e2e-mock",
             confidence: {
               mode: "answer",
               score: 0.86,
-              rationale: "Strong grounded evidence across cited sources",
+              rationale: "Strong grounded evidence across cited policy sources",
             },
             grounding: [
               {
-                claim: "Use approved VPN and complete MFA.",
+                claim: "Removable media is not allowed for company data.",
                 source_indexes: [0],
-                support_level: "strong",
+                support_level: "supported",
+              },
+              {
+                claim:
+                  "Approved alternatives include managed cloud, encrypted email, and VPN-connected file shares.",
+                source_indexes: [1],
+                support_level: "supported",
               },
             ],
           };
