@@ -91,12 +91,20 @@ out commands triggered from backend setup hooks rather than the frontend.
 
 ## Decision
 
+This ADR is the accepted capability review for the local-first Tauri scanner:
+`local-first-tauri-capability-reviewed`.
+
 1. Remove the `greet` template command and associated permission entry.
 2. Remove the unused `tauri-plugin-opener` dependency, plugin registration,
    and capability grant.
-3. Record the audit methodology (above) so it can be re-run as the command
+3. Retain `dialog:default` because the app needs native file/directory chooser
+   flows for operator-owned knowledge-base and workspace paths. Keep this grant
+   scoped to the main window and do not add filesystem, shell, updater,
+   clipboard, notification, shortcut, or process permissions without a new
+   capability review.
+4. Record the audit methodology (above) so it can be re-run as the command
    surface evolves.
-4. Defer the 70-dead-commands sweep and the `core:default` narrowing to
+5. Defer the 70-dead-commands sweep and the `core:default` narrowing to
    scoped follow-up PRs, both of which need per-item verification to avoid
    the false-positive pattern flagged in prior audits.
 

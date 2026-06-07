@@ -9,6 +9,7 @@ bash scripts/ci/run-diff-coverage.sh
 pnpm ui:gate:regression
 pnpm git:guard:all
 pnpm build:ui
+pnpm test:ci
 pnpm perf:bundle
 node scripts/perf/compare-metric.mjs .perf-baselines/bundle.json .perf-results/bundle.json totalBytes 0.10
 pnpm perf:build
