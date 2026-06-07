@@ -16,11 +16,11 @@ cut twice.
 ## Pre-flight
 
 ```bash
-VITE_E2E_MOCK_TAURI=1 pnpm dev -- --port 1422
-# In the browser:
-localStorage.setItem("assistsupport.flag.ASSISTSUPPORT_REVAMP_WORKSPACE_HERO", "1");
-localStorage.setItem("assistsupport.flag.ASSISTSUPPORT_ENABLE_ADMIN_TABS", "1");
-# Reload. The hero workspace renders.
+VITE_E2E_MOCK_TAURI=1 \
+VITE_DEV_PORT=1424 \
+VITE_ASSISTSUPPORT_REVAMP_WORKSPACE_HERO=1 \
+VITE_ASSISTSUPPORT_ENABLE_ADMIN_TABS=1 \
+pnpm dev -- --host 127.0.0.1 --port 1424
 ```
 
 Recording tool: QuickTime Screen Recording with system audio muted
@@ -47,10 +47,11 @@ slowly to reveal the full workspace shell. No UI interaction.
 
 ### Shot 2 · Ticket paste (0:08 – 0:18) · 10s
 
-**Visual:** Paste the ticket text into the composer at normal typing
-speed. Cursor drops into the textarea; text appears line-by-line.
-The "Policy" intent chip illuminates automatically as the ML trace
-fires.
+**Visual:** Paste the verified Jordan Lee ticket from
+[`../demo/rehearsal-snapshot.md`](../demo/rehearsal-snapshot.md) into
+the composer at normal typing speed. Cursor drops into the textarea;
+text appears line-by-line. The `Policy / removable_media` route is the
+callout.
 
 **Narration:**
 
@@ -99,11 +100,11 @@ the Cited sources block beneath the draft. Smooth.
 
 ### Shot 5 · Feedback → KB gap (0:48 – 1:08) · 20s
 
-**Visual:** Cursor moves to the triage rail, clicks thumbs-up on the
-Feedback card. Quick wipe. Cut to the **Analytics tab** opening —
-KB Gap Analysis panel comes into frame. Camera pans over the ranked
-gap clusters: VPN on office Wi-Fi · Outlook on macOS 14.5 · macOS 14
-permissions drift.
+**Visual:** Cursor moves to the feedback controls and clicks thumbs-up.
+Quick wipe. Cut to the **Analytics tab** opening — Knowledge Gaps comes
+into frame. Camera pans over the current fictional clusters:
+`VPN won't connect at HQ but works on hotspot` and
+`Outlook keeps crashing on macOS 14.5`.
 
 **Narration:**
 
@@ -113,7 +114,7 @@ permissions drift.
 > by impact, and turned into a prioritized list of KB articles to
 > write. Every abstention is a lead on what's next."_
 
-**Caption:** `Self-improving · 14 gap clusters tracked · 87 tickets`
+**Caption:** `Self-improving · fictional gap clusters · mock analytics`
 
 ---
 

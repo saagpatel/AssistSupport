@@ -16,13 +16,14 @@ session folders and are linked below.
 
 ## Supporting artifacts
 
-| Artifact                                   | Location                                                               | Purpose                                                                                     |
-| ------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Case study — three architectural decisions | [`docs/case-study.md`](../case-study.md)                               | Long-form writeup on logreg · hybrid retrieval · trust-gated. Evergreen portfolio piece.    |
-| LinkedIn Live rehearsal kit                | [`docs/deck/REHEARSAL.md`](../deck/REHEARSAL.md)                       | 40-min budget, slide-by-slide cues, Q&A matrix, dry-run checklist.                          |
-| 90-second demo video storyboard            | [`docs/deck/DEMO-VIDEO.md`](../deck/DEMO-VIDEO.md)                     | 7-shot storyboard + verbatim narration for an async demo reel.                              |
-| Live-capture pipeline                      | [`docs/screenshots/live-capture.mjs`](../screenshots/live-capture.mjs) | Spawns dev server + Playwright, captures 4 real-app panels.                                 |
-| Enriched Tauri IPC mock                    | [`src/test/e2eTauriMock.ts`](../../src/test/e2eTauriMock.ts)           | Portfolio-grade seed data (3 artifacts, 4 runs, 3 eval runs, 5 triage clusters, 5 KB gaps). |
+| Artifact                                   | Location                                                                       | Purpose                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Case study — three architectural decisions | [`docs/case-study.md`](../case-study.md)                                       | Long-form writeup on logreg · hybrid retrieval · trust-gated. Evergreen portfolio piece.           |
+| LinkedIn Live rehearsal kit                | [`docs/deck/REHEARSAL.md`](../deck/REHEARSAL.md)                               | 40-min budget, slide-by-slide cues, Q&A matrix, dry-run checklist.                                 |
+| 90-second demo video storyboard            | [`docs/deck/DEMO-VIDEO.md`](../deck/DEMO-VIDEO.md)                             | 7-shot storyboard + verbatim narration for an async demo reel.                                     |
+| Sanitized portfolio demo handoff           | [`docs/demo/portfolio-handoff-bundle.md`](../demo/portfolio-handoff-bundle.md) | Canonical Northstar/Jordan story, screenshot picks, one-pager/deck/video sync, pre-publish checks. |
+| Live-capture pipeline                      | [`docs/screenshots/live-capture.mjs`](../screenshots/live-capture.mjs)         | Spawns dev server + Playwright, captures 4 real-app panels.                                        |
+| Enriched Tauri IPC mock                    | [`src/test/e2eTauriMock.ts`](../../src/test/e2eTauriMock.ts)                   | Portfolio-grade seed data (3 artifacts, 4 runs, 3 eval runs, 5 triage clusters, 5 KB gaps).        |
 
 ## Shared design system
 
