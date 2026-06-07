@@ -14,6 +14,7 @@
   min-height: 0;
   flex: 1;
   overflow-y: auto;
+  scroll-padding-block: 88px 24px;
   padding: 20px 24px;
 }
 
@@ -317,6 +318,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  scroll-margin-block: 88px 24px;
   font-size: 12.5px;
   font-weight: 500;
   padding: 7px 12px;
@@ -812,4 +814,73 @@
   color: var(--as-text-3);
   font-size: 12.5px;
   line-height: 1.5;
+}
+
+@media (max-width: 639px) {
+  .cdw {
+    padding: 16px;
+  }
+
+  .cdw .ticket {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .cdw .ticket__right {
+    grid-column: 1 / -1;
+    align-items: flex-start;
+    flex-flow: row wrap;
+  }
+
+  .cdw .ws-strip {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .cdw .ws-stage {
+    justify-content: center;
+    min-width: 0;
+    padding-inline: 6px;
+  }
+
+  .cdw .ws-stage span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cdw .ws-stage__connector {
+    display: none;
+  }
+
+  .cdw .panel__header,
+  .cdw .response-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cdw .response-actions .spacer {
+    display: none;
+  }
+
+  .cdw .response-actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .cdw .source {
+    align-items: flex-start;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .cdw .source__title,
+  .cdw .source__meta {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .cdw .source__meta {
+    line-height: 1.35;
+  }
 }

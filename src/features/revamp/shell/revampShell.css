@@ -456,4 +456,33 @@
   .as-shell__statusModel {
     max-width: 100%;
   }
+
+  .as-shell__rail {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .as-shell__mobileNav {
+    justify-content: space-between;
+    overflow-x: hidden;
+  }
+
+  .as-shell__mobileNavItem {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    padding-inline: 0;
+  }
+
+  .as-shell__mobileNavItem span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
