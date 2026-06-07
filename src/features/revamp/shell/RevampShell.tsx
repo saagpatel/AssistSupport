@@ -362,6 +362,7 @@ export function RevampShell({
                 .join(" ")}
               onClick={() => onTabChange(item.id)}
               aria-current={activeTab === item.id ? "page" : undefined}
+              aria-label={item.label}
             >
               <Icon name={item.icon} size={16} />
               <span>{item.label}</span>

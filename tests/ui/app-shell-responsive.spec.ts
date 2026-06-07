@@ -53,6 +53,57 @@ async function expectAiReadinessCardsAreContained(page: Page) {
   }
 }
 
+async function expectMobileDemoSurfacesAreContained(page: Page) {
+  const metrics = await page.evaluate(() => {
+    const tolerance = 1;
+    const nav = document.querySelector<HTMLElement>(".as-shell__mobileNav");
+    const sources = Array.from(
+      document.querySelectorAll<HTMLElement>(".wsx__source, .cdw .source"),
+    );
+    const sourceMeta = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        ".wsx__sourceMeta, .cdw .source__meta",
+      ),
+    );
+    const response = document.querySelector<HTMLElement>(
+      '[aria-label="KB-grounded answer"], .cdw .response-body',
+    );
+
+    const elementMetrics = (element: HTMLElement) => ({
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      overflows: element.scrollWidth > element.clientWidth + tolerance,
+      clippedRight:
+        element.getBoundingClientRect().right > window.innerWidth + tolerance,
+    });
+
+    return {
+      documentOverflows:
+        document.documentElement.scrollWidth > window.innerWidth + tolerance,
+      nav: nav ? elementMetrics(nav) : null,
+      response: response ? elementMetrics(response) : null,
+      sources: sources.map(elementMetrics),
+      sourceMeta: sourceMeta.map(elementMetrics),
+      hasPolicyText: (document.body.textContent ?? "").includes(
+        "Removable media is not allowed for Northstar company data",
+      ),
+    };
+  });
+
+  expect(metrics.documentOverflows).toBe(false);
+  expect(metrics.nav).not.toBeNull();
+  expect(metrics.nav?.overflows).toBe(false);
+  expect(metrics.response).not.toBeNull();
+  expect(metrics.response?.overflows).toBe(false);
+  expect(metrics.sources).toHaveLength(2);
+  expect(metrics.sourceMeta).toHaveLength(2);
+  for (const metric of [...metrics.sources, ...metrics.sourceMeta]) {
+    expect(metric.overflows).toBe(false);
+    expect(metric.clippedRight).toBe(false);
+  }
+  expect(metrics.hasPolicyText).toBe(true);
+}
+
 async function navigateToTab(page: Page, label: "Knowledge" | "Settings") {
   const mobileRevampNav = page.locator(
     '.as-shell__mobileNav[aria-label="Compact navigation"]',
@@ -128,6 +179,17 @@ test("@smoke @responsive mobile shell keeps tab-bar navigation usable across tab
   await expect(page.getByText("Application Error")).toHaveCount(0);
   await expectAiReadinessCardsAreContained(page);
   await expectNoHorizontalOverflow(page);
+
+  await page
+    .getByLabel("Ticket or issue description")
+    .fill(
+      "Jordan in Finance says macOS blocked a USB drive needed for a vendor spreadsheet. Can we allow removable media temporarily?",
+    );
+  await page.getByRole("button", { name: "Generate ⌘↵" }).click();
+  await expect(
+    page.getByText("Removable media is not allowed for Northstar company data"),
+  ).toBeVisible();
+  await expectMobileDemoSurfacesAreContained(page);
 
   const mobileNav = await navigateToTab(page, "Knowledge");
   expect(mobileNav).not.toBeNull();

@@ -266,6 +266,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  scroll-margin-block: 88px 24px;
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 500;
@@ -1174,6 +1175,27 @@
 
   .wsx__prose {
     font-size: 15.5px;
+  }
+
+  .wsx__sourcesHead {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .wsx__source {
+    align-items: flex-start;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .wsx__sourceTitle,
+  .wsx__sourceMeta {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .wsx__sourceMeta {
+    line-height: 1.35;
   }
 }
 
