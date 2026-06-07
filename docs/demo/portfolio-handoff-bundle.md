@@ -78,6 +78,58 @@ Deck PDF regeneration command used on this workstation:
   docs/deck/AssistSupport-LinkedIn-Live.pptx
 ```
 
+## Share Package
+
+Use this order when sending or posting the public portfolio package:
+
+| Order | Item                | Use                               | Attach or link                                                     |
+| ----- | ------------------- | --------------------------------- | ------------------------------------------------------------------ |
+| 1     | Root README         | Public project entry point        | Link: `https://github.com/saagpatel/AssistSupport`                 |
+| 2     | Case study          | Long-form technical narrative     | Link: `docs/case-study.md`                                         |
+| 3     | One-pager PDF       | Recruiter, hiring, or quick scan  | Attach: `docs/one-pager/AssistSupport-one-pager.pdf`               |
+| 4     | Screenshot sheet    | Visual proof of the product shape | Attach: `docs/screenshots/renders/contact-sheet.png`               |
+| 5     | Deck PDF preview    | Talk, walkthrough, or async pitch | Attach: `docs/deck/AssistSupport-LinkedIn-Live.pdf`                |
+| 6     | Sanitized demo plan | Operator rehearsal and QA         | Link: `docs/demo/sanitized-demo-plan.md`; do not attach by default |
+| 7     | Demo video script   | Recording plan                    | Link: `docs/deck/DEMO-VIDEO.md`; attach only with a rendered video |
+| 8     | LinkedIn rehearsal  | Live-talk prep                    | Link: `docs/deck/REHEARSAL.md`; attach only for speaker handoff    |
+
+Do not attach `docs/deck/AssistSupport-LinkedIn-Live.pptx` unless you are
+explicitly sending an editable deck to a speaker. It is a local rebuild output,
+not the committed public preview.
+
+Recommended captions:
+
+- **Portfolio card:** AssistSupport is a local-first macOS support assistant
+  that drafts KB-grounded IT responses from a sanitized demo knowledge base.
+- **LinkedIn post:** I built AssistSupport to show what an AI support tool looks
+  like when the privacy boundary is the laptop: local retrieval, trust-gated
+  drafts, clickable citations, and a feedback loop that turns abstentions into
+  KB work.
+- **Recruiter note:** This package includes the case study, one-page summary,
+  screenshot sheet, and deck preview for AssistSupport, a Tauri/React/Rust
+  local-first support assistant with sanitized demo data.
+- **Short DM:** Here is the AssistSupport portfolio package: case study,
+  one-pager, screenshot sheet, and deck preview, all using fictional Northstar
+  Labs demo data.
+- **Video caption:** AssistSupport turns a fictional USB/offsite support ticket
+  into a grounded, cited response, then feeds operator ratings into mock
+  knowledge-gap analytics without using real tenant data.
+
+Recommended attachment set for email or hiring packets:
+
+1. `docs/one-pager/AssistSupport-one-pager.pdf`
+2. `docs/screenshots/renders/contact-sheet.png`
+3. `docs/deck/AssistSupport-LinkedIn-Live.pdf`
+
+Recommended links to include beside the attachments:
+
+1. `https://github.com/saagpatel/AssistSupport`
+2. `https://github.com/saagpatel/AssistSupport/blob/master/docs/case-study.md`
+3. `https://github.com/saagpatel/AssistSupport/blob/master/docs/demo/sanitized-demo-plan.md`
+
+The repo-relative paths in the table are for in-repo prep. Use the full URLs
+above in email, DMs, portfolio posts, and social captions.
+
 ## One-Pager Alignment
 
 The one-pager remains aligned with the verified rehearsal if these stay true:
