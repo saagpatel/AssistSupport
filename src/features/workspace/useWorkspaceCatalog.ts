@@ -51,6 +51,14 @@ export function useWorkspaceCatalog({
   defaultRunbookTemplates,
   ops,
 }: UseWorkspaceCatalogParams): WorkspaceCatalogState {
+  const {
+    listResolutionKits,
+    listWorkspaceFavorites,
+    listRunbookTemplates,
+    saveRunbookTemplate,
+    listRunbookSessions,
+    listRunbookStepEvidence,
+  } = ops;
   const [resolutionKits, setResolutionKits] = useState<ResolutionKit[]>([]);
   const [workspaceFavorites, setWorkspaceFavorites] = useState<
     WorkspaceFavorite[]
@@ -78,28 +86,26 @@ export function useWorkspaceCatalog({
     try {
       const [kitRecords, favoriteRecords, templateRecords, sessionRecords] =
         await Promise.all([
-          ops.listResolutionKits(20).catch(() => []),
-          ops.listWorkspaceFavorites().catch(() => []),
-          ops.listRunbookTemplates(20).catch(() => []),
-          ops
-            .listRunbookSessions(20, undefined, workspaceRunbookScopeKey)
-            .catch(() => []),
+          listResolutionKits(20).catch(() => []),
+          listWorkspaceFavorites().catch(() => []),
+          listRunbookTemplates(20).catch(() => []),
+          listRunbookSessions(20, undefined, workspaceRunbookScopeKey).catch(
+            () => [],
+          ),
         ]);
 
       let nextTemplateRecords = templateRecords;
       if (guidedRunbooksEnabled && nextTemplateRecords.length === 0) {
         await Promise.all(
           defaultRunbookTemplates.map((template) =>
-            ops.saveRunbookTemplate({
+            saveRunbookTemplate({
               name: template.name,
               scenario: template.scenario,
               steps_json: JSON.stringify(template.steps),
             }),
           ),
         ).catch(() => undefined);
-        nextTemplateRecords = await ops
-          .listRunbookTemplates(20)
-          .catch(() => []);
+        nextTemplateRecords = await listRunbookTemplates(20).catch(() => []);
       }
 
       setResolutionKits(kitRecords.map(toResolutionKit));
@@ -108,9 +114,9 @@ export function useWorkspaceCatalog({
 
       const legacySessionRecords =
         sessionRecords.length === 0
-          ? await ops
-              .listRunbookSessions(20, undefined, "legacy:unscoped")
-              .catch(() => [])
+          ? await listRunbookSessions(20, undefined, "legacy:unscoped").catch(
+              () => [],
+            )
           : [];
       const visibleSessionRecords =
         sessionRecords.length > 0 ? sessionRecords : legacySessionRecords;
@@ -135,9 +141,9 @@ export function useWorkspaceCatalog({
         return;
       }
 
-      const evidenceRecords = await ops
-        .listRunbookStepEvidence(activeSessionRecord.id)
-        .catch(() => []);
+      const evidenceRecords = await listRunbookStepEvidence(
+        activeSessionRecord.id,
+      ).catch(() => []);
       if (guidedRunbookSession?.id !== activeSessionRecord.id) {
         setRunbookSessionTouched(false);
       }
@@ -152,7 +158,12 @@ export function useWorkspaceCatalog({
     defaultRunbookTemplates,
     guidedRunbookSession?.id,
     guidedRunbooksEnabled,
-    ops,
+    listResolutionKits,
+    listRunbookStepEvidence,
+    listRunbookSessions,
+    listRunbookTemplates,
+    listWorkspaceFavorites,
+    saveRunbookTemplate,
     workspaceRailEnabled,
     workspaceRunbookScopeKey,
   ]);

@@ -15,6 +15,27 @@ test("@smoke @visual app shell renders with mocked Tauri bridge", async ({
   });
 });
 
+test("@smoke app shell does not emit React update-depth warnings", async ({
+  page,
+}) => {
+  const consoleMessages: string[] = [];
+  page.on("console", (message) => {
+    if (["error", "warning", "warn"].includes(message.type())) {
+      consoleMessages.push(message.text());
+    }
+  });
+
+  await freezeAppClock(page);
+  await page.goto("/");
+  await expect(page.locator(".app")).toBeVisible({ timeout: 20_000 });
+
+  expect(
+    consoleMessages.filter((message) =>
+      message.includes("Maximum update depth exceeded"),
+    ),
+  ).toEqual([]);
+});
+
 test("@smoke @a11y app shell has no critical accessibility violations", async ({
   page,
 }) => {
