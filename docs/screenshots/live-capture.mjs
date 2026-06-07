@@ -3,14 +3,14 @@
  * running app instead of the static HTML mockups under panels/.
  *
  * Starts `pnpm dev` on an isolated port with VITE_E2E_MOCK_TAURI=1
- * so the frontend runs browser-standalone against the IPC mocks in
- * src/test/e2eTauriMock.ts. Flips the workspace hero flag via
- * localStorage so DraftTab renders via WorkspaceHeroLayout. Captures
- * each tab to docs/screenshots/renders/.
+ * and the portfolio flags enabled so the frontend runs browser-standalone
+ * against the IPC mocks in src/test/e2eTauriMock.ts. Captures each tab
+ * to docs/screenshots/renders/.
  *
- * Panels 1, 2, 4, 5, 6 all map to real tabs and are replaced with
- * live captures. Panel 3 (ML intent confidence view) has no
- * corresponding page in the app and stays as the HTML mockup.
+ * Panels 1, 2, 4, and 5 map to real tabs and are replaced with live
+ * captures. Panel 3 (ML intent confidence view) and panel 6 (eval
+ * harness) do not have corresponding current-wave app pages and stay
+ * as HTML mockups.
  *
  * Run from the repo root:
  *     node docs/screenshots/live-capture.mjs
@@ -25,7 +25,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, "..", "..");
 const OUT_DIR = join(__dirname, "renders");
 
-const PORT = 1422;
+const PORT = 1424;
 const URL = `http://localhost:${PORT}`;
 
 const FRAME_W = 1440;
@@ -39,13 +39,15 @@ const DPR = 2;
 async function startDevServer() {
   const child = spawn(
     "pnpm",
-    ["dev", "--", "--port", String(PORT)],
+    ["dev", "--", "--host", "127.0.0.1", "--port", String(PORT)],
     {
       cwd: REPO_ROOT,
       env: {
         ...process.env,
         VITE_E2E_MOCK_TAURI: "1",
         VITE_DEV_PORT: String(PORT),
+        VITE_ASSISTSUPPORT_REVAMP_WORKSPACE_HERO: "1",
+        VITE_ASSISTSUPPORT_ENABLE_ADMIN_TABS: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -81,8 +83,9 @@ async function startDevServer() {
 }
 
 /**
- * Seed localStorage with the workspace-hero flag and a minimal
- * onboarding-dismissed marker so the shell renders fully on reload.
+ * Seed localStorage with the same portfolio flags as a belt-and-suspenders
+ * backup plus a minimal onboarding-dismissed marker so the shell renders fully
+ * on reload.
  */
 async function primeStorage(page) {
   await page.addInitScript(() => {
@@ -143,13 +146,6 @@ async function main() {
     await page.goto(URL, { waitUntil: "networkidle", timeout: 60_000 });
     await page.waitForSelector(".as-shell__nav", { timeout: 30_000 });
 
-    // Diagnostic: capture the landing state before any interaction so a
-    // failure inside the workspace flow can be inspected post hoc.
-    await page.screenshot({
-      path: join(OUT_DIR, "_debug-landing.png"),
-      clip: { x: 0, y: 0, width: FRAME_W, height: FRAME_H },
-    });
-
     // ---- Panel 01: Workspace (hero layout) ----
     // The shell renders its own right-rail on the draft tab
     // (WorkspaceQueueContext + Response playbook + AI status cards),
@@ -168,7 +164,7 @@ async function main() {
     await page.waitForSelector(".wsx__composer", { timeout: 10_000 });
 
     const ticketText =
-      "Jordan from Finance is traveling Thursday and asks whether they can copy board-review slides to a USB drive for the offsite. They are on a Northstar-managed MacBook Pro 14, macOS 14.5.";
+      "Jordan Lee from Finance is traveling Thursday and asks whether they can copy board-review slides to a USB drive for the offsite. They are on a Northstar-managed MacBook Pro 14, macOS 14.5.";
 
     // Set the textarea value via the native setter so React picks up the
     // change, bypassing any visibility/editability gates Playwright may
