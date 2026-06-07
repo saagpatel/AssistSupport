@@ -8,6 +8,8 @@ handles, workspace exports, credentials, or real ticket details here.
 
 Source package: [outbound-share-package.md](./outbound-share-package.md)
 
+Channel runbooks: [external-channel-playbook.md](./external-channel-playbook.md)
+
 ## Status
 
 | Channel             | State     | Published URL or sent-channel note                                                         | Date       | Follow-up                                                               |
