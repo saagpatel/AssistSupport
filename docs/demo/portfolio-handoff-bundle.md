@@ -2,6 +2,12 @@
 
 Last packaged: June 7, 2026
 
+Latest visual sync: June 7, 2026. The live screenshot capture pipeline was
+rerun, the contact sheet was rebuilt, the one-pager PDF/PNG were regenerated
+from the current hero workspace screenshot, and the editable deck PPTX was
+rebuilt. The deck PDF preview was not regenerated because `soffice` was not
+available on this workstation.
+
 ## Scope
 
 This bundle packages the verified sanitized demo into the portfolio surfaces:
