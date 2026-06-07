@@ -49,4 +49,9 @@ an implementation-level companion to `SECURITY.md`.
 
 ## Reporting
 
-Use the process in `SECURITY.md` to report vulnerabilities privately.
+Do not report vulnerabilities through public GitHub issues.
+
+- Preferred channel: [GitHub private vulnerability reporting](https://github.com/saagpatel/AssistSupport/security/advisories/new).
+- Fallback channel: contact maintainers directly as described in the root `SECURITY.md`.
+
+Include the affected version or commit, reproduction steps, expected impact, and any suggested fix or mitigation.
