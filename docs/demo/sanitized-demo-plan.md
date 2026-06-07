@@ -48,8 +48,9 @@ Unsafe sources:
    data and offers approved alternatives: SharePoint, OneDrive, ShareFile,
    encrypted email for small files, or VPN-connected file shares.
 5. Hover a citation and show that it maps to the checked-in policy KB.
-6. Rate the draft, then open Analytics to show fictional gap clusters such as
-   `VPN fails only on HQ Wi-Fi` and `Outlook crash on macOS 14.5`.
+6. Rate the draft, then open Analytics to show fictional gap clusters:
+   `VPN won't connect at HQ but works on hotspot` and
+   `Outlook keeps crashing on macOS 14.5`.
 7. Call out the privacy posture: local mock IPC, no real tenant data, no cloud AI
    call, encrypted core workspace in real use.
 

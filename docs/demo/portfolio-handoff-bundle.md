@@ -128,6 +128,25 @@ repo evidence or labeled as illustrative.
 
 ## Pre-Publish Checklist
 
+Publication dry run, in reader order:
+
+1. Open the root [README](../../README.md) and confirm the public demo section
+   points to the sanitized demo plan, portfolio index, and this handoff.
+2. Open the [sanitized demo plan](./sanitized-demo-plan.md) and confirm the
+   fake-KB script uses the Jordan/Northstar USB/offsite story.
+3. Open the [portfolio index](../portfolio/README.md) and confirm the four
+   primary artifacts link to committed files or explicit rebuild instructions.
+4. Open the committed artifacts:
+   [one-pager PDF](../one-pager/AssistSupport-one-pager.pdf),
+   [deck PDF preview](../deck/AssistSupport-LinkedIn-Live.pdf), and
+   [screenshot contact sheet](../screenshots/renders/contact-sheet.png).
+5. Open the [case study](../case-study.md), [rehearsal kit](../deck/REHEARSAL.md),
+   and [demo video script](../deck/DEMO-VIDEO.md). Confirm they use the same
+   Jordan/Northstar story and the current fictional gap labels.
+6. Treat `docs/deck/AssistSupport-LinkedIn-Live.pptx` as a local editable
+   rebuild output only. Share the committed PDF preview unless rebuilding the
+   deck for a live presentation.
+
 Before posting the portfolio set, run:
 
 ```bash
