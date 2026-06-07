@@ -55,6 +55,7 @@ These still matter, but they are not the single daily health command:
 The sanitized demo lane is merged and ready to restart from `master`.
 
 - Demo plan: [docs/demo/sanitized-demo-plan.md](../demo/sanitized-demo-plan.md)
+- Latest rehearsal snapshot: [docs/demo/rehearsal-snapshot.md](../demo/rehearsal-snapshot.md)
 - Fictional tenant: Northstar Labs with `.example` domains and `NSD-*` ticket IDs
 - Safe demo sources: checked-in `knowledge_base/`, mock Tauri IPC data, and portfolio collateral under `docs/screenshots/`, `docs/one-pager/`, and `docs/deck/`
 - Unsafe sources: `.env*`, private workspace data, Redis dumps, real customer exports, and real integration credentials

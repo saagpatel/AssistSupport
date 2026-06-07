@@ -1,5 +1,7 @@
 # Sanitized Demo Plan
 
+Latest rehearsal: [rehearsal-snapshot.md](./rehearsal-snapshot.md)
+
 ## Demo Boundary
 
 This demo uses only fictional `Northstar Labs` support data. Do not connect a real
@@ -63,8 +65,8 @@ Unsafe sources:
 ## Verification Checklist
 
 ```bash
-rg -n "company\\.com|it\\.company|vpn\\.company|passwordreset\\.company|Priya Anand|Aisera" knowledge_base docs src search-api -g '!docs/demo/sanitized-demo-plan.md'
-rg -n "IronKey|Apricorn|approved encrypted drive|whitelist-usb|PagerDuty rule 12" docs src -g '!docs/demo/sanitized-demo-plan.md'
+rg -n "company\\.com|it\\.company|vpn\\.company|passwordreset\\.company|Priya Anand|Aisera" knowledge_base docs src search-api -g '!docs/demo/sanitized-demo-plan.md' -g '!docs/demo/rehearsal-snapshot.md'
+rg -n "IronKey|Apricorn|approved encrypted drive|whitelist-usb|PagerDuty rule 12" docs src -g '!docs/demo/sanitized-demo-plan.md' -g '!docs/demo/rehearsal-snapshot.md'
 rg -n "USB|flash drive|removable media" knowledge_base docs src search-api
 git status --short --ignored=matching node_modules dump.rdb
 node scripts/ci/check-workstation-preflight.mjs
