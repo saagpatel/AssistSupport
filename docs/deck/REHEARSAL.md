@@ -59,15 +59,17 @@ The last stat is the privacy line — wait a beat.
 
 Switch to screenshare / running app. Suggested script:
 
-1. Click into the composer, paste the real prompt from the deck
-   ("Can I use a flash drive for the offsite?").
-2. Click a single intent chip so the ML trace lights up.
-3. Press **⌘↵**. Narrate the sub-25ms retrieval while it runs.
-4. When the draft streams in, hover a `[1]` citation — show the
-   source navigation.
-5. Thumbs-up, then click "Save template" to show the feedback loop.
-   Fallback if something breaks: switch back to slide 05's annotated
-   screenshot and walk the 3 callouts.
+1. Click into the composer and paste the verified Jordan Lee ticket
+   from [../demo/rehearsal-snapshot.md](../demo/rehearsal-snapshot.md).
+2. Call out the `Policy / removable_media` route.
+3. Press **⌘↵** or click Generate. Narrate the local retrieval while it runs.
+4. When the draft appears, show the USB/removable-media denial, the approved
+   alternatives, and the two mock KB sources.
+5. Thumbs-up the draft, then open Analytics and scroll to Knowledge Gaps. Show
+   `VPN won't connect at HQ but works on hotspot` and
+   `Outlook keeps crashing on macOS 14.5`.
+6. Fallback if something breaks: switch back to slide 05's annotated screenshot
+   and walk the 3 callouts.
 
 ### 06 · ML intent (90 sec)
 
@@ -149,7 +151,7 @@ seconds after the first hand.
 
 - [ ] Fonts — IBM Plex Sans + JetBrains Mono installed locally (PowerPoint will fallback otherwise)
 - [ ] Recording — Presenter View enabled so notes show on your laptop, slides on the stream
-- [ ] Demo — `pnpm dev` + `VITE_E2E_MOCK_TAURI=1` + `VITE_ASSISTSUPPORT_REVAMP_WORKSPACE_HERO=1` primed before you start
+- [ ] Demo — launch with the command in [../demo/rehearsal-snapshot.md](../demo/rehearsal-snapshot.md) before you start
 - [ ] Fallback — [panels/01-workspace.html](../screenshots/panels/01-workspace.html) open in a spare browser tab in case the demo breaks
 - [ ] Network — confirm LinkedIn Live upload path works 10 minutes before going live
 - [ ] Camera — framed with the AssistSupport logo or a whiteboard in the background, not a messy desk

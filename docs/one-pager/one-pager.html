@@ -14,10 +14,11 @@
          Tokens mirror src/styles/revamp/tokens.css 1:1.
          ========================================================= */
       :root {
-        --as-font-sans: "IBM Plex Sans", ui-sans-serif, system-ui,
-          -apple-system, sans-serif;
-        --as-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
-          Monaco, monospace;
+        --as-font-sans:
+          "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+        --as-font-mono:
+          "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+          monospace;
 
         --as-surface-0: #0b0d10;
         --as-surface-1: #0f1218;
@@ -84,7 +85,11 @@
             var(--as-glow-2),
             transparent 50%
           ),
-          linear-gradient(180deg, var(--as-surface-0) 0%, var(--as-surface-1) 100%);
+          linear-gradient(
+            180deg,
+            var(--as-surface-0) 0%,
+            var(--as-surface-1) 100%
+          );
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto auto auto;
         gap: 16px;
@@ -465,7 +470,9 @@
           </div>
         </div>
         <div class="headerMeta">
-          <span class="pill"><span class="dot"></span>runs on your MacBook</span>
+          <span class="pill"
+            ><span class="dot"></span>runs on your MacBook</span
+          >
           <span class="pill">Tauri 2 + Rust</span>
           <span class="pill pill--accent">portfolio-grade</span>
         </div>
@@ -476,15 +483,15 @@
         <div class="tagline">
           <div class="tagline__label">Your support team's second brain</div>
           <h1 class="tagline__h1">
-            ML-powered answers from <em>your own</em> knowledge base — in
-            under 25&#8239;ms, without sending a single query to the cloud.
+            ML-powered answers from <em>your own</em> knowledge base — in under
+            25&#8239;ms, without sending a single query to the cloud.
           </h1>
           <p class="tagline__sub">
             Local LLM inference plus a hybrid ML search pipeline that drafts
             accurate, KB-grounded IT support responses entirely on the
             operator's laptop. SQLCipher AES-256 at rest, a self-improving
-            feedback loop, and an ops surface for deploy, rollback, and
-            eval — all shipped as a single Tauri app.
+            feedback loop, and an ops surface for deploy, rollback, and eval —
+            all shipped as a single Tauri app.
           </p>
         </div>
         <figure class="hero" style="margin: 0">
@@ -503,7 +510,8 @@
         <div class="pillarsHead">
           <span class="pillarsHead__label">Five feature pillars</span>
           <span class="pillarsHead__note"
-            >— local inference · hybrid search · trust-gated · self-improving · encrypted</span
+            >— local inference · hybrid search · trust-gated · self-improving ·
+            encrypted</span
           >
         </div>
         <div class="pillars">
@@ -511,12 +519,10 @@
             <div class="pillar__num">01</div>
             <div class="pillar__title">ML intent classification</div>
             <div class="pillar__body">
-              A calibrated logistic-regression classifier routes every
-              ticket — policy, howto, access, incident — in under 5&#8239;ms.
+              A calibrated logistic-regression classifier routes every ticket —
+              policy, howto, access, incident — in under 5&#8239;ms.
             </div>
-            <div class="pillar__tag">
-              <b>0.914</b> macro-F1
-            </div>
+            <div class="pillar__tag"><b>0.914</b> macro-F1</div>
           </div>
 
           <div class="pillar">
@@ -526,7 +532,9 @@
               TF-IDF retrieval plus a ms-marco-MiniLM-L-6-v2 cross-encoder
               reranker — citations are real files, not hallucinations.
             </div>
-            <div class="pillar__tag"><b>22&#8239;ms</b> p50 · 46&#8239;ms p95</div>
+            <div class="pillar__tag">
+              <b>22&#8239;ms</b> p50 · 46&#8239;ms p95
+            </div>
           </div>
 
           <div class="pillar">
@@ -548,21 +556,17 @@
               Low-confidence queries get clustered into KB gaps, ranked by
               impact, and turned into a prioritized list of articles.
             </div>
-            <div class="pillar__tag">
-              <b>14</b> gap clusters · 87 tickets
-            </div>
+            <div class="pillar__tag"><b>Mock</b> gaps · demo</div>
           </div>
 
           <div class="pillar">
             <div class="pillar__num">05</div>
             <div class="pillar__title">Local-first &amp; encrypted</div>
             <div class="pillar__body">
-              SQLCipher AES-256 at rest, local Ollama inference, and a
-              no-cloud demo path. Ships with deploy / rollback / eval ops.
+              SQLCipher AES-256 at rest, local Ollama inference, and a no-cloud
+              demo path. Ships with deploy / rollback / eval ops.
             </div>
-            <div class="pillar__tag">
-              <b>SQLCipher</b> · Ollama · Tauri 2
-            </div>
+            <div class="pillar__tag"><b>SQLCipher</b> · Ollama · Tauri 2</div>
           </div>
         </div>
       </section>
@@ -576,10 +580,12 @@
             <span class="stat__unit">%</span>
           </div>
           <div class="stat__caption">
-            of tier-1 tickets never reach a human — drafts accepted and
-            pasted into Jira as-is.
+            of tier-1 tickets never reach a human — drafts accepted and pasted
+            into Jira as-is.
           </div>
-          <div class="stat__source">illustrative support-automation benchmark</div>
+          <div class="stat__source">
+            illustrative support-automation benchmark
+          </div>
         </div>
         <div class="stat">
           <div class="stat__label">Hybrid search latency</div>
@@ -588,8 +594,8 @@
             <span class="stat__unit">ms</span>
           </div>
           <div class="stat__caption">
-            p50 across TF-IDF candidate retrieval plus cross-encoder
-            reranker — instant in the composer.
+            p50 across TF-IDF candidate retrieval plus cross-encoder reranker —
+            instant in the composer.
           </div>
           <div class="stat__source">
             demo latency target for the local retrieval path

@@ -101,8 +101,8 @@ explicitly asks for repo-owned assets.
 Run these checks before presenting:
 
 ```bash
-rg -n "company\\.com|it\\.company|vpn\\.company|passwordreset\\.company|Priya Anand|Aisera" knowledge_base docs src search-api -g '!docs/demo/sanitized-demo-plan.md' -g '!docs/demo/rehearsal-snapshot.md'
-rg -n "IronKey|Apricorn|approved encrypted drive|whitelist-usb|PagerDuty rule 12" docs src -g '!docs/demo/sanitized-demo-plan.md' -g '!docs/demo/rehearsal-snapshot.md'
+rg -n "company\\.com|it\\.company|vpn\\.company|passwordreset\\.company|Priya Anand|Aisera" knowledge_base docs src search-api -g '!docs/demo/sanitized-demo-plan.md' -g '!docs/demo/rehearsal-snapshot.md' -g '!docs/demo/portfolio-handoff-bundle.md'
+rg -n "IronKey|Apricorn|approved encrypted drive|whitelist-usb|PagerDuty rule 12" docs src -g '!docs/demo/sanitized-demo-plan.md' -g '!docs/demo/rehearsal-snapshot.md' -g '!docs/demo/portfolio-handoff-bundle.md'
 rg -n "USB|flash drive|removable media" knowledge_base docs src search-api
 git status --short --ignored=matching node_modules dump.rdb
 node scripts/ci/check-workstation-preflight.mjs
