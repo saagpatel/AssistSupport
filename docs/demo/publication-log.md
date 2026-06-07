@@ -10,13 +10,14 @@ Source package: [outbound-share-package.md](./outbound-share-package.md)
 
 ## Status
 
-| Channel        | State   | Published URL or sent-channel note | Date | Follow-up |
-| -------------- | ------- | ---------------------------------- | ---- | --------- |
-| Portfolio site | Pending |                                    |      |           |
-| LinkedIn post  | Pending |                                    |      |           |
-| Email packet   | Pending |                                    |      |           |
-| Short DM       | Pending |                                    |      |           |
-| Video post     | Pending |                                    |      |           |
+| Channel             | State     | Published URL or sent-channel note                                                         | Date       | Follow-up                                                               |
+| ------------------- | --------- | ------------------------------------------------------------------------------------------ | ---------- | ----------------------------------------------------------------------- |
+| GitHub repo package | Published | https://github.com/saagpatel/AssistSupport/blob/master/docs/demo/outbound-share-package.md | 2026-06-07 | Use this as the canonical share source until another channel is posted. |
+| Portfolio site      | Pending   |                                                                                            |            |                                                                         |
+| LinkedIn post       | Pending   |                                                                                            |            |                                                                         |
+| Email packet        | Pending   |                                                                                            |            |                                                                         |
+| Short DM            | Pending   |                                                                                            |            |                                                                         |
+| Video post          | Pending   |                                                                                            |            |                                                                         |
 
 ## Capture Rules
 
@@ -44,6 +45,18 @@ Safety check: no private data, no real ticket data, no credentials
 ```
 
 ## Example Safe Entries
+
+```text
+Channel: GitHub repo package
+State: Published
+Date: 2026-06-07
+URL or sent-channel note: https://github.com/saagpatel/AssistSupport/blob/master/docs/demo/outbound-share-package.md
+Attachments used: one-pager PDF, screenshot contact sheet, deck PDF preview
+Links included: repo, case study, sanitized demo plan
+Caption/source draft used: outbound share package
+Follow-up: record LinkedIn, portfolio site, email, DM, or video channel after posting/sending
+Safety check: no private data, no real ticket data, no credentials
+```
 
 ```text
 Channel: Portfolio site
