@@ -1,6 +1,6 @@
 # Current Health
 
-Last audited: April 21, 2026
+Last audited: June 7, 2026
 
 AssistSupport uses two health tiers so the repo can be honest about what is green today and what only applies during release work.
 
@@ -49,3 +49,15 @@ These still matter, but they are not the single daily health command:
 - PR policy checks still require tests/docs coverage for changed surfaces
 - lockfile rationale, branch naming, commit hygiene, and secret scanning stay enforced through supporting workflows
 - overall line coverage is informational; it is not the primary health target
+
+## Sanitized Demo Readiness
+
+The sanitized demo lane is merged and ready to restart from `master`.
+
+- Demo plan: [docs/demo/sanitized-demo-plan.md](../demo/sanitized-demo-plan.md)
+- Fictional tenant: Northstar Labs with `.example` domains and `NSD-*` ticket IDs
+- Safe demo sources: checked-in `knowledge_base/`, mock Tauri IPC data, and portfolio collateral under `docs/screenshots/`, `docs/one-pager/`, and `docs/deck/`
+- Unsafe sources: `.env*`, private workspace data, Redis dumps, real customer exports, and real integration credentials
+- Expected local state: no auxiliary worktrees, only `master` checked out, and no ignored demo/runtime artifacts required in the workspace
+
+Restart note: begin future demo or portfolio work from current `origin/master`, rerun the verification checklist in the sanitized demo plan before presenting, and keep generated PPTX/contact-sheet HTML/Redis dump files out of commits.
