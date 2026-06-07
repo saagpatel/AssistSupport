@@ -68,6 +68,7 @@ import type {
   WorkspacePersonalization,
 } from "../../types/workspace";
 import "./DraftTab.css";
+import "./AiReadinessBanner.mobile.css";
 
 export interface DraftTabHandle {
   generate: () => void;

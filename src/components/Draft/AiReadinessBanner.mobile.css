@@ -1,0 +1,45 @@
+.ai-readiness-check-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-readiness-mono {
+  overflow-wrap: anywhere;
+}
+
+.ai-readiness-checklist {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.ai-readiness-check {
+  grid-template-columns: minmax(7rem, auto) minmax(0, 1fr);
+}
+
+@media (max-width: 899px) {
+  .ai-readiness-header {
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-shell-revamp .ai-readiness-banner {
+    padding: var(--as-space-4);
+  }
+
+  .ai-readiness-header {
+    flex-direction: column;
+  }
+
+  .ai-readiness-actions {
+    align-self: stretch;
+  }
+
+  .ai-readiness-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ai-readiness-check {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
