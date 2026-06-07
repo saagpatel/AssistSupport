@@ -35,13 +35,14 @@ portfolio asset until the feature ships.
 
 ### Live capture ([live-capture.mjs](live-capture.mjs))
 
-Starts `pnpm dev` on port 1422 with `VITE_E2E_MOCK_TAURI=1` so the
-frontend runs browser-standalone against the IPC mocks in
+Starts `pnpm dev` on port 1424 with `VITE_E2E_MOCK_TAURI=1`, the
+workspace-hero flag, and the admin-tabs flag so the frontend runs
+browser-standalone against the IPC mocks in
 [`src/test/e2eTauriMock.ts`](../../src/test/e2eTauriMock.ts). Primes
-`localStorage` with the workspace-hero flag and the admin-tabs
-override, drives the composer on the Workspace tab so a grounded
-draft actually renders, then navigates through Queue / Analytics /
-Operations and screenshots each at 1440×900 CSS / 2× DPR.
+`localStorage` with the same flags as a backup, drives the composer on
+the Workspace tab so a grounded draft actually renders, then navigates
+through Queue / Analytics / Operations and screenshots each at
+1440×900 CSS / 2× DPR.
 
 ```bash
 # from repo root

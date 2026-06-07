@@ -25,8 +25,9 @@ study, or LinkedIn post.
 > Templates tabs, per-bucket counters (total / unassigned /
 > in-progress / at-risk), filter chips for queue slice (all /
 > unassigned / at-risk / in-progress / resolved), and the Team
-> Scorecard + Batch Triage side panels. Seeded with the dev mock's
-> single VPN cluster so the recent-clusters list is populated.
+> Scorecard + Batch Triage side panels. The current mock queue is
+> stable at zero open tickets while still surfacing a recent Touch ID
+> cluster for batch-triage rehearsal.
 
 ## 3. ML intent confidence view · [03-intent.png](renders/03-intent.png) · mockup
 
@@ -40,12 +41,12 @@ study, or LinkedIn post.
 ## 4. KB gap analysis dashboard · [04-kb-gap.png](renders/04-kb-gap.png) · LIVE
 
 > Real capture of the Analytics view with the dev mock data: quality
-> metrics (avg time to draft · copy per save · edit save rate) with
-> thresholds and the Knowledge Gaps block ready to surface
-> low-confidence or ungrounded queries once gap candidates exist.
-> The richer populated view (clustered gaps, 14-day confidence
-> distribution, prioritized article backlog) ships as
-> [panels/04-kb-gap.html](panels/04-kb-gap.html) for reference.
+> metrics and the Knowledge Gaps block populated with fictional
+> clusters including `VPN won't connect at HQ but works on hotspot`
+> and `Outlook keeps crashing on macOS 14.5`. The richer mockup
+> view (14-day confidence distribution and prioritized article backlog)
+> ships as [panels/04-kb-gap.html](panels/04-kb-gap.html) for
+> reference.
 
 ## 5. Deployment &amp; rollback ops surface · [05-ops.png](renders/05-ops.png) · LIVE
 
