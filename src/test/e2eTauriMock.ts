@@ -1234,7 +1234,8 @@ export function setupE2eTauriMock(): void {
                 article_id: "article-1",
                 title: "Removable Media Policy",
                 category: "POLICY",
-                preview: "USB drives are restricted unless approved.",
+                preview:
+                  "USB drives are not allowed for company data; use approved transfer paths.",
                 source_document: "doc-2",
                 section: "Section 4.2",
                 scores: { bm25: 0.91, vector: 0.88, fused: 0.9 },

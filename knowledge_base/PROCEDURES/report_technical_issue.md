@@ -2,7 +2,7 @@
 
 ## Steps
 
-1. **Go to the IT Helpdesk Portal** at https://it.company.com/support
+1. **Go to the IT Helpdesk Portal** at https://it.northstar.example/support
 2. **Click "New Ticket"**
 3. **Select the category** that best matches your issue:
    - Hardware (laptop, monitor, keyboard, mouse)

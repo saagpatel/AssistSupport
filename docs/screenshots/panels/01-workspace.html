@@ -614,13 +614,13 @@
         <div class="wsx">
           <div class="wsx__composer">
             <div class="wsx__ticketBar">
-              <div class="wsx__ticketId">AS-4218 · REQUEST</div>
+              <div class="wsx__ticketId">NSD-4218 · REQUEST</div>
               <div class="wsx__ticketSummary">
                 Can I use a flash drive on my work MacBook for the offsite?
               </div>
               <div class="wsx__ticketMeta">
-                <span class="wsx__ticketAvatar">PA</span>
-                <span class="wsx__ticketReporter">Priya Anand</span>
+                <span class="wsx__ticketAvatar">JL</span>
+                <span class="wsx__ticketReporter">Jordan Lee</span>
                 <span>·</span>
                 <span>Open</span>
                 <span>·</span>
@@ -630,7 +630,7 @@
               </div>
             </div>
             <textarea class="wsx__query">
-Priya is flying to the offsite Thursday and wants to bring a USB stick for slide backups. Asking if IT permits it, and if so what the approved model is. She's on a company-issued MacBook Pro 14 (M3), macOS 14.5.</textarea
+Jordan from Finance is traveling Thursday and asks whether they can copy board-review slides to a USB drive for the offsite. They are on a Northstar-managed MacBook Pro 14, macOS 14.5.</textarea
             >
             <div class="wsx__composerFooter">
               <div class="wsx__chips">
@@ -690,33 +690,29 @@ Priya is flying to the offsite Thursday and wants to bring a USB stick for slide
 
                 <article class="wsx__prose">
                   <p>
-                    Removable media is permitted on company-issued Macs for
-                    short-term travel use, but it must be an
-                    <strong>IT-approved encrypted drive</strong> and the file
-                    transfer has to be logged through the macOS Endpoint
-                    Security agent. Per IT Security Policy 4.2, unencrypted
-                    flash drives are blocked at the kernel extension
-                    layer.<button class="cite">1</button>
+                    Removable media is not allowed for company data on
+                    Northstar-managed Macs, including short-term travel use.
+                    Per the Flash Drive and USB Storage Policy, USB flash
+                    drives and devices that present as mass storage are
+                    forbidden with no exceptions.<button class="cite">1</button>
                   </p>
                   <p>
-                    For the offsite this week, Priya has two approved options:
+                    For the offsite this week, Jordan has three approved
+                    alternatives:
                   </p>
                   <p>
-                    The <strong>Kingston IronKey D500S 16GB</strong> is
-                    standard-issue and can be picked up same-day from the 3rd-floor
-                    IT desk — it ships FIPS-validated and auto-enrolls with
-                    the device-management
-                    console.<button class="cite">2</button> If she already
-                    owns an <strong>Apricorn Aegis Secure Key 3NX</strong>, IT
-                    can whitelist its serial in
-                    under ten minutes.<button class="cite">3</button>
+                    Use SharePoint or OneDrive for the board-review deck when
+                    the audience is internal, ShareFile for large or sensitive
+                    external transfers, or encrypted email for files under
+                    25MB.<button class="cite">2</button> Network shares are
+                    also approved when Jordan is connected through VPN.
+                    <button class="cite">3</button>
                   </p>
                   <p>
-                    Either way, she should request the drive before end of day
-                    tomorrow so the endpoint policy has time to propagate to
-                    her Mac before departure. Unapproved drives inserted on
-                    travel Wi-Fi will trigger an automatic incident in PagerDuty
-                    and lock the port for 24 hours.<button class="cite">4</button>
+                    If Jordan needs an exception for regulated data handling,
+                    route it to Security for review instead of suggesting a USB
+                    workaround. The safest reply is: no USB drive, use an
+                    auditable approved transfer path.<button class="cite">4</button>
                   </p>
                 </article>
 
@@ -739,10 +735,10 @@ Priya is flying to the offsite Thursday and wants to bring a USB stick for slide
                       <span class="wsx__sourceNum">1</span>
                       <div>
                         <div class="wsx__sourceTitle">
-                          IT Security Policy 4.2 — Removable Media Controls
+                          Flash Drive and USB Storage Policy
                         </div>
                         <div class="wsx__sourceMeta">
-                          policies/security-4.2.md · Enforcement
+                          knowledge_base/POLICIES/flash_drives_forbidden.md
                         </div>
                       </div>
                       <span class="wsx__sourceScore">0.94</span>
@@ -751,10 +747,10 @@ Priya is flying to the offsite Thursday and wants to bring a USB stick for slide
                       <span class="wsx__sourceNum">2</span>
                       <div>
                         <div class="wsx__sourceTitle">
-                          Kingston IronKey D500S — Standard Issue Procedure
+                          Approved Cloud Storage Policy
                         </div>
                         <div class="wsx__sourceMeta">
-                          kb/hardware/ironkey-d500s.md · Request flow
+                          knowledge_base/POLICIES/cloud_storage_policy.md
                         </div>
                       </div>
                       <span class="wsx__sourceScore">0.88</span>
@@ -763,10 +759,10 @@ Priya is flying to the offsite Thursday and wants to bring a USB stick for slide
                       <span class="wsx__sourceNum">3</span>
                       <div>
                         <div class="wsx__sourceTitle">
-                          Whitelisting Personal Encrypted Drives
+                          Removable Media Policy
                         </div>
                         <div class="wsx__sourceMeta">
-                          runbooks/whitelist-usb.md · Apricorn / Kingston
+                          knowledge_base/POLICIES/removable_media_policy.md
                         </div>
                       </div>
                       <span class="wsx__sourceScore">0.81</span>
@@ -775,10 +771,10 @@ Priya is flying to the offsite Thursday and wants to bring a USB stick for slide
                       <span class="wsx__sourceNum">4</span>
                       <div>
                         <div class="wsx__sourceTitle">
-                          Endpoint Incident Auto-Triggers (Travel Wi-Fi)
+                          Data Classification and Handling
                         </div>
                         <div class="wsx__sourceMeta">
-                          runbooks/pagerduty-endpoint.md · PagerDuty rule 12
+                          knowledge_base/POLICIES/data_classification.md
                         </div>
                       </div>
                       <span class="wsx__sourceScore">0.74</span>
@@ -857,17 +853,17 @@ Priya is flying to the offsite Thursday and wants to bring a USB stick for slide
                 <div class="wsx__alt">
                   <div class="wsx__altHead">ALT 1 · terser</div>
                   <div class="wsx__altPreview">
-                    Yes — but you'll need an IT-approved encrypted drive. Pick
-                    up a Kingston IronKey D500S 16GB from the 3rd-floor desk
-                    before EOD tomorrow.
+                    No USB drive for company data. Use SharePoint, OneDrive, or
+                    ShareFile so the transfer stays encrypted, audited, and
+                    access-controlled.
                   </div>
                 </div>
                 <div class="wsx__alt">
                   <div class="wsx__altHead">ALT 2 · empathetic</div>
                   <div class="wsx__altPreview">
-                    Great question, and happy to make this easy for the
-                    offsite. Our policy requires an approved encrypted drive
-                    for travel use…
+                    I get why a USB backup feels convenient for travel, but
+                    Northstar policy blocks removable media. Use an approved
+                    cloud or managed-transfer path instead…
                   </div>
                 </div>
               </div>

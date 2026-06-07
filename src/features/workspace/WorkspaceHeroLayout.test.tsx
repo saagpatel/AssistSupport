@@ -56,21 +56,21 @@ describe("WorkspaceHeroLayout", () => {
   it("renders the answer prose, cited sources, and claims-supported metric when a grounded response exists", () => {
     const props = baseProps({
       response:
-        "Removable media is permitted on company-issued Macs per IT Security Policy 4.2.[1]\n\nFor short-term travel use you need an approved encrypted drive.[2]",
+        "Removable media is not allowed for company data on Northstar-managed Macs.[1]\n\nUse SharePoint, OneDrive, or ShareFile instead so the transfer remains audited.[2]",
       hasResponseReady: true,
       sources: [
         {
           chunk_id: "a",
-          file_path: "policies/security-4.2.md",
-          title: "IT Security Policy 4.2 — Removable Media Controls",
+          file_path: "knowledge_base/POLICIES/flash_drives_forbidden.md",
+          title: "Flash Drive and USB Storage Policy",
           heading_path: "Enforcement",
           score: 0.94,
         },
         {
           chunk_id: "b",
-          file_path: "kb/hardware/ironkey-d500s.md",
-          title: "Kingston IronKey D500S — Standard Issue Procedure",
-          heading_path: "Request flow",
+          file_path: "knowledge_base/POLICIES/cloud_storage_policy.md",
+          title: "Approved Cloud Storage Policy",
+          heading_path: "Approved alternatives",
           score: 0.88,
         },
       ],
@@ -94,16 +94,16 @@ describe("WorkspaceHeroLayout", () => {
     });
 
     render(<WorkspaceHeroLayout {...props} />);
-    expect(screen.getByText(/Removable media is permitted/i)).toBeTruthy();
+    expect(screen.getByText(/Removable media is not allowed/i)).toBeTruthy();
     // Inline citations render as clickable accent pills (one per [n] marker).
     expect(
-      screen.getAllByRole("button", { name: /Policy 4\.2/i }).length,
+      screen.getAllByRole("button", { name: /Flash Drive/i }).length,
     ).toBeGreaterThan(0);
     // Cited sources list renders both KB entries.
     expect(
-      screen.getByText(/IT Security Policy 4\.2 — Removable Media Controls/i),
+      screen.getByText(/Flash Drive and USB Storage Policy/i),
     ).toBeTruthy();
-    expect(screen.getByText(/Kingston IronKey D500S/i)).toBeTruthy();
+    expect(screen.getByText(/Approved Cloud Storage Policy/i)).toBeTruthy();
     // Grounded-claims summary is 2/3 — rendered in both the meta row
     // and the rail signals card, so we just assert it appears at least once.
     const matches = screen.getAllByText(

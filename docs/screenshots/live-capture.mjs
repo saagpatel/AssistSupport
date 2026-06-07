@@ -168,7 +168,7 @@ async function main() {
     await page.waitForSelector(".wsx__composer", { timeout: 10_000 });
 
     const ticketText =
-      "Priya is flying to the offsite Thursday and wants to bring a USB stick for slide backups. Asking if IT permits it and if so what the approved model is. She's on a company-issued MacBook Pro 14 (M3), macOS 14.5.";
+      "Jordan from Finance is traveling Thursday and asks whether they can copy board-review slides to a USB drive for the offsite. They are on a Northstar-managed MacBook Pro 14, macOS 14.5.";
 
     // Set the textarea value via the native setter so React picks up the
     // change, bypassing any visibility/editability gates Playwright may

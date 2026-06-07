@@ -1,11 +1,12 @@
 # How to Request a New Laptop
 
 ## Overview
+
 All laptop requests go through the IT Asset Management portal. Manager approval is required.
 
 ## Steps
 
-1. **Log into the IT Self-Service Portal** at https://it.company.com/assets
+1. **Log into the IT Self-Service Portal** at https://it.northstar.example/assets
 2. **Select "New Device Request"** from the catalog
 3. **Choose your device type**: Laptop (Standard), Laptop (Developer), Laptop (Executive)
 4. **Fill in the business justification** — explain why you need a new device

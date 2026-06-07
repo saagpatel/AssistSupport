@@ -21,9 +21,9 @@ All security incidents, suspected breaches, and policy violations must be report
 ## How to Report
 
 1. **Urgent**: Call the IT Security hotline (ext. 5555)
-2. **Non-urgent**: Email security@company.com
+2. **Non-urgent**: Email security@northstar.example
 3. **Anonymous**: Use the anonymous reporting portal on the intranet
-4. **Phishing**: Forward suspicious emails to phishing@company.com
+4. **Phishing**: Forward suspicious emails to phishing@northstar.example
 
 ## Response Time
 

@@ -105,7 +105,7 @@ The dense-retrieval path forces you to either:
 
 - **Embed everything upfront at ingest.** Expensive one-time cost, but
   also an ongoing cost — every KB article change re-embeds. With
-  3,500+ articles and a nightly reindex budget of 46 seconds, this
+  thousands of articles and a bounded local reindex budget, this
   doesn't fit.
 - **Embed on-the-fly.** ~100ms per embedding, times 10 queries per
   draft session, times 40 drafts per operator per day = hours of
@@ -215,7 +215,7 @@ sum _is_ magic.
 
 ## Links
 
-- **Repo:** [github.com/saagpatel/AssistSupport](https://github.com/saagpatel/AssistSupport) (MIT, 229 commits)
+- **Repo:** [github.com/saagpatel/AssistSupport](https://github.com/saagpatel/AssistSupport) (MIT)
 - **One-pager:** [docs/one-pager/AssistSupport-one-pager.pdf](one-pager/AssistSupport-one-pager.pdf)
 - **Deck:** [docs/deck/AssistSupport-LinkedIn-Live.pptx](deck/AssistSupport-LinkedIn-Live.pptx)
 - **Screenshot set:** [docs/screenshots/](screenshots/)

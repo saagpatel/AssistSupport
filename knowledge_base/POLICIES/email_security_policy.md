@@ -12,7 +12,7 @@ Company email must be used for all work communications. Sensitive data must be e
 
 - Use company email for all business communication
 - Enable encryption for emails containing sensitive data (use the "Encrypt" button in Outlook)
-- Report suspicious emails to phishing@company.com
+- Report suspicious emails to phishing@northstar.example
 - Do not forward company emails to personal accounts
 - Do not auto-forward email to external addresses
 

@@ -35,7 +35,7 @@ scrolling answer.
 Children (top-to-bottom):
 
 1. **Ticket micro-header** (single row, 32px tall)
-   - Left: `AS-4218 · REQUEST` (monospace, 11px, uppercase, `--as-text-3`)
+   - Left: `NSD-4218 · REQUEST` (monospace, 11px, uppercase, `--as-text-3`)
    - Center: ticket summary (14px / 1.3 semibold, truncated)
    - Right: priority badge + auto-detected intent badge
    - The blue→violet avatar gradient from `ClaudeDesignWorkspace` is

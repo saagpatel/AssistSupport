@@ -345,7 +345,7 @@ function notes(slide, text) {
   s.addText(
     [
       { text: "Saagar Patel", options: { color: C.text1, bold: true } },
-      { text: "  ·  IT Platform Eng · Box", options: { color: C.text3 } },
+      { text: "  ·  IT Platform Eng · Local-first demo", options: { color: C.text3 } },
     ],
     {
       x: 0.75,
@@ -407,11 +407,11 @@ function notes(slide, text) {
   const pillars = [
     {
       head: "LOCAL-FIRST",
-      body: "App, sidecar, classifier, retrieval, reranker, and LLM all run on-device. SQLCipher AES-256 at rest. Zero data leaves the machine.",
+      body: "App, sidecar, classifier, retrieval, reranker, and LLM all run on-device in the demo path. SQLCipher AES-256 protects core workspace data at rest.",
     },
     {
       head: "KB-GROUNDED",
-      body: "Every draft cites real KB articles. Hybrid retrieval over 3,500+ indexed docs; inline [n] markers you can click.",
+      body: "Every draft cites KB articles from the local index. Hybrid retrieval narrows candidates before rerank; inline [n] markers you can click.",
     },
     {
       head: "TRUST-GATED",
@@ -727,7 +727,7 @@ function notes(slide, text) {
     h: 2.63,
     sizing: { type: "contain", w: 4.2, h: 2.63 },
   });
-  s.addText("Live classifier trace for AS-4218", {
+  s.addText("Live classifier trace for NSD-4218", {
     x: 8.6,
     y: 4.98,
     w: 4.2,
@@ -761,7 +761,7 @@ function notes(slide, text) {
   const s = pptx.addSlide({ masterName: "BASE" });
   pageChip(s, 7);
   eyebrow(s, "CHAPTER 06 · HYBRID SEARCH");
-  title(s, "Sub-25 ms retrieval over 3,500+ articles.");
+  title(s, "Sub-25 ms retrieval over the local KB.");
 
   // Left column: explanation
   bullets(
@@ -855,7 +855,7 @@ function notes(slide, text) {
     [
       { label: "P50 HYBRID SEARCH", value: "22ms", note: "TF-IDF candidate retrieval" },
       { label: "P95 HYBRID SEARCH", value: "46ms", note: "measured on M3 MBP" },
-      { label: "KB ARTICLES", value: "3,500+", note: "local SQLite, 46s reindex" },
+      { label: "DEMO KB", value: "27", note: "sanitized markdown sources" },
     ],
     5.9,
     1.2,
@@ -1178,7 +1178,7 @@ function notes(slide, text) {
     {
       label: "REPO",
       value: "github.com/saagpatel/AssistSupport",
-      note: "229 commits · v1.2.0 · MIT",
+      note: "current repo · v1.2.0 · MIT",
     },
     {
       label: "DECK + ONE-PAGER",
