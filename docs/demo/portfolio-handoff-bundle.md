@@ -84,6 +84,8 @@ Outbound-ready copy lives in
 [outbound-share-package.md](./outbound-share-package.md).
 Record published URLs or sent-channel notes in
 [publication-log.md](./publication-log.md).
+Use [external-channel-playbook.md](./external-channel-playbook.md) for
+channel-specific publish/send steps.
 
 Use this order when sending or posting the public portfolio package:
 
@@ -200,7 +202,9 @@ Publication dry run, in reader order:
 5. Open the [case study](../case-study.md), [rehearsal kit](../deck/REHEARSAL.md),
    and [demo video script](../deck/DEMO-VIDEO.md). Confirm they use the same
    Jordan/Northstar story and the current fictional gap labels.
-6. Treat `docs/deck/AssistSupport-LinkedIn-Live.pptx` as a local editable
+6. Open the [external channel playbook](./external-channel-playbook.md) and
+   choose the exact runbook for the channel being published or sent.
+7. Treat `docs/deck/AssistSupport-LinkedIn-Live.pptx` as a local editable
    rebuild output only. Share the committed PDF preview unless rebuilding the
    deck for a live presentation.
 

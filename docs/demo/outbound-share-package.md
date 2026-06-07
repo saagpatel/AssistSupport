@@ -8,6 +8,9 @@ AssistSupport portfolio demo. It uses only fictional Northstar Labs demo data.
 After posting or sending, record the public URL or sent-channel note in
 [publication-log.md](./publication-log.md).
 
+For channel-specific operator steps, use
+[external-channel-playbook.md](./external-channel-playbook.md).
+
 ## Attachments
 
 Attach these three files for email, hiring packets, or direct portfolio review:
@@ -150,6 +153,8 @@ Repo: https://github.com/saagpatel/AssistSupport
 - [ ] Attach `docs/screenshots/renders/contact-sheet.png`
 - [ ] Attach `docs/deck/AssistSupport-LinkedIn-Live.pdf`
 - [ ] Include the repo, case-study, and sanitized-demo-plan links
+- [ ] Follow the matching channel runbook in
+      `docs/demo/external-channel-playbook.md`
 - [ ] Do not attach the gitignored PPTX unless editable slides are requested
 - [ ] Do not include private workspace data, `.env` files, real tickets, or real
       credentials
