@@ -99,7 +99,7 @@ Engineering-professional across all artifacts:
 pnpm install
 pnpm ui:typecheck
 pnpm lint
-pnpm test  # 266 tests including WorkspaceHeroLayout.test.tsx
+pnpm test  # includes WorkspaceHeroLayout.test.tsx
 
 # Session 2 — live captures (real app) or HTML mockups
 node docs/screenshots/live-capture.mjs      # panels 01/02/04/05 from running dev server
