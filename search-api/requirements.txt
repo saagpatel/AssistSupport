@@ -6,7 +6,7 @@ joblib==1.5.3
 numpy==2.4.6
 psycopg2-binary==2.9.10
 requests==2.33.1
-redis==6.4.0
+redis==8.0.0
 scikit-learn==1.7.1
 sentence-transformers==5.4.1
 transformers==5.8.0
