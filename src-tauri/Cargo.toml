@@ -65,7 +65,7 @@ notify-debouncer-full = "0.5"
 walkdir = "2"
 
 # Downloads
-reqwest = { version = "0.12", features = ["stream", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["stream", "json", "rustls-tls-native-roots"] }
 futures = "0.3"
 
 # Validation

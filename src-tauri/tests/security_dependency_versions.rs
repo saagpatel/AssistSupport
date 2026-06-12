@@ -7,8 +7,8 @@ fn cargo_lock() -> String {
         .expect("Cargo.lock should be readable")
 }
 
-fn package_versions<'a>(lockfile: &'a str, package_name: &str) -> Vec<&'a str> {
-    let versions: Vec<_> = lockfile
+fn optional_package_versions<'a>(lockfile: &'a str, package_name: &str) -> Vec<&'a str> {
+    lockfile
         .split("[[package]]")
         .filter_map(|package| {
             let mut name = None;
@@ -26,7 +26,11 @@ fn package_versions<'a>(lockfile: &'a str, package_name: &str) -> Vec<&'a str> {
 
             (name == Some(package_name)).then_some(version).flatten()
         })
-        .collect();
+        .collect()
+}
+
+fn package_versions<'a>(lockfile: &'a str, package_name: &str) -> Vec<&'a str> {
+    let versions = optional_package_versions(lockfile, package_name);
 
     assert!(
         !versions.is_empty(),
@@ -84,8 +88,15 @@ fn assert_package_at_least(lockfile: &str, package_name: &str, minimum: &str) {
 #[test]
 fn cargo_lock_uses_patched_openssl() {
     let lockfile = cargo_lock();
+    let openssl_versions = optional_package_versions(&lockfile, "openssl");
 
-    assert_package_at_least(&lockfile, "openssl", "0.10.79");
+    assert!(
+        openssl_versions
+            .iter()
+            .all(|version| version_tuple(version) >= version_tuple("0.10.79")),
+        "openssl should be absent or stay on at least 0.10.79; found {openssl_versions:?}"
+    );
+    assert_package_at_least(&lockfile, "openssl-sys", "0.9.116");
 }
 
 #[test]
