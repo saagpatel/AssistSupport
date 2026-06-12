@@ -27,7 +27,7 @@ jobs:
         # Advisory-only: reports SARIF but does not fail the job. The
         # dependency-watch workflow still owns the blocking cargo/pnpm
         # audit gate. Remove the `|| true` once the baseline is clean.
-        uses: google/osv-scanner-action/osv-scanner-action@c51854704019a247608d928f370c98740469d4b5
+        uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2
         with:
           scan-args: |-
             --lockfile=pnpm-lock.yaml
