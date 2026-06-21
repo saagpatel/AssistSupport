@@ -3,60 +3,11 @@ name: git-hygiene
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
-    branches: [master]
+    branches: [main, master]
 
 jobs:
-  commitlint:
-    runs-on: ubuntu-latest
+  git-hygiene:
+    uses: saagpatel/sovereign/.github/workflows/git-hygiene.yml@main
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          fetch-depth: 0
-      - uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed
-
-  pr-title:
-    runs-on: ubuntu-latest
-    permissions:
       pull-requests: read
-    steps:
-      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  branch-name:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    steps:
-      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
-        with:
-          script: |
-            const branch = context.payload.pull_request?.head?.ref || "";
-            const pattern = /^codex\/(feat|fix|chore|refactor|docs|test|perf|ci|spike|hotfix)\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
-            const releasePleasePattern = /^release-please--branches--.+--components--[a-z0-9]+(?:-[a-z0-9]+)*$/;
-            const dependabotPattern = /^dependabot\/.+/;
-            if (releasePleasePattern.test(branch)) {
-              core.info(`Release Please automation branch detected: ${branch}`);
-              return;
-            }
-            if (dependabotPattern.test(branch)) {
-              core.info(`Dependabot automation branch detected: ${branch}`);
-              return;
-            }
-            if (!pattern.test(branch)) {
-              core.setFailed(`Invalid branch name: ${branch}`);
-            }
-
-  secrets:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
