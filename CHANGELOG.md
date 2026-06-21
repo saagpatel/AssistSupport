@@ -1,5 +1,56 @@
 # Changelog
 
+## [1.3.1](https://github.com/saagpatel/AssistSupport/compare/app-v1.3.0...app-v1.3.1) (2026-06-21)
+
+
+### Bug Fixes
+
+* **deps:** prefer rustls for AssistSupport downloads ([a80e0c9](https://github.com/saagpatel/AssistSupport/commit/a80e0c95ffafa190e91add9add304a02ff53b761))
+* harden AssistSupport release gates ([d6006de](https://github.com/saagpatel/AssistSupport/commit/d6006de614c11a148780ead14aa2c29db9e725ee))
+* improve mobile readiness card layout ([0d427bf](https://github.com/saagpatel/AssistSupport/commit/0d427bfb002219da9a01b722c7f36c1a6d79b498))
+* improve mobile readiness card layout ([87d7a1a](https://github.com/saagpatel/AssistSupport/commit/87d7a1a4fd7c3e506a900e80d4aaac3dced9c176))
+* polish mobile demo workspace ([1cc97ae](https://github.com/saagpatel/AssistSupport/commit/1cc97aed182b7dd946358879680975c04e45dfc7))
+* polish mobile demo workspace ([a6739a8](https://github.com/saagpatel/AssistSupport/commit/a6739a887bd44a4880524a3848bd47d2dc41a814))
+* stop workspace catalog refresh loop ([b21621f](https://github.com/saagpatel/AssistSupport/commit/b21621f304e0c066184307ba20b86aa1df0ebf25))
+* stop workspace catalog refresh loop ([42fc938](https://github.com/saagpatel/AssistSupport/commit/42fc938a9d347ce2737e41819b75383772d97ab5))
+
+
+### Documentation
+
+* add external channel playbook ([260d664](https://github.com/saagpatel/AssistSupport/commit/260d6643606d88e761879093cb6bd751e10e7929))
+* add external channel playbook ([1076d83](https://github.com/saagpatel/AssistSupport/commit/1076d83115e319f1318bb07288358f1989e5c802))
+* add outbound share package draft ([a4b65a9](https://github.com/saagpatel/AssistSupport/commit/a4b65a9f61a593656b2b6e946ca1e5c9ebd01173))
+* add outbound share package draft ([38441aa](https://github.com/saagpatel/AssistSupport/commit/38441aa1f43f62551c188d26e5b010399612c589))
+* add portfolio share package summary ([249af57](https://github.com/saagpatel/AssistSupport/commit/249af57fa78452efeff5f2c8871857006fc01606))
+* add portfolio share package summary ([dbdf5fc](https://github.com/saagpatel/AssistSupport/commit/dbdf5fcb3db60f1d03ac068c3d10a534d1608e5e))
+* add publication dry run checklist ([ebad928](https://github.com/saagpatel/AssistSupport/commit/ebad9286712808a550019387d2846b7348e03cc0))
+* add publication dry run checklist ([fb9cedf](https://github.com/saagpatel/AssistSupport/commit/fb9cedf622aa215efc9279030ef4c5d10e91b47b))
+* add publication log template ([356dbb2](https://github.com/saagpatel/AssistSupport/commit/356dbb2ff2843bdff134480a873badc0dd85c111))
+* add publication log template ([48a9370](https://github.com/saagpatel/AssistSupport/commit/48a937051bfd367c41bad99d502c3e1462e9d5a5))
+* add sanitized demo plan ([ad570aa](https://github.com/saagpatel/AssistSupport/commit/ad570aa31acd44a4ab23592cb6657ab5743265d8))
+* add sanitized demo plan ([e3e5e4b](https://github.com/saagpatel/AssistSupport/commit/e3e5e4b8381ebb91f38a927d3d2db323228858bf))
+* add sanitized demo readiness snapshot ([8c3c649](https://github.com/saagpatel/AssistSupport/commit/8c3c649a0a9f7d8688ac3395f4c99279c59fb150))
+* add sanitized demo readiness snapshot ([079d2d9](https://github.com/saagpatel/AssistSupport/commit/079d2d95410bf1241426d2c7da607e08385d1cb7))
+* add sanitized demo rehearsal snapshot ([eadb22f](https://github.com/saagpatel/AssistSupport/commit/eadb22ff131f5ca8b21d6e8a3725b2e577169731))
+* add sanitized demo rehearsal snapshot ([d6c8a4c](https://github.com/saagpatel/AssistSupport/commit/d6c8a4cf9498dd492404a69d5e1969cfe55af967))
+* clarify private vulnerability reporting ([869339f](https://github.com/saagpatel/AssistSupport/commit/869339f15a1c49251e41234d6a3e7887277b1262))
+* clarify private vulnerability reporting ([f3c0c68](https://github.com/saagpatel/AssistSupport/commit/f3c0c68fceb797ff8b81f61afcb6100076517348))
+* clarify public portfolio entry points ([17dfbb6](https://github.com/saagpatel/AssistSupport/commit/17dfbb6953d33afa1b5909968563c323fd85da18))
+* clarify public portfolio entry points ([5c8153b](https://github.com/saagpatel/AssistSupport/commit/5c8153baa60d5cde1336b7a130b0632fe9e294a2))
+* finish demo sanitization review ([d815c73](https://github.com/saagpatel/AssistSupport/commit/d815c73f10418c5126834f38c8928e85f33e017b))
+* lean AGENTS operating contract ([fd94aad](https://github.com/saagpatel/AssistSupport/commit/fd94aadb73d71eaf7154e3193d38f8067a01651e))
+* log github publication channel ([54a9c85](https://github.com/saagpatel/AssistSupport/commit/54a9c8598e9b7fd8395b09b980adc771635aaf3a))
+* log github publication channel ([1b40d67](https://github.com/saagpatel/AssistSupport/commit/1b40d67e56c6a08134867f291714fa3a9f9d4415))
+* package sanitized demo collateral handoff ([1aea40e](https://github.com/saagpatel/AssistSupport/commit/1aea40e0d0a7ade7db1f5da61c98459fabfb6cc6))
+* package sanitized demo collateral handoff ([5587673](https://github.com/saagpatel/AssistSupport/commit/558767399b70d4a6d9e166aa14442eba8c21537c))
+* reconcile documentation to current code state ([#143](https://github.com/saagpatel/AssistSupport/issues/143)) ([61146f4](https://github.com/saagpatel/AssistSupport/commit/61146f42af7443ffa884261836b56240008df155))
+* refresh deck pdf preview ([3964e35](https://github.com/saagpatel/AssistSupport/commit/3964e35dce0c70bc5462ecb6c2ff504021e8de91))
+* refresh deck pdf preview ([4a40f38](https://github.com/saagpatel/AssistSupport/commit/4a40f38340ba09324c60637349a4783a42fb2768))
+* refresh portfolio one-pager visuals ([80b9ebd](https://github.com/saagpatel/AssistSupport/commit/80b9ebdebae648718fc6396954db5f30c40efa76))
+* refresh portfolio one-pager visuals ([0b3666c](https://github.com/saagpatel/AssistSupport/commit/0b3666cf05658cc554b11aff83e449cd80fd9e18))
+* refresh sanitized demo artifacts ([46ea5b6](https://github.com/saagpatel/AssistSupport/commit/46ea5b6bc6f26e386cc8c29e59ddae6548bd2129))
+* refresh sanitized demo visuals ([938b574](https://github.com/saagpatel/AssistSupport/commit/938b57481c1cd217a10c71fe0673d6cbf6534002))
+
 ## [1.3.0](https://github.com/saagpatel/AssistSupport/compare/app-v1.2.0...app-v1.3.0) (2026-05-31)
 
 
