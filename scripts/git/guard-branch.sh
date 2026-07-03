@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-branch="$(git rev-parse --abbrev-ref HEAD)"
+branch="${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD)}"
 pattern='^codex/(feat|fix|chore|refactor|docs|test|perf|ci|spike|hotfix)/[a-z0-9]+(-[a-z0-9]+)*$'
 
 if [[ "$branch" == "HEAD" && "${CI:-}" == "true" ]]; then
