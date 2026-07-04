@@ -33,6 +33,11 @@ explicit design change as merge-relevant.
 
 For UI PRs, comment when the diff lacks verification for the changed surface or
 would make an important workflow inaccessible, visually clipped, or misleading.
+Review UI changes against the real support workflow: knowledge search,
+grounding/reranking, draft generation, source review, settings, ingest, and
+workspace selection. Loading, empty, permission-denied, offline/local-model
+unavailable, search-no-results, and backend-error states are merge-relevant
+when the changed surface can leave the operator stuck or misled.
 For docs-only PRs, comment only when docs claim current privacy, encryption,
 model-routing, release, performance, or verification behavior that the reviewed
 files or commands do not support.
