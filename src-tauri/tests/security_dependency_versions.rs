@@ -85,6 +85,15 @@ fn assert_package_at_least(lockfile: &str, package_name: &str, minimum: &str) {
     );
 }
 
+fn assert_package_absent(lockfile: &str, package_name: &str) {
+    let versions = optional_package_versions(lockfile, package_name);
+
+    assert!(
+        versions.is_empty(),
+        "{package_name} should be absent from Cargo.lock; found {versions:?}"
+    );
+}
+
 #[test]
 fn cargo_lock_uses_patched_openssl() {
     let lockfile = cargo_lock();
@@ -118,4 +127,34 @@ fn cargo_lock_uses_patched_lz4_flex() {
         }),
         "lz4_flex should stay outside vulnerable ranges <=0.11.5 and 0.12.0; found {versions:?}"
     );
+}
+
+#[test]
+fn cargo_lock_removes_lru_vector_advisory_path() {
+    let lockfile = cargo_lock();
+
+    assert_package_absent(&lockfile, "lru");
+    assert_package_at_least(&lockfile, "lancedb", "0.30.0");
+}
+
+#[test]
+fn cargo_lock_removes_legacy_rand_advisory_path() {
+    let lockfile = cargo_lock();
+    let versions = package_versions(&lockfile, "rand");
+
+    assert!(
+        versions
+            .iter()
+            .all(|version| version_tuple(version) >= version_tuple("0.8.6")),
+        "rand should stay on patched versions >=0.8.6; found {versions:?}"
+    );
+}
+
+#[test]
+fn cargo_lock_uses_patched_rustsec_drift_versions() {
+    let lockfile = cargo_lock();
+
+    assert_package_at_least(&lockfile, "quinn-proto", "0.11.15");
+    assert_package_at_least(&lockfile, "anyhow", "1.0.103");
+    assert_package_at_least(&lockfile, "memmap2", "0.9.11");
 }

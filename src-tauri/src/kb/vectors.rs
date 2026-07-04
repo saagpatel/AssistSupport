@@ -779,6 +779,37 @@ mod tests {
     }
 
     #[test]
+    fn test_lance_batch_reader_preserves_schema() {
+        let store = VectorStore::new(VectorStoreConfig {
+            embedding_dim: 4,
+            ..VectorStoreConfig::default()
+        });
+        let schema = store.create_schema();
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(StringArray::from(Vec::<String>::new())),
+                Arc::new(
+                    FixedSizeListArray::from_iter_primitive::<Float32Type, _, _>(
+                        std::iter::empty::<Option<Vec<Option<f32>>>>(),
+                        4,
+                    ),
+                ),
+                Arc::new(StringArray::from(Vec::<String>::new())),
+                Arc::new(StringArray::from(Vec::<String>::new())),
+            ],
+        )
+        .unwrap();
+
+        let mut reader: LanceBatchReader =
+            Box::new(RecordBatchIterator::new(vec![Ok(batch)], schema.clone()));
+
+        assert_eq!(reader.schema(), schema);
+        assert_eq!(reader.next().unwrap().unwrap().num_rows(), 0);
+        assert!(reader.next().is_none());
+    }
+
+    #[test]
     fn test_enable_requires_consent() {
         let config = VectorStoreConfig::default();
         let mut store = VectorStore::new(config);
