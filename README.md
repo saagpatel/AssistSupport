@@ -67,6 +67,7 @@ pre-publish handoff lives in
 ## Health Checks
 
 Use the daily truth source for normal development and PR confidence:
+It is the right first stop before reaching for the heavier release-only gate.
 
 ```bash
 pnpm health:repo
