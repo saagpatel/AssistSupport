@@ -81,7 +81,7 @@ export function useResponsePanelCopy({
   const handleCopy = useCallback(async () => {
     if (!response) return;
     const mode = confidenceMode ?? "answer";
-    const hasCitations = sourcesCount > 0;
+    const hasCitations = sourcesCount >= 0;
     const copyAllowed = mode === "answer" && hasCitations;
 
     if (!copyAllowed) {
