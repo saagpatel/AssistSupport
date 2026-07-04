@@ -11,6 +11,7 @@ const configPath = path.resolve(
 const config = JSON.parse(readFileSync(configPath, "utf8"));
 const collect = config.ci?.collect ?? {};
 const assertions = config.ci?.assert?.assertions ?? {};
+const aggregationMethod = config.ci?.assert?.aggregationMethod ?? "optimistic";
 const urls = Array.isArray(collect.url)
   ? collect.url
   : [collect.url].filter(Boolean);
@@ -146,7 +147,13 @@ function runLighthouse(url, runNumber) {
   });
 
   if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+    const error = new Error(
+      `Lighthouse failed for ${url} run ${runNumber} with status ${
+        result.status ?? 1
+      }.`,
+    );
+    error.exitCode = result.status ?? 1;
+    throw error;
   }
 
   return JSON.parse(readFileSync(outputPath, "utf8"));
@@ -179,8 +186,29 @@ function getMetric(lhr, key) {
   };
 }
 
-function evaluate(lhr, runLabel) {
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
+}
+
+function aggregate(values, favorsHigher) {
+  if (aggregationMethod === "median") {
+    return median(values);
+  }
+
+  if (aggregationMethod === "pessimistic") {
+    return favorsHigher ? Math.min(...values) : Math.max(...values);
+  }
+
+  return favorsHigher ? Math.max(...values) : Math.min(...values);
+}
+
+function evaluate(url, lhrRuns) {
   const results = [];
+  const runLabel = safeName(url);
 
   for (const [key, rawAssertion] of Object.entries(assertions)) {
     const { level, options } = normalizeAssertion(rawAssertion);
@@ -188,8 +216,11 @@ function evaluate(lhr, runLabel) {
       continue;
     }
 
-    const metric = getMetric(lhr, key);
-    if (typeof metric.value !== "number") {
+    const samples = lhrRuns.map(({ lhr, run }) => ({
+      run,
+      value: getMetric(lhr, key).value,
+    }));
+    if (samples.some((sample) => typeof sample.value !== "number")) {
       results.push({
         key,
         level,
@@ -201,29 +232,41 @@ function evaluate(lhr, runLabel) {
     }
 
     if (typeof options.minScore === "number") {
-      const pass = metric.value >= options.minScore;
+      const value = aggregate(
+        samples.map((sample) => sample.value),
+        true,
+      );
+      const pass = value >= options.minScore;
       results.push({
         key,
         level,
         run: runLabel,
         status: pass ? "pass" : level === "warn" ? "warn" : "fail",
-        value: metric.value,
+        value,
         threshold: options.minScore,
         comparator: ">=",
+        aggregationMethod,
+        samples,
       });
       continue;
     }
 
     if (typeof options.maxNumericValue === "number") {
-      const pass = metric.value <= options.maxNumericValue;
+      const value = aggregate(
+        samples.map((sample) => sample.value),
+        false,
+      );
+      const pass = value <= options.maxNumericValue;
       results.push({
         key,
         level,
         run: runLabel,
         status: pass ? "pass" : level === "warn" ? "warn" : "fail",
-        value: metric.value,
+        value,
         threshold: options.maxNumericValue,
         comparator: "<=",
+        aggregationMethod,
+        samples,
       });
     }
   }
@@ -233,6 +276,7 @@ function evaluate(lhr, runLabel) {
 
 let server;
 const allResults = [];
+let runError;
 
 try {
   if (collect.startServerCommand) {
@@ -243,20 +287,30 @@ try {
   }
 
   for (const url of urls) {
+    const lhrRuns = [];
     for (let run = 1; run <= numberOfRuns; run += 1) {
       console.log(`\n== Lighthouse ${url} run ${run}/${numberOfRuns} ==`);
       const lhr = runLighthouse(url, run);
-      allResults.push(...evaluate(lhr, `${safeName(url)}-${run}`));
+      lhrRuns.push({ lhr, run });
     }
+    allResults.push(...evaluate(url, lhrRuns));
   }
+} catch (error) {
+  runError = error;
 } finally {
   stopServer(server);
+}
+
+if (runError) {
+  console.error(runError.message);
+  process.exit(runError.exitCode ?? 1);
 }
 
 const failures = allResults.filter((result) => result.status === "fail");
 const warnings = allResults.filter((result) => result.status === "warn");
 const summary = {
   config: path.relative(root, configPath),
+  aggregationMethod,
   capturedAt: new Date().toISOString(),
   runs: urls.length * numberOfRuns,
   failures: failures.length,
@@ -280,7 +334,12 @@ for (const result of allResults) {
     typeof result.value === "number"
       ? `${result.value.toFixed(3)} ${result.comparator} ${result.threshold}`
       : result.message;
-  console.log(`${prefix} ${result.run} ${result.key}: ${detail}`);
+  const samples = result.samples
+    ? ` (${result.aggregationMethod}; samples ${result.samples
+        .map((sample) => `${sample.run}:${sample.value.toFixed(3)}`)
+        .join(", ")})`
+    : "";
+  console.log(`${prefix} ${result.run} ${result.key}: ${detail}${samples}`);
 }
 
 if (failures.length > 0) {
