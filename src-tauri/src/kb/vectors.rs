@@ -18,6 +18,8 @@ use arrow_schema::{DataType, Field, Schema};
 use lancedb::query::{ExecutableQuery, QueryBase};
 use lancedb::{connect, Connection, Table};
 
+type LanceBatchReader = Box<dyn arrow_array::RecordBatchReader + Send>;
+
 /// Check if a character is a Unicode confusable for common injection characters.
 /// Includes various Unicode characters that visually resemble quotes, operators, etc.
 #[allow(dead_code)] // Used by sanitize_filter_value; tested in test suite
@@ -431,10 +433,11 @@ impl VectorStore {
             )
             .map_err(|e| VectorError::Arrow(e.to_string()))?;
 
-            let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
+            let batches: LanceBatchReader =
+                Box::new(RecordBatchIterator::new(vec![Ok(batch)], schema));
 
             let table = conn
-                .create_table("chunks", Box::new(batches))
+                .create_table("chunks", batches)
                 .execute()
                 .await
                 .map_err(|e| VectorError::LanceDb(e.to_string()))?;
@@ -528,10 +531,10 @@ impl VectorStore {
         )
         .map_err(|e| VectorError::Arrow(e.to_string()))?;
 
-        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
+        let batches: LanceBatchReader = Box::new(RecordBatchIterator::new(vec![Ok(batch)], schema));
 
         table
-            .add(Box::new(batches))
+            .add(batches)
             .execute()
             .await
             .map_err(|e| VectorError::LanceDb(e.to_string()))?;
@@ -773,6 +776,37 @@ mod tests {
         let config = VectorStoreConfig::default();
         let store = VectorStore::new(config);
         assert!(!store.is_enabled());
+    }
+
+    #[test]
+    fn test_lance_batch_reader_preserves_schema() {
+        let store = VectorStore::new(VectorStoreConfig {
+            embedding_dim: 4,
+            ..VectorStoreConfig::default()
+        });
+        let schema = store.create_schema();
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(StringArray::from(Vec::<String>::new())),
+                Arc::new(
+                    FixedSizeListArray::from_iter_primitive::<Float32Type, _, _>(
+                        std::iter::empty::<Option<Vec<Option<f32>>>>(),
+                        4,
+                    ),
+                ),
+                Arc::new(StringArray::from(Vec::<String>::new())),
+                Arc::new(StringArray::from(Vec::<String>::new())),
+            ],
+        )
+        .unwrap();
+
+        let mut reader: LanceBatchReader =
+            Box::new(RecordBatchIterator::new(vec![Ok(batch)], schema.clone()));
+
+        assert_eq!(reader.schema(), schema);
+        assert_eq!(reader.next().unwrap().unwrap().num_rows(), 0);
+        assert!(reader.next().is_none());
     }
 
     #[test]

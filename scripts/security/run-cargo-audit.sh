@@ -43,6 +43,12 @@ cd "$repo_root/src-tauri"
 # Image/Ravif and Rand transitives (issue #16):
 # - RUSTSEC-2026-0105 core2
 # - RUSTSEC-2026-0097 rand
+#
+# XML parser transitives (issue #17):
+# - RUSTSEC-2026-0194 quick-xml duplicate attribute scan DoS
+# - RUSTSEC-2026-0195 quick-xml namespace declaration allocation DoS
+# Current paths are constrained by calamine and Tauri/plist. Revisit when
+# calamine allows quick-xml >=0.41.0 and Tauri/plist moves past quick-xml 0.38.
 # Deny unsound/unmaintained advisories but do not hard-fail on yanked crate warnings,
 # which can fluctuate transitively outside this repo's direct control.
 cargo audit --deny unsound --deny unmaintained \
@@ -65,4 +71,6 @@ cargo audit --deny unsound --deny unmaintained \
   --ignore RUSTSEC-2025-0100 \
   --ignore RUSTSEC-2026-0002 \
   --ignore RUSTSEC-2026-0097 \
-  --ignore RUSTSEC-2026-0105
+  --ignore RUSTSEC-2026-0105 \
+  --ignore RUSTSEC-2026-0194 \
+  --ignore RUSTSEC-2026-0195
