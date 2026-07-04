@@ -6,8 +6,6 @@ minimumReleaseAgeExclude:
   - uuid@11.1.1
   - ws@8.20.1
 overrides:
-  "@lhci/cli>tmp": ^0.2.7
-  "@lhci/cli>uuid": ^11.1.1
   "@babel/core": ^7.29.6
   basic-ftp: ^5.3.0
   commitizen>lodash: ^4.17.23
@@ -15,7 +13,6 @@ overrides:
   eslint>ajv: ^6.14.0
   external-editor>tmp: ^0.2.7
   flatted: ^3.4.2
-  js-yaml@<3.15.0: ^3.15.0
   js-yaml@>=4.0.0 <=4.1.1: ^4.2.0
   minimatch: ^10.2.3
   qs@>=6.11.1 <=6.15.1: ^6.15.2
