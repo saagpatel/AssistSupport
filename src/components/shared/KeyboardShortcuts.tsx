@@ -79,21 +79,6 @@ export function KeyboardShortcuts({
   onClose,
   showAdminShortcuts = false,
 }: KeyboardShortcutsProps) {
-  // Close on Escape
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
   // Handle click outside
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
