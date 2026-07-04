@@ -60,6 +60,7 @@ function waitForServer(command, readyPattern) {
     let output = "";
 
     const cleanupTimer = setTimeout(() => {
+      stopServer(child);
       reject(
         new Error(
           `Timed out waiting for Lighthouse server readiness pattern: ${readyPattern}`,
