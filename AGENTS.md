@@ -22,6 +22,21 @@
   - asset-size checks
 - Any required gate in `fail` or `not-run` blocks completion.
 
+## Review guidelines
+
+Focus Codex review on local-first privacy boundaries, encrypted workspace data,
+KB/search grounding, optional local-LLM behavior, Tauri desktop permissions,
+and UI changes that affect keyboard access, focus, mobile/responsive layout,
+loading, empty, or error states. Treat changes that send support queries, KB
+contents, tokens, transcripts, or workspace data to cloud services without an
+explicit design change as merge-relevant.
+
+For UI PRs, comment when the diff lacks verification for the changed surface or
+would make an important workflow inaccessible, visually clipped, or misleading.
+For docs-only PRs, comment only when docs claim current privacy, encryption,
+model-routing, release, performance, or verification behavior that the reviewed
+files or commands do not support.
+
 ## Inherited Operating Rules
 
 - Inherit global git, review/fix, testing, docs, UI, security, skill-use, and reporting gates from `/Users/d/.codex/AGENTS.md` and active session instructions.
