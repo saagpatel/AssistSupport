@@ -46,10 +46,10 @@ base64 = "0.22"
 llama-cpp-2 = "0.1"
 
 # Embeddings & Vectors
-lancedb = "0.26.2"
-arrow = "57.2"
-arrow-array = "57.2"
-arrow-schema = "57.2"
+lancedb = "0.30.0"
+arrow = "58.3"
+arrow-array = "58.3"
+arrow-schema = "58.3"
 
 # KB Processing
 pulldown-cmark = "0.12"

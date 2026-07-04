@@ -1,7 +1,7 @@
 # Dependency Advisory Baseline
 
-Date: 2026-03-01
-Default branch snapshot: `master` @ `affa91affa23caf64c1e48943ccc40813dc38730`
+Date: 2026-07-04
+Default branch snapshot: pending merge of `codex/fix/assistsupport-lru-advisory`
 
 ## Purpose
 
@@ -33,7 +33,12 @@ It records known advisory state, active remediation PRs, and temporary exception
 - Owner: Platform Engineering
 - Tracking issues:
   - Umbrella: `#11`
-  - Child: `#12`, `#13`, `#14`, `#15`
+  - Child: `#12`, `#13`, `#14`, `#15`, `#17`
+- Current remediation update:
+  - `lancedb` upgraded to `0.30.0`, removing vulnerable `lru`.
+  - `rand` resolved to patched `0.8.6`.
+  - `quinn-proto`, `anyhow`, and `memmap2` patch updates applied for newly published RustSec advisories.
+  - `quick-xml` advisories `RUSTSEC-2026-0194` and `RUSTSEC-2026-0195` are temporarily waived for constrained `calamine` and Tauri/plist transitive paths.
 
 ## Exit Criteria to Update Baseline
 
