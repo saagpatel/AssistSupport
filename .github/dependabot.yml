@@ -59,3 +59,24 @@ updates:
     ignore:
       - dependency-name: "pnpm/action-setup"
       - dependency-name: "taiki-e/install-action"
+
+  - package-ecosystem: cargo
+    directory: "/src-tauri"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:45"
+      timezone: "America/Los_Angeles"
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - security
+      - intake
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      cargo-security:
+        applies-to: security-updates
+        update-types:
+          - patch
+          - minor
