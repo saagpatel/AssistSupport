@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_engine_creation() {
-        let backend = Arc::new(LlamaBackend::init().expect("backend init"));
+        let backend = crate::test_llama_backend();
         let engine = EmbeddingEngine::new(backend);
         assert!(engine.is_ok());
 

@@ -514,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_engine_creation() {
-        let backend = Arc::new(LlamaBackend::init().expect("backend init"));
+        let backend = crate::test_llama_backend();
         let engine = LlmEngine::new(backend);
         assert!(engine.is_ok(), "Engine should initialize");
 
@@ -545,7 +545,7 @@ mod tests {
         }
 
         // Create engine
-        let backend = Arc::new(LlamaBackend::init().expect("backend init"));
+        let backend = crate::test_llama_backend();
         let engine = LlmEngine::new(backend).expect("Failed to create engine");
         assert!(!engine.is_model_loaded());
 
