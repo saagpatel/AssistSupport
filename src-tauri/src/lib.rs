@@ -114,6 +114,15 @@ impl Default for AppState {
     }
 }
 
+#[cfg(test)]
+pub(crate) fn test_llama_backend() -> Arc<LlamaBackend> {
+    static BACKEND: std::sync::OnceLock<Arc<LlamaBackend>> = std::sync::OnceLock::new();
+
+    Arc::clone(BACKEND.get_or_init(|| {
+        Arc::new(LlamaBackend::init().expect("test llama backend should initialize"))
+    }))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "macos")]

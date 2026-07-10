@@ -2,7 +2,12 @@ import { execSync } from 'node:child_process';
 
 const defaultBaseRef = (() => {
   try {
-    return execSync('git symbolic-ref refs/remotes/origin/HEAD', { encoding: 'utf8' }).trim().replace('refs/remotes/', '');
+    return execSync('git symbolic-ref refs/remotes/origin/HEAD', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .trim()
+      .replace('refs/remotes/', '');
   } catch {
     return 'origin/master';
   }
