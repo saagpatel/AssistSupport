@@ -9,10 +9,15 @@ permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: dependency-watch-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
   dependency-watch:
     name: Weekly Dependency and Advisory Check
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
@@ -108,6 +113,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create or update dependency alert issue
+        id: alert_issue
         if: steps.pnpm_audit.outputs.exit_code != '0' || steps.cargo_summary.outputs.warning_count != '0' || steps.cargo_summary.outputs.vuln_count != '0'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         env:
@@ -149,22 +155,35 @@ jobs:
 
             const existing = issues.find(issue => issue.title === title);
 
+            let mutation;
+            let issueAction;
             if (existing) {
-              await github.rest.issues.update({
+              mutation = await github.rest.issues.update({
                 owner,
                 repo,
                 issue_number: existing.number,
                 body
               });
+              issueAction = 'updated';
             } else {
-              await github.rest.issues.create({
+              mutation = await github.rest.issues.create({
                 owner,
                 repo,
                 title,
                 body,
                 labels: ['dependencies', 'security']
               });
+              issueAction = 'created';
             }
+
+            const issueNumber = mutation.data.number;
+            const readback = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
+            if (readback.data.title !== title || readback.data.body !== body) {
+              throw new Error(`Dependency alert issue readback mismatch for #${issueNumber}`);
+            }
+            core.setOutput('issue_action', issueAction);
+            core.setOutput('issue_number', String(issueNumber));
+            core.setOutput('destination_readback_verified', 'true');
 
       - name: Upload dependency reports
         if: always()
@@ -185,3 +204,52 @@ jobs:
         run: |
           echo "Dependency watch detected actionable vulnerabilities."
           exit 1
+
+      - name: Emit machine-readable completion state
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          ISSUE_OUTCOME: ${{ steps.alert_issue.outcome }}
+          ISSUE_ACTION: ${{ steps.alert_issue.outputs.issue_action }}
+          ISSUE_NUMBER: ${{ steps.alert_issue.outputs.issue_number }}
+          ISSUE_READBACK: ${{ steps.alert_issue.outputs.destination_readback_verified }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          job_ok = os.environ.get("JOB_STATUS") == "success"
+          action = os.environ.get("ISSUE_ACTION", "")
+          issue_number = os.environ.get("ISSUE_NUMBER", "")
+          issue_outcome = os.environ.get("ISSUE_OUTCOME", "")
+          issue_attempted = issue_outcome not in ("", "skipped")
+          readback_required = issue_attempted
+          readback_verified = os.environ.get("ISSUE_READBACK") == "true" if readback_required else True
+          skipped = job_ok and not action
+          partial = issue_attempted and not readback_verified
+          payload = {
+              "schema": "AutomationTerminalStateV1",
+              "automation_id": "github:AssistSupport/dependency-watch",
+              "state": "succeeded" if job_ok else "failed",
+              "completed": job_ok,
+              "partial": partial,
+              "skipped": skipped,
+              "mutation_count": 1 if action else 0,
+              "destination_readback": {
+                  "required": readback_required,
+                  "verified": readback_verified,
+                  "destination_id": f"issue:{issue_number}" if issue_number else None,
+                  "evidence": {"issue_action": action or "unknown", "issue_step_outcome": issue_outcome},
+              },
+              "operator_action_required": not job_ok,
+              "can_auto_archive": job_ok,
+              "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+          }
+          line = "automation_completion: " + json.dumps(payload, separators=(",", ":"))
+          print(line)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n" + line + "\n")
+          if readback_required and not readback_verified:
+              raise SystemExit("dependency issue destination readback was not verified")
+          PY
