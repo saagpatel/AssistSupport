@@ -4,8 +4,8 @@ import fs from "node:fs";
 
 const workflow = fs.readFileSync(new URL("../../.github/workflows/dependency-watch.yml", import.meta.url), "utf8");
 const requirements = [
-  ["workflow concurrency", /^concurrency:\n  group:/m],
-  ["job timeout", /^    timeout-minutes: \d+/m],
+  ["workflow concurrency", /^concurrency:\n {2}group:/m],
+  ["job timeout", /^ {4}timeout-minutes: \d+/m],
   ["mutation action output", /core\.setOutput\('issue_action'/],
   ["destination id output", /core\.setOutput\('issue_number'/],
   ["destination readback", /github\.rest\.issues\.get\(/],
