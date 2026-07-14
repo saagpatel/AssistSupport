@@ -213,43 +213,4 @@ jobs:
           ISSUE_ACTION: ${{ steps.alert_issue.outputs.issue_action }}
           ISSUE_NUMBER: ${{ steps.alert_issue.outputs.issue_number }}
           ISSUE_READBACK: ${{ steps.alert_issue.outputs.destination_readback_verified }}
-        run: |
-          python3 <<'PY'
-          import json
-          import os
-          from datetime import datetime, timezone
-
-          job_ok = os.environ.get("JOB_STATUS") == "success"
-          action = os.environ.get("ISSUE_ACTION", "")
-          issue_number = os.environ.get("ISSUE_NUMBER", "")
-          issue_outcome = os.environ.get("ISSUE_OUTCOME", "")
-          issue_attempted = issue_outcome not in ("", "skipped")
-          readback_required = issue_attempted
-          readback_verified = os.environ.get("ISSUE_READBACK") == "true" if readback_required else True
-          skipped = job_ok and not action
-          partial = issue_attempted and not readback_verified
-          payload = {
-              "schema": "AutomationTerminalStateV1",
-              "automation_id": "github:AssistSupport/dependency-watch",
-              "state": "succeeded" if job_ok else "failed",
-              "completed": job_ok,
-              "partial": partial,
-              "skipped": skipped,
-              "mutation_count": 1 if action else 0,
-              "destination_readback": {
-                  "required": readback_required,
-                  "verified": readback_verified,
-                  "destination_id": f"issue:{issue_number}" if issue_number else None,
-                  "evidence": {"issue_action": action or "unknown", "issue_step_outcome": issue_outcome},
-              },
-              "operator_action_required": not job_ok,
-              "can_auto_archive": job_ok,
-              "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-          }
-          line = "automation_completion: " + json.dumps(payload, separators=(",", ":"))
-          print(line)
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-              summary.write("\n" + line + "\n")
-          if readback_required and not readback_verified:
-              raise SystemExit("dependency issue destination readback was not verified")
-          PY
+        run: python3 .github/scripts/dependency_watch_completion.py
