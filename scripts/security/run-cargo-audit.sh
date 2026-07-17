@@ -12,7 +12,7 @@ cd "$repo_root/src-tauri"
 # Last remediation update: hickory-resolver upgraded to 0.26.1 to clear
 # RUSTSEC-2026-0119, and locked lz4_flex versions kept outside the
 # RUSTSEC-2026-0041 vulnerable ranges.
-# Umbrella tracking issue: https://github.com/saagar210/AssistSupport/issues/11
+# Current dependency-alert destination: https://github.com/saagpatel/AssistSupport/issues/178
 #
 # GTK3/Tauri Linux runtime chain (issue #12):
 # - RUSTSEC-2024-0411 gdkwayland-sys
@@ -44,11 +44,13 @@ cd "$repo_root/src-tauri"
 # - RUSTSEC-2026-0105 core2
 # - RUSTSEC-2026-0097 rand
 #
-# XML parser transitives (issue #17):
+# XML parser transitives (dependency alert #178):
 # - RUSTSEC-2026-0194 quick-xml duplicate attribute scan DoS
 # - RUSTSEC-2026-0195 quick-xml namespace declaration allocation DoS
-# Current paths are constrained by calamine and Tauri/plist. Revisit when
-# calamine allows quick-xml >=0.41.0 and Tauri/plist moves past quick-xml 0.38.
+# Runtime paths through calamine and Tauri/plist use quick-xml >=0.41.0.
+# The sole older copy is constrained to wayland-scanner's trusted build-time
+# protocol XML generator; it never parses operator-controlled documents.
+# Review deadline: 2026-08-10, or when wayland-scanner adopts quick-xml >=0.41.
 # Deny unsound/unmaintained advisories but do not hard-fail on yanked crate warnings,
 # which can fluctuate transitively outside this repo's direct control.
 cargo audit --deny unsound --deny unmaintained \
@@ -73,4 +75,5 @@ cargo audit --deny unsound --deny unmaintained \
   --ignore RUSTSEC-2026-0097 \
   --ignore RUSTSEC-2026-0105 \
   --ignore RUSTSEC-2026-0194 \
-  --ignore RUSTSEC-2026-0195
+  --ignore RUSTSEC-2026-0195 \
+  "$@"

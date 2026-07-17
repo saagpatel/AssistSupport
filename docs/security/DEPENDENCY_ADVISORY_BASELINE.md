@@ -1,6 +1,6 @@
 # Dependency Advisory Baseline
 
-Date: 2026-07-04
+Date: 2026-07-13
 Default branch snapshot: pending merge of `codex/fix/assistsupport-lru-advisory`
 
 ## Purpose
@@ -38,7 +38,9 @@ It records known advisory state, active remediation PRs, and temporary exception
   - `lancedb` upgraded to `0.30.0`, removing vulnerable `lru`.
   - `rand` resolved to patched `0.8.6`.
   - `quinn-proto`, `anyhow`, and `memmap2` patch updates applied for newly published RustSec advisories.
-  - `quick-xml` advisories `RUSTSEC-2026-0194` and `RUSTSEC-2026-0195` are temporarily waived for constrained `calamine` and Tauri/plist transitive paths.
+  - `calamine` is upgraded to `0.36.0` and `plist` to `1.10.0`; both runtime XML paths now use patched `quick-xml 0.41.0`.
+  - `quick-xml` advisories `RUSTSEC-2026-0194` and `RUSTSEC-2026-0195` remain temporarily waived only for `wayland-scanner`'s trusted build-time protocol XML generator.
+  - Waiver owner: Platform Engineering; tracking issue: `#178`; review deadline: 2026-08-10 or the first `wayland-scanner` release using `quick-xml >=0.41.0`.
 
 ## Exit Criteria to Update Baseline
 

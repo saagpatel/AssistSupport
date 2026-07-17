@@ -33,10 +33,13 @@ Patch related Rust advisory drift in the same lockfile refresh:
 - Tauri utility/plugin crates far enough to remove the stale `rand 0.7.3`
   build-time path
 
-Temporarily waive `RUSTSEC-2026-0194` and `RUSTSEC-2026-0195` for existing
-`quick-xml` paths constrained by `calamine` and Tauri/plist. Keep the waiver in
-`scripts/security/run-cargo-audit.sh`, not in workflow configuration, so the
-exception remains visible to maintainers.
+Upgrade `calamine` to `0.36.0` and `plist` to `1.10.0` so operator-controlled
+spreadsheet parsing and Tauri/plist runtime parsing use patched
+`quick-xml 0.41.0`. Temporarily retain the `RUSTSEC-2026-0194` and
+`RUSTSEC-2026-0195` waiver only for `wayland-scanner`'s trusted build-time
+protocol XML generator. Keep the waiver in `scripts/security/run-cargo-audit.sh`,
+not in workflow configuration, so the exception remains visible to maintainers.
+Track the residual exception through the dependency-alert destination `#178`.
 
 ## Consequences
 
@@ -45,9 +48,9 @@ Dependabot paths are removed from the lockfile. The vector store continues to
 use the same table schema and data flow, with only the LanceDB reader interface
 adapted.
 
-The remaining `glib` and `quick-xml` advisories are upstream-constrained and
-must stay on the dependency-advisory review list until their dependency chains
-allow patched versions.
+The remaining `glib` warning and build-only `quick-xml` advisory path are
+upstream-constrained and must stay on the dependency-advisory review list until
+their dependency chains allow patched versions.
 
 ## Alternatives Considered
 
