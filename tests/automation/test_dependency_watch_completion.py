@@ -44,7 +44,12 @@ class DependencyWatchCompletionContractTests(unittest.TestCase):
         self.assertEqual(payload["automation_id"], "github:AssistSupport/dependency-watch")
         self.assertEqual((payload["state"] == "partial"), payload["partial"])
         self.assertEqual((payload["state"] == "skipped"), payload["skipped"])
-        self.assertTrue(payload["destination_readback"]["evidence"])
+        evidence = payload["destination_readback"]["evidence"]
+        self.assertEqual(
+            set(("write_result", "readback_result", "observed_result")) - set(evidence),
+            set(),
+        )
+        self.assertEqual(set(evidence["observed_result"]), {"kind", "value"})
         if payload["destination_readback"]["required"]:
             self.assertTrue(payload["destination_readback"]["destination_id"])
         if payload["can_auto_archive"]:
@@ -66,7 +71,13 @@ class DependencyWatchCompletionContractTests(unittest.TestCase):
                 "verified": False,
                 "destination_id": None,
                 "observed_at": None,
-                "evidence": {"issue_action": "not_required", "issue_step_outcome": "skipped"},
+                "evidence": {
+                    "issue_action": "not_required",
+                    "issue_step_outcome": "skipped",
+                    "write_result": "not_attempted",
+                    "readback_result": "not_required",
+                    "observed_result": {"kind": "state", "value": "no_issue_mutation"},
+                },
             },
         )
 
@@ -82,6 +93,10 @@ class DependencyWatchCompletionContractTests(unittest.TestCase):
         self.assertEqual(payload["mutation_count"], 1)
         self.assertEqual(payload["destination_readback"]["destination_id"], "issue:42")
         self.assertEqual(payload["destination_readback"]["observed_at"], self.observed_at)
+        evidence = payload["destination_readback"]["evidence"]
+        self.assertEqual(evidence["write_result"], "succeeded")
+        self.assertEqual(evidence["readback_result"], "verified")
+        self.assertEqual(evidence["observed_result"], {"kind": "destination_id", "value": "issue:42"})
 
     def test_actionable_failure_with_verified_issue_is_failed_not_partial(self):
         payload = self.payload(
@@ -106,6 +121,9 @@ class DependencyWatchCompletionContractTests(unittest.TestCase):
         self.assertTrue(payload["partial"])
         self.assertTrue(payload["destination_readback"]["required"])
         self.assertFalse(payload["destination_readback"]["verified"])
+        evidence = payload["destination_readback"]["evidence"]
+        self.assertEqual(evidence["write_result"], "failed")
+        self.assertEqual(evidence["readback_result"], "failed")
         self.assertEqual(
             payload["destination_readback"]["destination_id"],
             "repo:saagpatel/AssistSupport/issues#Dependency Watch Alerts",

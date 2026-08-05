@@ -58,9 +58,9 @@ jobs:
         working-directory: src-tauri
         run: |
           set +e
-          cargo audit --json > ../cargo-audit.json
+          bash ../scripts/security/run-cargo-audit.sh --json > ../cargo-audit.json
           status=$?
-          cargo audit > ../cargo-audit.txt || true
+          bash ../scripts/security/run-cargo-audit.sh > ../cargo-audit.txt || true
           echo "exit_code=$status" >> "$GITHUB_OUTPUT"
           exit 0
 

@@ -38,6 +38,18 @@ def build_payload(env: Mapping[str, str], observed_at: str) -> dict:
         state = "failed"
 
     succeeded = state == "succeeded"
+    if not issue_attempted:
+        write_result = "not_attempted"
+        readback_result = "not_required"
+        observed_result = {"kind": "state", "value": "no_issue_mutation"}
+    elif action:
+        write_result = "succeeded"
+        readback_result = "verified" if readback_verified else "failed"
+        observed_result = {"kind": "destination_id", "value": destination_id}
+    else:
+        write_result = "failed"
+        readback_result = "failed"
+        observed_result = {"kind": "state", "value": "issue_unverified"}
     return {
         "schema": "AutomationTerminalStateV1",
         "automation_id": AUTOMATION_ID,
@@ -54,6 +66,9 @@ def build_payload(env: Mapping[str, str], observed_at: str) -> dict:
             "evidence": {
                 "issue_action": action or ("unknown" if issue_attempted else "not_required"),
                 "issue_step_outcome": issue_outcome or "unknown",
+                "write_result": write_result,
+                "readback_result": readback_result,
+                "observed_result": observed_result,
             },
         },
         "operator_action_required": not succeeded,
