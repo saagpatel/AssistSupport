@@ -8,8 +8,8 @@ Accepted
 
 The Tauri command layer had two linked problems:
 
-- [src-tauri/src/commands/mod.rs](~/AssistSupport/src-tauri/src/commands/mod.rs) had grown into a multi-thousand-line command hotspot.
-- [src-tauri/src/lib.rs](~/AssistSupport/src-tauri/src/lib.rs) still owned one giant `generate_handler!` block, so registration and permission coverage depended on the same brittle file shape.
+- [src-tauri/src/commands/mod.rs](../../src-tauri/src/commands/mod.rs) had grown into a multi-thousand-line command hotspot.
+- [src-tauri/src/lib.rs](../../src-tauri/src/lib.rs) still owned one giant `generate_handler!` block, so registration and permission coverage depended on the same brittle file shape.
 
 That made command changes hard to review, hard to permission-audit, and easy to regress. It also blocked the next database-internal split because command ownership was still too centralized.
 
