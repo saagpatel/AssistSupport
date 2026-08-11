@@ -83,7 +83,7 @@ If `soffice` is not on `PATH` in Codex, use the bundled runtime binary from the
 repo root:
 
 ```bash
-/Users/d/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/soffice \
+~/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/soffice \
   --headless \
   --convert-to pdf \
   --outdir docs/deck \

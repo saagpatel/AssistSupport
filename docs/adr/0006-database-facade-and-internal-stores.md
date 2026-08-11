@@ -8,7 +8,7 @@ Accepted
 
 The local SQLite layer had become the next backend hotspot after the Tauri command split:
 
-- [src-tauri/src/db/mod.rs](/Users/d/AssistSupport/src-tauri/src/db/mod.rs) had grown into a mixed bootstrap, migration, runtime-state, draft, knowledge, analytics, workspace, and test file.
+- [src-tauri/src/db/mod.rs](~/AssistSupport/src-tauri/src/db/mod.rs) had grown into a mixed bootstrap, migration, runtime-state, draft, knowledge, analytics, workspace, and test file.
 - The code already had real seam lines, but they were trapped inside one implementation surface, which made review, targeted testing, and future store changes riskier than necessary.
 - Batch 7 needed to improve internal ownership without changing the public `Database` facade, schema version, migration ordering, or frontend command behavior.
 

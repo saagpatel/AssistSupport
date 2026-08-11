@@ -9,7 +9,7 @@ Accepted
 By the time Batch 8 started, the app had already narrowed its product usage of the Python search
 sidecar:
 
-- [src-tauri/src/commands/search_api.rs](/Users/d/AssistSupport/src-tauri/src/commands/search_api.rs)
+- [src-tauri/src/commands/search_api.rs](~/AssistSupport/src-tauri/src/commands/search_api.rs)
   always sent `fusion_strategy: "adaptive"` for live desktop searches.
 - The surviving product surface used the sidecar for five stable endpoints only:
   `GET /health`, `GET /ready`, `POST /search`, `POST /feedback`, and `GET /stats`.
