@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-max_bytes=$((2 * 1024 * 1024))
+# codex-os-managed
+max_bytes="${GIT_GUARD_MAX_BYTES:-2097152}"
 fail=0
-
-while IFS= read -r file; do
-  [[ -f "$file" ]] || continue
-  size="$(wc -c <"$file")"
-  if ((size > max_bytes)); then
-    echo "Large file staged (>2MB): $file"
+# -z emits NUL-separated paths verbatim. Without it git renders any path that
+# is not plain ASCII in quoted escaped form, so a file named "café.txt" comes
+# back as "caf\303\251.txt" and the cat-file lookup below fails with a fatal
+# error. Under set -e that aborts the guard, and the commit is refused with a
+# message about a path not existing rather than anything about file size.
+while IFS= read -r -d '' file; do
+  size=$(git cat-file -s ":$file")
+  if (( size > max_bytes )); then
+    echo "Large file staged (>${max_bytes} bytes): $file"
     fail=1
   fi
-done < <(git diff --cached --name-only --diff-filter=AM)
-
-exit "$fail"
-
+done < <(git diff --cached --name-only -z --diff-filter=AM)
+exit $fail
