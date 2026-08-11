@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ ! -f .git/CODEX_LAST_WIP ]]; then
-  echo "No saved WIP tag found in .git/CODEX_LAST_WIP."
+# codex-os-managed
+marker_path="$(git rev-parse --git-path CODEX_LAST_WIP)"
+if [[ ! -f "$marker_path" ]]; then
+  echo "No saved WIP tag found."
   exit 1
 fi
 
-tag="$(cat .git/CODEX_LAST_WIP)"
-
-if ! git stash list | grep -F "$tag" >/dev/null; then
-  echo "Saved WIP stash not found: $tag"
-  exit 1
-fi
-
+tag="$(cat "$marker_path")"
+git stash list | grep -F "$tag" >/dev/null
 git stash apply "stash^{/$tag}"
 echo "Restored WIP: $tag"
-

@@ -1,26 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE="${1:-origin/master}"
+# codex-os-managed
+base="${1:-origin/main}"
+if ! git rev-parse --verify "$base" >/dev/null 2>&1; then
+  base="origin/master"
+fi
 
 echo "## What"
-git log --no-merges --format="- %s" "${BASE}..HEAD"
-echo
-echo "## Added"
-git diff --name-only --diff-filter=A "${BASE}...HEAD" | sed 's/^/- /' || true
-echo
-echo "## Modified"
-git diff --name-only --diff-filter=M "${BASE}...HEAD" | sed 's/^/- /' || true
-echo
-echo "## Removed"
-git diff --name-only --diff-filter=D "${BASE}...HEAD" | sed 's/^/- /' || true
+git log --no-merges --format='- %s' "${base}..HEAD"
 echo
 echo "## Files changed"
-git diff --name-status "${BASE}...HEAD" | awk '{print "- "$0}'
+git diff --name-status "${base}...HEAD" | awk '{print "- "$0}'
 echo
 echo "## Testing"
-echo "- Commands run:"
-echo "- Results:"
+echo "- Add commands run and outcomes."
 echo
-echo "## Risks / Notes"
-echo "- Add known tradeoffs and follow-ups."
+echo "## Performance impact"
+echo "- Bundle delta:"
+echo "- Build time delta:"
+echo "- Lighthouse/API/DB:"
+echo
+echo "## Risk / Notes"
+echo "- Add tradeoffs and follow-ups."
