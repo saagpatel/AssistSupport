@@ -115,7 +115,7 @@ cd ../..
 soffice --headless --convert-to pdf --outdir docs/deck docs/deck/AssistSupport-LinkedIn-Live.pptx
 
 # If soffice is not on PATH in Codex, use the bundled runtime binary
-/Users/d/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/soffice \
+~/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/soffice \
   --headless \
   --convert-to pdf \
   --outdir docs/deck \

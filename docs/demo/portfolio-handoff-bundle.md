@@ -71,7 +71,7 @@ separate screenshot-regeneration pass.
 Deck PDF regeneration command used on this workstation:
 
 ```bash
-/Users/d/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/soffice \
+~/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/soffice \
   --headless \
   --convert-to pdf \
   --outdir docs/deck \
