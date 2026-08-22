@@ -86,7 +86,7 @@ tempfile = "3"
 parking_lot = "0.12"
 image = "0.25"
 once_cell = "1"
-zip = "2"
+zip = "8"
 
 [features]
 default = ["custom-protocol"]
