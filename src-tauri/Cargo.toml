@@ -47,7 +47,7 @@ llama-cpp-2 = "0.1"
 
 # Embeddings & Vectors
 lancedb = "0.30.0"
-arrow = "58.3"
+arrow = "59.1"
 arrow-array = "58.3"
 arrow-schema = "58.3"
 
