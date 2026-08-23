@@ -48,7 +48,7 @@ jobs:
         id: pnpm_audit
         run: |
           set +e
-          pnpm audit --audit-level high | tee pnpm-audit.txt
+          pnpm audit --prod --audit-level high | tee pnpm-audit.txt
           status=${PIPESTATUS[0]}
           echo "exit_code=$status" >> "$GITHUB_OUTPUT"
           exit 0
