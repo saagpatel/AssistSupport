@@ -33,7 +33,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rusqlite = { version = "0.32", features = ["bundled-sqlcipher", "bundled-sqlcipher-vendored-openssl"] }
 
 # Security
-aes-gcm = "0.10"
+aes-gcm = "0.11"
 argon2 = "0.5"
 rand = "0.8"
 hex = "0.4"
