@@ -61,7 +61,7 @@ calamine = "0.36"
 
 # File Watching
 notify = "8"
-notify-debouncer-full = "0.5"
+notify-debouncer-full = "0.7"
 walkdir = "2"
 
 # Downloads
