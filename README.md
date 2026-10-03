@@ -1,6 +1,8 @@
 # AssistSupport
 
-[![Frontend Version](https://img.shields.io/badge/frontend-1.3.1-10a37f)](#) [![Desktop Version](https://img.shields.io/badge/desktop-1.3.0-10a37f)](#) [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](#) [![License](https://img.shields.io/badge/license-MIT-blue)](#) [![Core Health](https://img.shields.io/badge/core--health-gated-blue)](#) [![Coverage](https://img.shields.io/badge/diff--coverage-gated-blue)](#)
+[![Version](https://img.shields.io/badge/version-1.3.1-10a37f)](#) [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](#) [![License](https://img.shields.io/badge/license-MIT-blue)](#) [![Core Health](https://img.shields.io/badge/core--health-gated-blue)](#) [![Coverage](https://img.shields.io/badge/diff--coverage-gated-blue)](#)
+
+Known issue: the Tauri manifests (`src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`) currently lag at 1.3.0 and fail `pnpm check:version-parity` against `package.json` (1.3.1).
 
 > Your support team's second brain — ML-powered answers from your own knowledge base, in under 25ms, without sending a single query to the cloud.
 
@@ -127,14 +129,14 @@ Push your `codex/<type>/<slug>` branch and open a PR against `master`.
 
 ## Tech Stack
 
-| Layer         | Technology                                          |
-| ------------- | --------------------------------------------------- |
-| Desktop shell | Tauri 2 + Rust                                      |
-| Frontend      | React + TypeScript + Vite                           |
+| Layer         | Technology                                                                                                                         |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Desktop shell | Tauri 2 + Rust                                                                                                                     |
+| Frontend      | React + TypeScript + Vite                                                                                                          |
 | ML search     | TF-IDF + Logistic Regression intent classification; PostgreSQL FTS + pgvector retrieval; optional ms-marco-MiniLM-L-6-v2 reranking |
-| Local storage | SQLite (encrypted)                                  |
-| LLM inference | Local via llama.cpp (optional)                      |
-| Fonts         | IBM Plex Sans, JetBrains Mono                       |
+| Local storage | SQLite (encrypted)                                                                                                                 |
+| LLM inference | Local via llama.cpp (optional)                                                                                                     |
+| Fonts         | IBM Plex Sans, JetBrains Mono                                                                                                      |
 
 ## Architecture
 
