@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.3.1-10a37f)](#) [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](#) [![License](https://img.shields.io/badge/license-MIT-blue)](#) [![Core Health](https://img.shields.io/badge/core--health-gated-blue)](#) [![Coverage](https://img.shields.io/badge/diff--coverage-gated-blue)](#)
 
-Known issue: the Tauri manifests (`src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`) currently lag at 1.3.0 and fail `pnpm check:version-parity` against `package.json` (1.3.1).
+The frontend, Tauri configuration, and Rust package are aligned at 1.3.1. Run `pnpm check:version-parity` after version changes.
 
 > Your support team's second brain — ML-powered answers from your own knowledge base, in under 25ms, without sending a single query to the cloud.
 
@@ -30,7 +30,7 @@ You copy:     Paste into Jira — done in under a minute
 
 ### Prerequisites
 
-- Node.js 22.19+ (22.x) or 24+ (per the locked Vite, Vitest, jsdom, and Lighthouse requirements)
+- Node.js 22.19+ (22.x) or 24+ (per the locked Vite, Vitest, jsdom, and Lighthouse requirements); CI uses 22.19.0
 - pnpm 9+
 - Rust toolchain (stable) with Tauri v2 prerequisites for macOS
 
