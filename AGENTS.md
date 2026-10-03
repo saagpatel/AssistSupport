@@ -53,11 +53,11 @@ files or commands do not support.
 
 ## What This Project Is
 
-AssistSupport is a local-first macOS support-assistant app. It combines a Tauri desktop shell, local encrypted storage, intent classification, TF-IDF retrieval, cross-encoder reranking, and optional local LLM inference to draft grounded IT support answers from an operator-owned knowledge base.
+AssistSupport is a local-first macOS support-assistant app. It combines a Tauri desktop shell, local encrypted storage, intent classification, PostgreSQL full-text and pgvector retrieval with adaptive fusion, optional cross-encoder reranking (disabled by default), and optional local LLM inference to draft grounded IT support answers from an operator-owned knowledge base.
 
 ## Current State
 
-The repo is active product work. The README describes the intended support workflow, core search pipeline, and local privacy posture. Current local changes include unrelated dependency-lock work, so recovery edits should stay limited to documentation context unless the active branch owner explicitly broadens scope.
+The repo is active product work. The README describes the intended support workflow, core search pipeline, and local privacy posture.
 
 ## Stack
 
@@ -65,7 +65,7 @@ The repo is active product work. The README describes the intended support workf
 | ------------- | --------------------------------------------------- |
 | Desktop shell | Tauri 2 + Rust                                      |
 | Frontend      | React + TypeScript + Vite                           |
-| ML search     | TF-IDF, Logistic Regression, ms-marco-MiniLM-L-6-v2 |
+| ML search     | TF-IDF + Logistic Regression intent classification; PostgreSQL FTS + pgvector retrieval; optional ms-marco-MiniLM-L-6-v2 reranking |
 | Local storage | SQLite (encrypted)                                  |
 | LLM inference | Local via llama.cpp (optional)                      |
 | Fonts         | IBM Plex Sans, JetBrains Mono                       |
@@ -73,7 +73,7 @@ The repo is active product work. The README describes the intended support workf
 ## How To Run
 
 - Install dependencies with `pnpm install`.
-- Run the desktop development loop with `pnpm dev`.
+- Run the desktop development loop with `pnpm tauri dev`.
 - Build the Tauri app with `pnpm tauri build`.
 - Run the repo's required lint, typecheck, test, coverage, diff coverage, and docs gates before shipping behavior changes.
 
@@ -86,6 +86,6 @@ The repo is active product work. The README describes the intended support workf
 
 ## Next Recommended Move
 
-Stabilize the active dependency-lock work on the existing branch, then run the repo health gates before any release or security claim.
+Run the repo health gates before any release or security claim.
 
 <!-- portfolio-context:end -->
