@@ -2,8 +2,6 @@
 
 [![Version](https://img.shields.io/badge/version-1.3.1-10a37f)](#) [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](#) [![License](https://img.shields.io/badge/license-MIT-blue)](#) [![Core Health](https://img.shields.io/badge/core--health-gated-blue)](#) [![Coverage](https://img.shields.io/badge/diff--coverage-gated-blue)](#)
 
-Known issue: the Tauri manifests (`src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`) currently lag at 1.3.0 and fail `pnpm check:version-parity` against `package.json` (1.3.1).
-
 > Your support team's second brain — ML-powered answers from your own knowledge base, in under 25ms, without sending a single query to the cloud.
 
 AssistSupport combines local LLM inference with a hybrid ML search pipeline to generate accurate, KB-informed IT support responses. A TF-IDF/logistic regression intent classifier (with keyword fallback when its model is unavailable) routes queries before PostgreSQL full-text and pgvector retrieval combine candidates through adaptive fusion. Cross-encoder reranking is an optional engine path, disabled by default and not selected by the live `/search` endpoint. The entire pipeline — app, sidecar, and model inference — runs on your machine. Core SQLite data is encrypted at rest via SQLCipher (AES-256), and token material is encrypted separately with AES-256-GCM; optional vector-search embeddings stay local but are not currently encrypted at rest when vector search is enabled. See [docs/SECURITY.md](docs/SECURITY.md) for the full security architecture.
