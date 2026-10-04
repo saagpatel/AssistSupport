@@ -9,12 +9,12 @@
 //! with restrictive permissions. Tokens are encrypted at rest with the master key.
 
 use aes_gcm::{
-    aead::{Aead, KeyInit, OsRng},
+    aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
 };
 use argon2::{Argon2, Params, Version};
 use base64::{engine::general_purpose, Engine as _};
-use rand::{Rng, RngCore};
+use rand::{rngs::OsRng, Rng, RngCore};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
