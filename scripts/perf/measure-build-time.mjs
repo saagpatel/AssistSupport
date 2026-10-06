@@ -10,7 +10,12 @@ if (!npmExecPath) {
 }
 
 const start = Date.now();
-const result = spawnSync(process.execPath, [npmExecPath, "run", "build:ui"], {
+const isJavaScriptCli = /\.[cm]?js$/i.test(npmExecPath);
+const command = isJavaScriptCli ? process.execPath : npmExecPath;
+const args = isJavaScriptCli
+  ? [npmExecPath, "run", "build:ui"]
+  : ["run", "build:ui"];
+const result = spawnSync(command, args, {
   stdio: "inherit",
 });
 const end = Date.now();
