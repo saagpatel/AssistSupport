@@ -39,7 +39,7 @@ jobs:
         if: matrix.language == 'javascript-typescript'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version: "20"
+          node-version: "22.19.0"
           # Deliberately no `cache: "pnpm"` here: build-mode: none does not run
           # `pnpm install`, so a cache-save step at teardown fails with "Path(s)
           # specified ... do(es) not exist".
