@@ -36,9 +36,11 @@ mkdirSync(outputDir, { recursive: true });
 
 function packageManagerArgs(commandArgs) {
   if (process.env.npm_execpath) {
+    const execPath = process.env.npm_execpath;
+    const isJavaScriptCli = /\.[cm]?js$/i.test(execPath);
     return {
-      command: process.execPath,
-      args: [process.env.npm_execpath, ...commandArgs],
+      command: isJavaScriptCli ? process.execPath : execPath,
+      args: isJavaScriptCli ? [execPath, ...commandArgs] : commandArgs,
     };
   }
 
